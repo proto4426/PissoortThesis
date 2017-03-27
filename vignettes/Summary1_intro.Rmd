@@ -1,0 +1,2089 @@
+---
+title: "Memoire1 Segers"
+author: "Antoine Pissoort"
+date: "March 6, 2017"
+output:
+  html_document: # options pour sortie HTML
+    code_folding: hide #  Cache le code  
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 5 # Hauteur par défaut des figures
+    fig_width: 6 # Largeur par défaut des figure
+    highlight: tango # style de mise en valeur du code
+    number_sections: yes # Ajout table des matières 
+    theme: united  # Style du document
+    toc: yes # Table des matière ?
+    toc_depth: 3  # Profondeur table des matière
+    toc_float: yes # table des matière flottante
+  pdf_document: # options pour sorties pdf
+    toc: yes
+    toc_depth: '3'
+  word_document: default
+bibliography: sum.bib
+---
+
+```{r setup, message=F, warning=F}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+library(magrittr) # usefull for pipe %>% operators
+library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
+library(data.table)
+library(ggplot2)
+library(gridExtra)
+
+library(evd)
+library(extRemes)
+
+source("1UsedFunc.R") # To call our created Functions, stored for better smoothness. We will name them "our" functions, to recognize them in the following.
+
+```
+
+
+The (re)-constructed functions stored in "1UsedFunc.R". We decided to show it here for completeness, but this is probably not necessary to look into this.
+```{r}
+NOMSG <- function(x) invisible(capture.output(x))  # Just to tell Rmarkdown not to print useful outputs for some objects : avoid a too long report...
+
+source("1UsedFunc.R")
+
+
+```
+
+
+
+We will mark in comments some results that are important but which would make the report too long. We will also use the created (see above) function *NOMSG()* to hide unuseful printed results of some functions.
+
+
+
+This is not linked with the further practical analysis but we decide to just put the final general (which will probably appear in the final text ?!) plot representing the 3 GEV distributions of interests. Furthermore, it will be interesting to check visually for the tail behaviour of our fitted model, $\cdots$
+
+
+```{r, fig.cap= "\\label{fig:fig1} Representation of the Densities and their tails for the 3 GEV distributions together with the normal distribution as reference (dotted)", fig.width=7, warning=F}
+'GEVdfFun' <- 
+  function (x = seq(-10, 10, length = 10^4), mu = 0, sig = 1, ksi = 0) {
+    # Manually 
+    if (ksi ==0) { dens <-  exp(-x) * exp(-exp(-x)) }
+    else 
+    s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
+    t <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1)
+    if (ksi < 0) {dens <-  s * exp(-t) * ( (x - mu)/sig  < -1/ksi ) }
+    if (ksi > 0) {dens <- sig^{-1} * s * exp(-t) * ( (x - mu)/sig  > -1/ksi ) }
+    
+ df <- data.frame(x = x, density = dens,xi = as.factor(ksi), 
+                  mu = as.factor(mu), scale = as.factor(sig))
+return(df)
+}
+
+
+
+GEVdf <- rbind(GEVdfFun(ksi = -.5), GEVdfFun(ksi = 0), GEVdfFun(ksi = .5))
+
+endpoint_w <- 0 - (1 / -0.5)
+endpoint_f <- 0 - (1 / 0.5)
+
+dens_f <- ifelse(GEVdf[GEVdf$xi == 0.5,]$density < endpoint_f, NA,
+                 GEVdf[GEVdf$xi == 0.5,]$density )
+
+GEVdf[GEVdf$xi == 0.5,]$density <- dens_f
+
+
+# Plot normal distribution in black !!!! 
+GEVdf <- cbind(GEVdf, norm = dnorm(GEVdf$x, mean = 0, sd = 1))
+
+
+GEVdf[GEVdf$density < 10^{-312}, ]$density <- NA
+
+
+pres <- labs(title = expression(paste(underline(bold('Generalized Extreme Value density')), " (µ", '=0,', sigma, "=1)")), colour = expression(paste(xi,"=")),linetype = expression(paste(xi,"=")))
+
+
+gf <- ggplot(GEVdf, aes(x = x, y = density, colour = xi )) + 
+  geom_line() + pres +  coord_cartesian(xlim = c(-6, 6)) + 
+  geom_line(aes(x = x, y = norm, col = "normal"), col = "black", linetype = 3) +
+  theme_piss(20, 15, theme_classic() ) +
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=18, face="bold")) +
+  theme(legend.key = element_rect(colour = "black")) +
+  guides(colour = guide_legend(override.aes = list(size = 2))) +
+  geom_point(aes(x = endpoint_f, y = 0),size = 3.5) + 
+  geom_point(aes(x = endpoint_w, y = 0), col="red",size = 3.5)
+
+
+gright <- ggplot(GEVdf, aes(x = x, y = density, colour = xi )) + 
+  geom_line() + pres + 
+  coord_cartesian(xlim = c(1.8, 5.5), ylim = c(0,.15)) +
+  geom_line(aes(x = x, y = norm, col = "normal"), col = "black", linetype = 3) +
+  theme_piss(18, 15, theme_minimal()) +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) + 
+  theme(axis.line = element_line(color="#33666C", size = .3)) +
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=18, face="bold")) + 
+  theme(axis.title = element_blank()) +
+  labs(title = expression(paste(bold("Right tails")))) +
+  geom_point(aes(x = endpoint_w, y = 0), col = "red", size = 3) +
+  scale_color_discrete(guide=F) 
+  
+
+gleft <- ggplot(GEVdf, aes(x = x, y = density, colour = xi )) +
+  geom_line() + pres + 
+  coord_cartesian(xlim = c(-0.8,-2.5), ylim = c(0,.2)) +
+  geom_line(aes(x = x, y = norm, col = "normal"), col = "black", linetype = 3) +
+  theme_piss(18, 15, theme_minimal()) + 
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line = element_line(color="#33666C", size = .3),
+        legend.title = element_text(colour="#33666C", 
+                                    size = 18, face="bold")) + 
+  theme(axis.title = element_blank()) +
+  labs(title = expression(paste(bold("Left tails")))) +
+  geom_point(aes(x = endpoint_f, y = 0), size = 3) + 
+  #theme(panel.border = element_rect(linetype = "dashed", colour = "black"))+
+  scale_color_discrete(guide=F)
+
+library(grid)
+vpleft <- viewport(width = 0.29, 
+                height = 0.43, 
+                x = 0.234, 
+                y = 0.42)
+vpright <- viewport(width = 0.28, 
+                   height = 0.415, 
+                   x = 0.775, 
+                   y = 0.43)
+gf 
+print(gleft, vp = vpleft)
+print(gright, vp = vpright)
+```
+*Plot the normal distribution (dotted lines) as "reference" ?*
+
+
+# Introduction and Preliminaries : Data from Uccle
+
+```{r, results=F, warning=F, eval="hide"}
+#################### Uccle ################
+###########################################
+
+# From 1833. Free dataset from the KNMI
+TX_public <- read.csv("TX Uccle public.csv")
+TX_public$TX <- TX_public$TX/10
+
+## From IRM
+
+TXTN_open <- read.csv('Uccle TX TN 1901.csv',sep="")
+setnames(TXTN_open,"DAY","Date")
+
+TXTN_closed <- read.csv('Uccle TX TN 1901 closed shelter.csv',sep="")
+setnames(TXTN_closed,"DAY","Date")
+#TXTN_closed$Date <- as.Date(TXTN_closed$Date)
+#save(TXTN_closed,file="TXTN_closed.R")
+TXTN_closed$day <- substr(TXTN_closed$Date,7,8)
+TXTN_closed$month <- as.numeric(substr(TXTN_closed$Date,5,6))
+TXTN_closed$year <- substr(TXTN_closed$Date,1,4)
+
+
+# Retrieve seasons  with our function
+#Of course, we are based on meteorological seasons 
+TXTN_closed$season <- sapply(TXTN_closed$month, function(x) func_season(x))
+
+
+
+##### Differences between the public and the IRM datasets ######
+
+# remove missing values and start from 1901
+TX_public_1901 <- TX_public[TX_public$DATE >= 19010101 & TX_public$Q_TX != 9,]
+
+TXTN_open_compare <- TXTN_open[TXTN_open$Date < 20000101, ] 
+TXTN_closed_compare <- TXTN_closed[TXTN_closed$Date < 20000101, ]
+diff_tx_open <- TX_public_1901$TX - TXTN_open_compare$TX
+diff_tx_closed <- TX_public_1901$TX - TXTN_closed_compare$TX
+
+
+library(psych)
+#describe(diff_tx_closed)
+#describe(diff_tx_open)
+
+diff_tx_open <- data.frame(diff = diff_tx_open, method = 'open')
+
+diff_tx <- rbind(diff_tx_open, 
+                 data.frame(diff = diff_tx_closed, method =  "closed"))
+#ggplot(diff_tx, aes(group = method)) + geom_boxplot(aes(y = diff, x = method))
+
+sum(equals(diff_tx_open$diff, 0.0), na.rm = T) / length(diff_tx_open$diff)
+sum(equals(diff_tx_closed, 0.0), na.rm = T) / length(diff_tx_closed)
+```
+
+These are the differences between the public data set (freely available, used by [@beirlant_statistics_2006] ) and the dataset owned by the IRM (confidential), for instance : 
+
+* 53 % of the public data is the same as the IRM with open shellter
+* Only 12 % are the same in closed closed shellter. We can thus interpret that the public dataset has probably been measured in open shellter and that the measures are not the official ones from Uccle. 
+
+Indeed, this could be problematic (...) and this seems really important to have reliable data to make relevant analysis.
+
+```{r}
+# Insert "-" in dat so as they match date values in R
+TXTN_closed$Date <- gsub('^(.{4})(.*)$', '\\1-\\2', TXTN_closed$Date)
+TXTN_closed$Date <- gsub('^(.{7})(.*)$', '\\1-\\2', TXTN_closed$Date)
+TXTN_closed$Date <- as.Date(TXTN_closed$Date)
+
+
+```
+
+We decide to do (at first?) all the further **analysis in *closed shellter* **. It is better from a climatological point of view (following the IRM). 
+
+```{r, fig.width=8, fig.height=7.5}
+
+TXTN_closed$month <- as.factor(TXTN_closed$month )
+
+############## Group temp by month 
+
+g1 <- ggplot(data = TXTN_closed, aes(group = month)) + geom_boxplot(aes(x = month, y = TX)) + theme_bw()
+# Variance is quite similar accros months
+# quite same distribution of the TX accross months
+
+library(RColorBrewer)
+# months
+g11 <- ggplot(data = TXTN_closed, aes(TX, colour = month)) +
+  geom_density(size=1.1) + theme_bw() + scale_color_discrete()
+# Note : we used same smoothing factor for all densities
+
+# seasons 
+g2 <- ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1) +
+  theme_bw() 
+
+g22 <- ggplot(data=TXTN_closed,aes(x=season,y=TX,group=season)) + geom_boxplot() +  theme_bw()
+
+grid.arrange(g11, g1, g2, g22, nrow = 2)
+```
+
+Some comments can be made here : 
+
+* Distributions accross months $\approx$ similar but it is more spread for autumn and spring months than for summer/winter months. This is because these are "transition months" ($\dots$)
+
+* Same arise for the seasons. This must already tell us that we have to be prudent regarding our modelling, e.g. for the *block-length* in GEV, or the (time-varying?) threshold in POT, $\dots$
+
+
+However, these plots are rather intuitive so it is not necessary to make it long. We could have made much more other preliminary descriptive plots but we think it is not really useful though. 
+
+
+
+
+```{r, fig.height=4 }
+max_all <- TXTN_closed$TX
+
+library(xts)
+library(dygraphs)
+library(zoo)
+xtdata0 <- xts(TXTN_closed$TX, order.by = (TXTN_closed$Date), f = 12)
+dygraph(xtdata0, main = "(Dynamic) Time series of TX in Uccle", xlab = "Date", ylab = "TX") %>% dyRangeSelector() 
+```
+
+"Dynamic" view of the series : Reduce the window length by scrolling the below cursor, for your convenience (or select directly the area with your mouse). For example here, take the minimal length to have a good visualisation (it displays ~ 2,5 years). Or select the area you want to see.
+ 
+It is particularly interesting in large time series if we want to detect something we could expect *a priori* , or if one would want to easily inspect the whole serie for his knowledge.
+Here, nothing special draws our attention. We notice this **reccurent** (and relatively homogeneous) **oscillation** through time, corresponding to the seasons. (--> **nonstationary**, see later)
+We see that this oscillation as period of 1 year (obvious), so yearly-blocks for GEV seem acceptable.
+
+
+
+# Fitting of GEV with yearly blocks 
+
+
+## Preliminaries 
+
+```{r}
+# block length : we go for the usual method of 1 year
+
+list_by_years <- split(TXTN_closed, TXTN_closed$year)
+# 116 years of data. Now we will use the function created in UsedFunc.R
+# To retrieve yearly extrema 
+
+
+####### MAX by year. We take our function to do that.
+max_years <- yearly.extrm()
+
+####### MIN by year
+min_years <- yearly.extrm(Fun = min, tmp = "TN")
+
+```
+
+Compare the two trends : for TX and for TN :
+
+*"Ugly" code for the plots in the following... you probably won't want to press on "code"*
+```{r, fig.height=7.5}
+summary(lm1 <- lm(max_years$data ~ max_years$df$Year))$Coefficient
+# p-val 5.10^-5, trend (very) significant
+lm1_1 <- lm1$coefficients[1]
+lm1_2 <- lm1$coefficients[2]
+
+lm_BL1 <- lm(max_years$data[1:75] ~ max_years$df$Year[1:75])
+lm_BL2 <- lm(max_years$data[77:116] ~ max_years$df$Year[77:116])
+
+g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() + 
+  geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
+  geom_line(data = max_years$df[max_years$df$Year %in% 1901:1975,], 
+            aes(x = Year, colour = "BrokenLinear",
+                y = predict(lm_BL1)),
+             size = 1.5, linetype = "twodash") +
+  geom_line(data = max_years$df[max_years$df$Year %in% 1977:2016,], 
+            aes(x = Year, colour = "BrokenLinear",
+                y = predict(lm_BL2)),
+            size = 1.5, linetype = "twodash") +
+  stat_smooth(method = "loess", se = F, aes(colour = 'LOESS')) + 
+  labs(title = "Complete Serie of Annual TX in Uccle") +
+  theme_piss(20, 15) +
+  theme(axis.line = element_line(color="#33666C", size = .45)) +
+  scale_colour_manual(name="Trend",
+                      values=c(Linear="blue", BrokenLinear="cyan", LOESS="red")) +  theme(legend.position = c(.888, .152)) +
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=12, face="bold"),
+        legend.background = element_rect(colour = "black"),
+        legend.key = element_rect(fill = "white")) +
+  guides(colour = guide_legend(override.aes = list(size = 2))) 
+# Red line is local polynomial regression fitting curve (loees)
+# The (optimal) default method is convenient
+
+
+###  what for the minima ??
+
+# as expected , trend is a bit less strong as for maxima 
+summary(lm_min <- lm(min_years$data ~ min_years$df$Year))
+# but it is still significant
+
+
+g2 <- ggplot(data = min_years$df, aes(x=Year,y=Min)) + geom_line() + 
+  geom_smooth(method='lm',formula=y~x) + theme_bw() +
+  stat_smooth(method = "loess", se = F, col = 'red' ) +
+   labs(title = "Complete Serie of Annual TN in Uccle") +
+  theme_piss(20, 15) +
+  theme(axis.line = element_line(color="#33666C", size = .45)) 
+
+
+## Both TX and TN on the same page 
+grid.arrange(g1, g2, nrow = 2)
+```
+
+We see with this method trend is a bit less significant upward trend for TN than for TX. The same arise for the two broked-linear trends (output not shown here).
+
+See the statistical tests to compare two trends (and for the broken-linear trend)
+
+
+We decide (for the moment?) to go on with the series of maximum temperatures ("TX")
+
+
+## MLE 
+
+We tried with $\approx$ all the packages to check the results. Obviously, these are nearly the same.
+```{r, warning=F, message=F}
+
+library(evd)
+library(extRemes)
+library(ismev)
+
+# Do it with several methods from different packages. Just to check if it is the same
+NOMSG( gev_tx <- gev.fit(max_years$data) )
+gev_tx1 <- fgev(max_years$data)
+summary(gev_tx2 <- fevd(max_years$data, units = "deg C"))
+plot(gev_tx2)
+```
+At first sight, fit seems OK 
+
+```{r}
+#ci(gev_tx2,type="parameter")
+#ci(gev_tx2,type="parameter",which.par =3,
+#   xrange=c(-.4,.1),method="proflik",verbose=TRUE)
+NOMSG( ci(gev_tx2, method="proflik", xrange=c(35,40), verbose = T) )
+#ci(gev_tx2, method="proflik", type = "parameter", which.par = 3, verbose=TRUE)
+
+#it is often better to obtain confidence intervals from the profile-likelihood method in
+#order to allow for skewed intervals that may better match the sampling df of these parameter
+
+```
+
+We can see that profile likelihood intervals are more preferable (here for return levels) because they can take into account the asymetry that is present in the likelihood surface for these kind of inferences (return levels, $\xi$, $\dots$)
+We will see more about return levels in section **2.4**
+
+NOT INTERPRETABLE FOR 100 YEARS WHEN WE (KNOW WE) ARE IN A NONSTATIONARY CONTEXT !!!! 
+Return levels represent some quantile ! 
+
+Even if one could see this as unnecessary here, we wanted to test (by LR) whether this is significant to have a bounded distribution for this process, or if the Gumbel (unbounded) could be preferable. 
+```{r}
+# Gumbel ? ie test if shape parameter is significant 
+gev_gumb <- fevd(max_years$data,type="Gumbel", units="deg C")
+# plot(gev_gumb)   # fit is well poorer
+# plot(gev_gumb,"trace")
+lr.test(gev_gumb,gev_tx2)  # p-value=0.001 --> we reject H0 that xi=0
+
+```
+We see no evidence that Gumbel distribution could be preferable.
+
+
+We wanted to implement our own own likelihood function and then optimize it manually to check if the results are the same. Moreover, it will be useful to do this for other applications (computing posterior in Bayesian analysis, Bootstrap, ...)
+
+```{r}
+gev.loglik <- function(theta, data){
+    y <- 1 + (theta[1] * (data - theta[2]))/theta[3]
+    if((theta[3] < 0) || (min(y) < 0)) {
+      ans <- 1e+06
+    } else {
+      term1 <- length(data) * logb(theta[3])
+      term2 <- sum((1 + 1/theta[1]) * logb(y))
+      term3 <- sum(y^(-1/theta[1]))
+      ans <- term1 + term2 + term3
+    }
+    ans
+}
+
+param <- c(mean(max_years$df$Max),sd(max_years$df$Max),
+            0.1 )
+# 0.1 starting value for Xi is common (~ mean of all practical applications in meteo), or see Coles
+
+dataset <- max_years$data
+nlm(gev.loglik, param, data = dataset,
+                     hessian=T, iterlim = 1e5)$estimate
+
+```
+ Comparing with the ones above, it is OK !!!
+ 
+ 
+
+Hence, we wanted to compute what is the upper endpoind of this (Weibull-typed) distribution. We remember the upper endpoint is $x_*=\mu + \sigma\cdot|\xi|^{-1}$
+
+
+```{r}
+upp_endpoint <- gev_tx1$estimate['loc'] - 
+                gev_tx1$estimate['scale'] / gev_tx1$estimate['shape']
+upp_endpoint   ;   max(max_years$data)  # OK greater than the maximum value of the data
+# estimated proba of exceeding this value will be exactly 0. : Bound for return levels
+```
+
+We see that the sample properties of this model take into account the large uncertainty from the fact that there is only 116 years of historic, and thus it permits to go beyond this maximum value (with very small probability), as we have seen with our profile-likelihood ci for return levels. 
+
+
+## Other methods of estimation ? 
+
+```{r}
+library(fExtremes)
+gev_pwm <- gevFit(max_years$data, type = "pwm")
+
+gev_lmom <- fevd(max_years$data, units = "deg C", method = "Lmoments")
+gev_gmle <- fevd(max_years$data, units = "deg C", method = "GMLE" )
+gev_bay <- fevd(max_years$data, units = "deg C", method = "Bayesian" )
+```
+
+If we look at the estimates (not shown here), they look relatively similar. However, we will get more on that later (Performance Simmulation ?)
+
+
+ 
+ 
+ 
+## Diagnostics and Return Levels
+ 
+ 
+ **Probability plot**
+```{r}
+# get order statistics
+max_order <- sort(max_years$data)
+
+#  retrieve the the empirical distribution function 
+empirical= c()
+for(i in 1:length(max_order)){
+  empirical[i] <- i/(length(max_years$data)+1)
+}
+
+# compute Distribution function of the modelled GEV
+GEV.DF <- function(data,mu,sigma,xi){
+  if(xi == 0){
+    GEV <- exp(-exp(-((data-mu)/sigma)))}
+  else{
+    GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi))}
+return(GEV)
+}
+
+model_est <- c()
+for(i in 1:length(max_order)){
+  model_est[i] <- GEV.DF(max_order[i],gev_tx1$estimate[1],
+                         gev_tx1$estimate[2],gev_tx1$estimate[3])  
+}
+gg_pp <- ggplot(data = data.frame(empirical,model_est), 
+       aes(x=empirical,y=model_est)) +
+  geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +  ggtitle("Probability plot") 
+  
+```
+
+
+**QQ-plot**
+
+```{r, fig.height=3.5}
+# Compute the quantile function (inverse of DF)
+model_quantile <- length(max_order)
+
+GEV.INV <- function(data, mu, sigma, xi){
+  if(xi==0){  INV <- mu - sigma * log(-log(1 - data))  }
+  else{ INV <- mu + (sigma/xi) * (((-log(data))^(-xi))-1)  }
+return(INV)
+}
+
+for(i in 1:length(max_order)){
+ model_quantile[i] <- GEV.INV(empirical[i], gev_tx1$estimate[1],
+                              gev_tx1$estimate[2], gev_tx1$estimate[3])
+}
+gg_qq <- ggplot(data=data.frame(model_quantile,max_order), aes(x=max_order,y=model_quantile)) +
+geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +  ggtitle("QQ-plot") 
+# Same conclusion
+grid.arrange(gg_qq,gg_pp, nrow = 1)
+
+```
+
+
+
+Fit seems quite well for this model. 
+
+CAN'T WE FIND A PVALUE TO ASSESS FOR THE QUALITY ADJUSMENT ??? or say there is not. 
+
+And what about the **Return Levels** ? 
+```{r}
+# 100-year return level ? 
+y_100 <- -(1 / log(1 - 1/100))
+r_m100 <- gev_tx1$estimate[1] + (gev_tx1$estimate[2] / gev_tx1$estimate[3]) *
+  (y_100^gev_tx1$estimate[3] - 1)
+# see eq. in the text --> here we take the estimate
+r_m100 <- GEV.INV(1 - 1/100, gev_tx1$estimate[1], gev_tx1$estimate[2], gev_tx1$estimate[3])
+# or directly by our Inverse function at survival probability. Same result
+```
+So we expect that this is the value of temperature which will be exceeded on average every 100 years.
+
+We show the output for several return periods :
+```{r, fig.height=4.5}
+return.level(gev_tx2, return.period = c(2, 10, 100, 10000))
+```
+
+* First, beware that these assume that data are stationary, while they are probably not (?).
+ We remark clearly that these inferences on return levels do not take into account
+ the (probable) climate warming, i.e. the fact that mean temperature increases slightly over time AND also the fact that extremes are more frequent in a climate change, $\dots$
+ It is problematic and we must take into account this reality. Moreover, from the shape of the return level plot (with $\xi<0$, see below), the slope is decreasing over time, see the plot below which is probably not one could expect for return levels (...) 
+ 
+* Another problem we must mention is the poor ability of prediction beyond the range the data. Having only 116 years of data, the model will be poor to estimate something which is expected to arise in 10000 years.  Indeed, one shall not expect a TX of 38deg reached only after 10,000 years... But the aim is not to predict over a so large range. 
+
+
+```{r}
+# Standard errors of the estimates by hand 
+m <- 20  # return period
+r_m <- -log(1 - (1/m))
+nabla <- matrix(ncol = 1, nrow = 3)
+nabla[1,1] <- 1
+nabla[2,1] <- -((gev_tx1$estimate[3])^(-1))*(1-(r_m^(-gev_tx1$estimate[3])))
+nabla[3,1] <- ((gev_tx1$estimate[2])*
+                 ((gev_tx1$estimate[3])^(-2))*(1-((r_m)^(-gev_tx1$estimate[3]))))-
+  ((gev_tx1$estimate[2])*((gev_tx1$estimate[3])^(-1))*
+     ((r_m)^(-(gev_tx1$estimate[3])))*log(r_m))
+#sqrt(t(nabla)%*%gev_tx1$var.cov%*%nabla)
+
+# Retrieve return period associated to prob of exceeding thresold from the fitted GEV
+proba_excess <- pextRemes(gev_tx2, q = c(25, 30, 35, 38, upp_endpoint),
+                          lower.tail = F)
+
+(proba_excess)^-1
+```
+
+These represent the probability of exceeding (= return periods) respectively 25, 30, 35, 38 and $x_*=38.77$. We see the huge difference between the two last (by factor $\approx 10^{11}$ ) because they locate in the (right) tail of the Weibull fitted process which is (very) light-tailed (and bounded), see e.g. first where the bound is less "restrictive" here ($\hat{\xi}\approx -0.25>-0.5$) and thus the tail goes a bit more far beyond (...)
+
+
+```{r}
+sum(max_years$data > 35)
+```
+Only 4 years have reached 35deg. The return period of 21.6 years found above for 35deg seems thus coherent.
+
+
+
+```{r, fig.height=4, fig.width=8}
+# See our function built in UsedFunc.R for ggplot
+gg_rl <- rl_piss(gev_tx$mle, gev_tx$cov, gev_tx$data)
+
+## Density plots 
+x <- seq(min(max_years$data)-5, max(max_years$data)+5, length = length(max_years$data))
+weib_fit_dens <- evd::dgev(x,loc = gev_tx$mle[1], 
+                           scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+
+gg_ds <- ggplot(data.frame(x,weib_fit_dens)) + stat_density(aes(x = max_years$data), geom = "line") + ggtitle("Empirical (black) vs fitted (red) density") +  
+   geom_line(aes(x = x, y = weib_fit_dens), colour = "red") + theme_piss(size_p = 5) +
+   coord_cartesian(xlim = c(25, 38)) + 
+   geom_vline(xintercept = min(max_years$data), linetype = 2) + 
+   geom_vline(xintercept = max(max_years$data), linetype = 2) + theme_piss() 
+# Red is the fitted density while black is the empirical one. 
+
+grid.arrange(gg_rl, gg_ds, nrow = 1)
+
+#gev.diag(gev_tx) # All-in-One from package *Ismev*
+```
+
+**Show the 10 in the scale for the return level**
+* Confidence bands seem not too large in the return level plot, but it increases with return period (uncertainty), especially above the range of data (116 here). We see the decreasing slope (Weibull-typed) discussed above, typical for temperature data. (...)
+
+
+
+* The second plot compare the fitted with the empirical density. We see that the fit seems relatively well. We also added vertical dotted lines representing the minimum and maximum yearly value for TX. We see that both process go beyond this range (...) Why is this for the empirical curve ??
+
+
+**Profile likelihoods intervals for parameters :**
+```{r, fig.width=8, fig.height=4, warning=F, message=F}
+#### Profile likelihood  ( For stationary model !!! )
+#gev.prof(gev_tx, 20, xlow = min(max_years$data)+7, xup = max(max_years$data))
+#gev.profxi(gev_tx,xlow=-1,xup=2)
+
+par(mfrow=(c(1,3)))
+NOMSG( plot(profile(gev_tx1), ci=c(0.95,0.99)) )
+
+
+```
+(See source of *gev.profxi()*, ismev)
+
+**Note :** 
+
+* These intervals are constructed in the following way : Search for the horizontal line Substracting the maximum log-likelihood $\ell$ half the corresponding upper quantile of the $\chi^2_{df=1}$ for df=1 parameter of interest. E.g., here for 95 and 99%, we get
+
+```{r}
+logLik(gev_tx1)[1] -0.5 * qchisq(p = 0.95, df = 1)
+logLik(gev_tx1)[1] -0.5 * qchisq(p = 0.99, df = 1)
+```
+Inded, we remark that it matches with the plots. Dotted lines are at the same ordinate for the 3 plots, but using different scales.
+
+* Even at $99\%$, the interval for $\hat{\xi}$ does not contain 0.
+* This interval does not present as much asymtries
+* Profiled intervals for the two other parameters $\mu,\sigma$ are not much important to interpret. 
+THIS COMES FROM LIKELIHOOD RATIO TESTS !!!!!!!! 
+
+
+
+
+# POT approach + Point Process
+
+For doing the analysis, we will rely mainly on *POT* package. It is a bit old ... but it still does the job.
+```{r}
+library(POT)
+```
+
+
+## Choosing the Threshold : first approaches
+
+
+**Mean Residual Life plot**
+
+```{r}
+max_all <- TXTN_closed$TX
+# u <- seq(min(max_all),max(max_all),0.01)
+# x <- c() 
+# for (i in 1:length(u)) {
+#   threshold.excess <- max_all[max_all>u[i]]
+#   x[i] <- mean(threshold.excess-u[i])
+# }
+# plot(x~u,type="l",main="MRL plot",ylab="mean excess", xlim = c(28,38), ylim = c(0,3))
+## Several methods to do this plot, from packages or by hand ....
+# mrlplot(max_all)
+# mrl.plot(max_all)
+# MeanExcess(max_all, plot = T, k =1000)
+mrl.plot(max_all, umin = 20, umax = max(max_all))  # Explore values
+
+library(evmix)
+mrlplot(max_all, tlim = c(20, max(max_all)))
+```
+
+We notice the expected decreasing behaviour for this light-tailed distribution.
+We would go for 31-32deg as threshold (?), as we see $\approx$ some linearity in mrl plot. But, this is really approximated and subjective... 
+
+
+**Selection based on stability of the estimates : TCplot**
+```{r, fig.height=5, warning=F}
+par(mfrow = (c(2,1)))
+threshrange.plot(max_all, r = c(28,35) )
+#tcplot(max_all, u.range = c(28, 35), nt = 50)
+
+tcplot(max_all)# , tlim = c(25, max(max_all)-3),  )
+
+```
+
+With these plots we could go for 32-33deg as the estimations of $\sigma$ and $\xi$ are $\approx$ stable until this. 
+Combining both methods, we would thus go for 32deg.
+
+
+SHOW THE CORRESPONDING QUANTILES IN THE PLOT ??
+
+**Dispersion Index (DI) Plot**
+
+First we must "decluster" the series with *clust()* to prevent from strong autocrrelations in this kind of series. We talk more on (de)clustering in section **4.**
+```{r }
+
+data.di <- data.frame(time = seq(1:length(max_all)), obs = max_all)
+events <- clust(data.di, u = 26, tim.cond = 20/365, clust.max = TRUE)
+#diplot(events[,-3], u.range = c(28,36) )
+
+diplot_fast(events[,-3], u.range = c(25,35), nt = 1000 )
+
+```
+
+
+We have rearranged the original *diplot()*  because there were speed problems (too much iterations in the loop, etc...)
+
+ *In theory*, if DI is significantly close to 1, the sample can be modelled by a Poisson process and the correspondent threshold is then not rejected.
+ 
+So here, we can definitively not decide from this plot (or an error occured during the computation...). Even with a tedious *trial-and-error*, we did not found anything sastifying.
+
+**L-moments Plots**
+
+```{r}
+NOMSG( lmomplot(max_all, u.range = c(25, 35), identify = T) )
+
+```
+
+As communicated by [@ribatet_users_2006], creator of the package, the interpretation of this plot is really tedious. 
+
+
+
+**Conclusion** from all these methods : 
+
+* No really clear and straightforward results. This is always a very tedious work to choose a threshold.
+* Lots of subjectivity for the actual, practical choice of $u$. When "choosing" for a threshold, we should at least study the sensitivity of the results with the (range of acceptable) thresholds.
+* Other "rules" exist, like [@scarrott_review_2012-1] which propose to take $90\%$ quantile (but it is seen as inappropriate from theory) or based on upper order statistics.
+
+From this, one could consider climatological-based threshold (30deg, which is natural in meteorology to denote hot temperature) **OR** consider other modelling (varying threshold, mixtures,..) $\Rightarrow$ see later
+
+
+## Model Fitting
+
+```{r}
+NOMSG( fit_pot1 <- gpd.fit(max_all, 30) )
+fit_pot <- fevd(max_all,threshold = 30, type="GP")   ## They use MLE by default
+# pextRemes(fit_pot,c(25,30,35,36), lower.tail = FALSE)
+
+
+gpd_mom <- fitgpd(max_all, 30, "moments")
+gpd_mle <- fitgpd(max_all, 30, "mle")
+gpd_pwmu <- fitgpd(max_all, 30, "pwmu")
+gpd_pwmb <- fitgpd(max_all, 30, "pwmb")
+gpd_pickands <- fitgpd(max_all, 30, "pickands")
+gpd_med <- fitgpd(max_all, 30, "med", start = list(scale = 2, shape = 0.1))
+gpd_mdpd <- fitgpd(max_all, 30, "mdpd") # mean power density divergence
+gpd_mple <- fitgpd(max_all, 30, "mple")
+gpd_ad2r <- fitgpd(max_all, 30, "mgf", stat = "AD2R") # maximum goodness-of-fit with modified Anderson Darling statistic
+print(rbind(mom = gpd_mom$param, mle = gpd_mle$param,pwm.unbiased =  gpd_pwmu$param, pwm.biased = gpd_pwmb$param, pickands = gpd_pickands$param, median = gpd_med$param, mdpd =  gpd_mdpd$param, MpenalizedLE =  gpd_mple$param, ad2r = gpd_ad2r$param))
+```
+There is variability in the results among the different methods available (to study...).
+Comparing the shape parameter estimation with this obtained with GEV, it is a bit more small. (must decrease threshold ?)
+
+Note that Estimators based on extreme order statistics are *Pickands* and *Moment*.
+
+
+## **Diagnostics** and **Inference** : similar as for GEV
+
+```{r}
+gpd.diag(fit_pot1) #;  plot(fit_pot)
+```
+OK 
+
+```{r}
+mleci <- gpd.fiscale(gpd_mle, conf = 0.9)
+momci <- gpd.fiscale(gpd_mom, conf = 0.9)
+pwmuci <- gpd.fiscale(gpd_pwmu, conf = 0.9)
+pwmbci <- gpd.fiscale(gpd_pwmb, conf = 0.9)
+
+print(rbind(mleci,momci,pwmuci,pwmbci))
+```
+
+```{r, results = F, eval = F}
+shape_fi <- gpd.fishape(gpd_mle)
+shape_pf <- gpd.pfshape(gpd_mle, range = c(-0.4, -0.1), conf = c(.95))
+
+```
+
+Pay attention to the weird shape of profile $\ell(\cdot)$ for shape.
+
+
+## Point - Process 
+
+```{r, fig.height=7}
+gev_pp <- fevd(max_years$data, units = "deg C", threshold = 32, 
+               type = "PP", verbose = T)
+# plot(gev_pp)
+## Beware : For non-stationary models, the density plot is not provided.
+# plot(gev_pp, "trace")
+# ci(gev_pp, type = "parameter")
+suppressWarnings(NOMSG( threshrange.plot(max_all, r = c(27, 34), nint = 20, type = "PP") ) )
+```
+
+Etc $\dots$
+
+32deg seems again a good choice regarding parameter stability estimates ($\dots$).
+
+We will see more useful applications in the follwoing (especially in the (non)stationnary context)
+
+
+## Dividing the analysis inside a year
+
+Not relevant to do POT for whole days in year. We saw that max in winter never went a yearly TX, etc...
+
+$\Rightarrow$ Can't we make better analysis on divided datasets ?
+
+
+**DIVIDING BY WINTER-SUMMER**
+
+Here we model considering "winter months" (from october to march, ie from month 10 to 03) and summer months (from april to october, ie [04-10])
+
+*We commented outputs on some descriptive statistics, etc... for convenience. But we let those available if one wants to retrieve these interesting results*
+```{r, fig.width=8, fig.height=6.5}
+
+
+TXTN_closed_s <- TXTN_closed[TXTN_closed$month %in% c(4, 5, 6, 7, 8, 9),]
+TXTN_closed_w <- TXTN_closed[TXTN_closed$month %in% c(1, 2, 3, 10, 11, 12),]
+
+# describe(TXTN_closed_s) 
+# describe(TXTN_closed_w)
+
+TXTN_closed_s <- data.frame (TXTN_closed_s, period = "1")
+TXTN_closed_w <- data.frame (TXTN_closed_w, period = "0")
+TXTN_closed_ws <- rbind(TXTN_closed_w, TXTN_closed_s)
+
+# ggplot(TXTN_closed_ws, aes(x = TX, col = period)) +
+#   geom_density() + theme_bw()
+
+gX <- ggplot(TXTN_closed_ws, aes(x = period, y = TX)) + geom_boxplot()
+gN <- ggplot(TXTN_closed_ws, aes(x = period, y = TN)) + geom_boxplot()
+# grid.arrange(gX, gN, nrow = 1)
+
+
+## Retrieve the pertaining datasets w and s, enabling compute max/min for "seasons" (w or s)
+list_years_w <- split(TXTN_closed_w,TXTN_closed_w$year)
+list_years_s <- split(TXTN_closed_s,TXTN_closed_s$year)
+
+
+######    WINTER  
+
+max_w <- yearly.extrm(list_years_w)
+# Replace the last value which is too low as TX for winter did not occur
+max_w$df[116,]$Max <- mean(max_w$df$Max[110:115])
+
+# summary(lm_w <- lm(max_w$df$Max ~ max_w$df$Year))
+# 
+# ggplot(data = max_w$df, aes(x = Year,y = Max)) + geom_point() +theme_bw()
+# ggplot(data = max_w$df, aes(x = Max)) + geom_histogram() +theme_minimal()
+# ggplot(data = max_w$df, aes(x = Max)) + geom_density() +theme_bw()
+
+#####    SUMMER 
+
+max_s <- yearly.extrm(list_years_s)
+
+
+# summary(lm_s <- lm(max_s$df$Max ~ max_s$df$Year))
+## As expected, we remark that trend is heavier and "more significant"
+## in summer months for TX than in winter months
+
+# ggplot(data = max_s$df,aes(x = Year, y = Max)) + geom_point() +theme_bw()
+# ggplot(data = max_s$df,aes(x = Max)) + geom_histogram() +theme_minimal()
+# ggplot(data = max_s$df,aes(x = Max)) + geom_density() +theme_bw()
+
+
+## Comparisons 
+ggw <- ggplot(data = max_w$df, aes(x = Year, y = Max)) + geom_line(size = 0.3) + 
+  geom_smooth(method='lm',formula = y~x, size = 0.5) +
+  stat_smooth(method = "loess", se = F, col = 'red', size = 0.5) +
+  ggtitle("TX For Winter months [10-03]") + 
+  theme_piss(14, 12) +
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=12, face="bold")) +
+  theme(axis.text.x = element_text(size = 5)) + 
+  theme(axis.text.y = element_text(size = 5))
+
+ggs <- ggplot(data = max_s$df ,aes(x = Year,y = Max)) + geom_line(size = 0.3) + 
+  geom_smooth(method = 'lm',formula = y~x, size = 0.5) + 
+  stat_smooth(method = "loess", se = F, col = 'red', size = 0.5) +
+  ggtitle("TX For Summer months [04-09]") +
+  theme_piss(14, 12) + 
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=12, face="bold")) +
+  theme(axis.text.x = element_text(size = 5)) + 
+  theme(axis.text.y = element_text(size = 5))
+
+
+
+###################     For MINIMA     ##############################
+
+## Retrieve the minmimum for datasets w and s
+## "Winter"" 
+
+min_w <- yearly.extrm(list_years_w, Fun = min, tmp = 'TN')
+
+
+# summary(lm_w_min <- lm(min_w$df$Min ~ min_w$df$Year))
+# 
+# ggplot(data =min_w$df ,aes(x = Year, y = Min)) + geom_line() + 
+#   geom_smooth(method = 'lm',formula = y~x) + theme_bw() +
+#   stat_smooth(method = "loess", se = F, col = 'red')
+# 
+# ggplot(data = min_w$df, aes(x = Year, y = Min)) + geom_point() + theme_bw()
+# ggplot(data = min_w$df, aes(x = Min)) + geom_histogram() + theme_minimal()
+# ggplot(data = min_w$df, aes(x = Min)) + geom_density() + theme_bw()
+
+## "Summer""
+
+min_s <- yearly.extrm(list_years_s, Fun = min, tmp = "TN")
+
+
+# summary(lm_s_min <- lm(min_s$df$Min ~ min_s$df$Year))
+
+
+# ggplot(data = min_s$df, aes(x = Year,y = Min)) + geom_point() +theme_bw()
+# ggplot(data = min_s$df, aes(x = Min)) + geom_histogram() +theme_minimal()
+# ggplot(data = min_s$df, aes(x = Min)) + geom_density() +theme_bw()
+
+
+gmin.w <- ggplot(data =min_w$df ,aes(x = Year, y = Min)) + geom_line(size = 0.3) + 
+  geom_smooth(method = 'lm', formula = y~x, size = 0.5) +
+  stat_smooth(method = "loess", se = F, col = 'red', size = 0.5) + 
+  ggtitle("TN for winter months [10-03]") +
+  theme_piss(14, 12) + 
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=12, face="bold")) +
+  theme(axis.text.x = element_text(size = 5)) + 
+  theme(axis.text.y = element_text(size = 5))
+
+gmin.s <- ggplot(data = min_s$df, aes(x = Year, y = Min)) + geom_line(size = 0.3) + 
+  geom_smooth(method = 'lm', formula = y~x, size = 0.5) + 
+  ggtitle("TN for summer months [04-09]") +
+  stat_smooth(method = "loess", se = F, col = 'red', size = 0.5) +
+  theme_piss(14, 12) +
+  theme(legend.title = element_text(colour="#33666C", 
+                                    size=9, face="bold")) +
+  theme(axis.text.x = element_text(size = 5)) + 
+  theme(axis.text.y = element_text(size = 5))
+
+
+#### All 
+grid.arrange(ggw, ggs,gmin.w, gmin.s, nrow = 2)
+
+
+var(max_s$data)  ;  var(max_w$data)  ;  var (min_s$data)  ;  var(min_w$data)
+```
+
+We see that the variance well more for minima in winter than in summer months, etc...
+
+Here, we have plotted the **yearly** extremes, so it is relevant regarding an analysis with GEV. However, if we plot the complete series (for POT) we see that there is still a seasonnal (non-stationnary) pattern. (see later)
+
+```{r}
+## Or more convenient to work with NEGATED data for TN, for further analysis 
+
+neg_min_s <- min_s$df   ;   neg_min_s$negMin <- -neg_min_s$Min
+neg_min_w <- min_w$df   ;   neg_min_w$negMin <- -neg_min_w$Min
+
+gnegmin.w <- ggplot(data = neg_min_w ,aes(x = Year, y = negMin)) + geom_line() + 
+  geom_smooth(method = 'lm', formula = y~x) + theme_bw() +  theme_piss(14, 12) +
+  stat_smooth(method = "loess", se = F, col = 'red') + ggtitle("Min for winter months") 
+gnegmin.s <- ggplot(data = neg_min_s, aes(x = Year, y = negMin)) + geom_line() + 
+  geom_smooth(method = 'lm', formula = y~x) + ggtitle("Min for summer months") +   theme_piss(14, 12) +
+  stat_smooth(method = "loess", se = F, col = 'red')
+# grid.arrange(gnegmin.w, gnegmin.s, nrow = 2)
+
+################# 
+# As expected, the trend is (slightly) heavier for TX in warm months
+#  and heavier for TN in cold month. Test if it is really significant
+
+# summary(glm(TXTN_closed_ws$TX ~ max_s$df$Year * TXTN_closed_ws$period))
+# summary(lm(TXTN_closed_ws$TX~TXTN_closed_ws$period * TXTN_closed_ws$year))
+# summary(lm(TXTN_closed_ws$TX~TXTN_closed_ws$period))
+```
+
+Well, there is a plenty of different ways of dealing with the analysis.
+
+Again, one could want to test (difference in slopes,...) between some of these results. For example, if slope is heaier in TX of summer months or TN of winter months, ...
+
+
+**Division on the 4 real seasons separately**
+Plot of the first 1000 obserations of the whole series :
+```{r, fig.width=8}
+# ggplot(TXTN_closed[1:2000, ]) + geom_point(aes(x = Date, y = TX))  # change value
+# As we have seen, strong reccurent pattern occurs
+
+
+TXTN_cl_wint <- TXTN_closed[TXTN_closed$season == "Winter", ]
+TXTN_cl_spring <- TXTN_closed[TXTN_closed$season == "Spring", ]
+TXTN_cl_summ <- TXTN_closed[TXTN_closed$season == "Summer", ]
+TXTN_cl_autu <- TXTN_closed[TXTN_closed$season == "Autumn", ]
+
+# Add column which allows to retrieve the index for plotting
+TXTN_cl_wint <- cbind(TXTN_cl_wint, index = 1:nrow(TXTN_cl_wint))
+TXTN_cl_spring <- cbind(TXTN_cl_spring, index = 1:nrow(TXTN_cl_spring))
+TXTN_cl_summ <- cbind(TXTN_cl_summ, index = 1:nrow(TXTN_cl_summ))
+TXTN_cl_autu <- cbind(TXTN_cl_autu, index = 1:nrow(TXTN_cl_autu))
+
+ga <- ggplot(TXTN_cl_autu[1:1000,]) + geom_point(aes(x = index, y = TX)) + 
+  ggtitle("TX For autmun") + theme_piss(14,12)
+gw <- ggplot(TXTN_cl_wint[1:1000,]) + geom_point(aes(x = index, y = TX)) + 
+  ggtitle("TX for winter") + theme_piss(14,12)
+gs <- ggplot(TXTN_cl_spring[1:1000,]) + geom_point(aes(x = index, y = TX)) +
+  ggtitle("TX for spring") + theme_piss(14,12)
+gsu <- ggplot(TXTN_cl_summ[1:1000,]) + geom_point(aes(x = index, y = TX)) +
+  ggtitle("TX for summer") + theme_piss(14,12)
+# (change)
+grid.arrange(ga, gw, gs, gsu)
+# Not sufficient to model seasons separately
+
+```
+
+Here we see that the reccurrent seasonnal pattern still holds ($\Rightarrow$ non-stationnarity) and it is more strong for autumn and spring (intuitive, these are "transition months")
+
+
+**Warmest months for TX : July and Augustus** and 
+
+**Coolest months for TN : Januari and Februari**
+
+We represent here the first 2000 observations of the whole series :
+```{r, fig.width=8, fig.height=3.5}
+txtn_cl_warm <- TXTN_cl_summ[TXTN_cl_summ$month %in% c(7,8), -8 ] 
+txtn_cl_warm <- cbind(txtn_cl_warm, index = 1:nrow(txtn_cl_warm))
+
+gw <- ggplot(txtn_cl_warm[1:2000,]) + geom_line(aes( x = index, y = TX)) +
+  ggtitle("TX for July and August") +
+  geom_hline(yintercept = mean(txtn_cl_warm$TX), col= "red") + theme_piss()
+
+
+list_years_w <- split(txtn_cl_warm, txtn_cl_warm$year)
+yearl_ext_warm <- yearly.extrm(list_years_w)
+#summary( gev_warm <- fevd(yearl_ext_warm$data, units = "deg C") )
+
+
+######### Coolest months for TN (Januari and februari) #############
+         ######################
+
+txtn_cl_cool <- TXTN_cl_wint[TXTN_cl_wint$month %in% c(1,2), -8 ]
+txtn_cl_cool <- cbind(txtn_cl_cool, index = 1:nrow(txtn_cl_cool))
+
+gc <- ggplot(txtn_cl_cool[1:2000, ]) + geom_line(aes( x = index, y = TN)) +
+  ggtitle("negated TN for Januari and Februari") +
+  geom_hline(yintercept = mean(txtn_cl_cool$TN), col= "red") + theme_piss()
+
+### Change sign of the values and work with maxima ! 
+tn_cl_cool_neg <- txtn_cl_cool
+tn_cl_cool_neg$TN <- -(tn_cl_cool_neg$TN)
+list_years_c <- split(tn_cl_cool_neg, tn_cl_cool_neg$year)
+yearl_ext_cool <- yearly.extrm(list_years_c, Fun = min, tmp = "TN")
+#summary( gev_cool <- fevd(yearl_ext_cool$data, units = "deg C") )
+
+grid.arrange(gw, gc, nrow = 1)
+```
+
+Here, we remark with this method that assumption of stationarity is much more fulfilled (at least, regarding seasonnality). However, we must also think about the loss of information ...
+
+
+For all these results, it is for sure interesting to see and to compare the results of a POT or GEV fitting to these sub-analysis (not shown here).
+
+Example code :
+*Results are hidden*
+```{r, results=F, eval=F}
+###############################################################################
+##################    POT taken on divided datasets   ########################
+#############################################################################
+library(fExtremes)
+
+TX_all_s <- TXTN_closed_s$TX
+TX_all_w <- TXTN_closed_w$TX
+
+############# max TX on summer dataset
+
+threshrange.plot(TX_all_s, r = c(25,35))
+
+# mean residual life plot 
+u <- seq(min(TX_all_s),max(TX_all_s),0.01)
+x <- c() 
+for (i in 1:length(u)) {
+  threshold.excess <- TX_all_s[TX_all_s > u[i] ]
+  x[i] <- mean(threshold.excess - u[i])
+}
+plot(x~u,type="l",main="MRL plot",ylab="mean excess")
+mrl.plot(TX_all_s)  # Decreasing : we have LTE distribution (xi negative)
+# Let's go for 32-34deg as threshold, as see ~some linearity in mrl plot
+
+above_thres_s <- TX_all_s[TX_all_s>32]
+
+fit_pot_s_1 <- gpd.fit(TX_all_s,32)
+gpd.diag(fit_pot_s_1)
+fit_pot_s_11 <- fevd(TX_all_s,threshold = 32,type="GP")
+plot(fit_pot_s_11)
+pextRemes(fit_pot,c(25,30,35,36),lower.tail = FALSE)
+
+##########################
+par(mfrow=c(2,1))
+acf(above_thres_s,lag.max = length(above_thres_s))
+pacf(above_thres_s,lag.max = length(above_thres_s))
+# This clearly increase when we decrease the threshold...
+
+plot(above_thres_s[1:length(above_thres_s)-1],above_thres_s[2:length(above_thres_s)])
+# Very slight sign of dependence when we take only summer months...
+
+```
+
+
+Now, let's go further with the problem of dependence.
+
+
+
+# (Non)-stationnary Analysis
+
+## Stationnarity
+
+Now, we relax the indepence assumption ( with $D(u_n)$ condition, ...)
+
+First, we check the autcorrelations in the series (hidden results)
+```{r,results=F, eval=F}
+## Detect autocorrelation/dependence for GEV
+
+acfpacf_plot(max_years$data)  # See our source code for this function
+# We can detect/suspect the seasonality with the ~harmonic oscillation
+# For block maxima,as expected, autocorrelation is weak (but present!)
+
+plot(max_years$data[1:length(max_years$data) - 1],
+     max_years$data[2:length(max_years$data)])
+# Seems really independent. For GEV, it is "okay"
+
+## For POT
+
+acfpacf_plot(above_30$TX)
+
+# Auto-Tail Dependence Function : see extReme 2.0 pdf  (for bivariate series...)
+atdf(max_all,0.99) # O.95 is u in F^-1(u) over which we compute atdf
+# u close to 1 but high enough to incorporate enough data. 
+
+```
+
+Then, we have remarked that there is really a clustering of the exceedances.
+
+
+```{r}
+extremalindex(max_all, threshold = 30) # Method interval was from Segers !!
+# obviously, the dependence increase (= theta decreases) as threshold decreases because there are more extremes
+```
+
+The extremes are expected to cluster by group of mean size $0.42^{-1}\approx 2$
+
+
+We represent this by the series above the threshold of 30deg :
+```{r}
+above_30 <- TXTN_closed[TXTN_closed$TX>30,]
+
+ggplot(above_30, aes(x = Date, y = TX)) + geom_point() + theme_piss(25,14) +
+  labs(title = "TX above 30°c") +
+  theme(axis.line = element_line(color="#33666C", size = .45))  +
+  geom_vline(aes(xintercept = as.numeric(as.Date("1911-07-27"))), 
+             col = "red", size = 0.15) +
+  geom_vline(aes(xintercept = as.numeric(as.Date("1976-06-30"))), 
+             col = "red", size = 0.15) 
+
+```
+
+We can clearly see that the clustering occurs. We found interesting to highlight that with 2 heat waves occuring in 1911 and 1976. It is shown with the red lines where we see lot of points lying on this line
+
+
+
+
+Point Process model allows to control for the cluster max
+```{r}
+pot_control_pp <- fpot(max_all, model = "pp",threshold = 30, cmax = T, r = 0,
+      start = list(loc = 30, scale = 1, shape = 0), npp = 365.25 )
+```
+
+
+## Non-stationnarity
+
+
+We test for a linear trend in the location parameter $\mu$.
+```{r}
+## Intro
+
+# lmm <- lm(TXTN_closed$TX ~ TXTN_closed$Date * TXTN_closed$season)
+# lm0 <- lm(TXTN_closed$TX ~ TXTN_closed$season )
+# lm1 <- lm(TXTN_closed$TX ~ TXTN_closed$season + TXTN_closed$Date)
+# 
+# df <- data.frame(obs = TXTN_closed$TX[1:1500], season = predict(lm0)[1:1500],
+#                  season_trend = predict(lm1)[1:1500], interac = predict(lmm)[1:1500],
+#                  Date = TXTN_closed$Date[1:1500])
+# 
+# ggplot(df) + geom_point(aes(x = Date, y = obs)) + 
+#   geom_line(aes(x = Date, y = season, colour = "red")) + 
+#   geom_line(aes( x = Date, y = season_trend, colour = "blue")) + 
+#   geom_line(aes(x = Date, y = interac, colour = "green"))
+
+
+###############   GEV   ###########################
+
+# We have seen this reccurent pattern... First, simple linear trend ?
+# As we have seen with the LR on all the TX, we expect this to be 
+# significatie here too (?!)
+
+ti <- matrix (ncol = 1, nrow = length(max_years$data))
+ti[ ,1] <- seq(1, length(max_years$data),1)
+NOMSG ( gev_nonstatio <- gev.fit(max_years$data, ydat = ti , mul = 1) )
+# Value of b_1 is ~~the same than this obtained with linea regression 
+NOMSG( gev_statio <- gev.fit(max_years$data) )
+khi.obs <- 2 * ( (-gev_nonstatio$nllh[1]) - (-gev_statio$nllh[1]) )
+q05 <- qchisq(.05, df = 1, lower.tail = F)
+# It is significant.  P-val ? 
+pval <- pchisq(khi.obs, df = 1, lower.tail = F)
+
+require(pander) 
+pander(data.frame(khi.obs = khi.obs, quantileChi2 = q05, p.valeur = pval))
+```
+Not exactly the same as with LR, but same result : we ("highly") prefer the linear trend model compared with the stationnary model.
+
+
+ More complex model ? 
+
+```{r}
+ti2 <- matrix(ncol = 2, nrow = length(max_years$data))
+ti2[ ,1] <- seq(1, length(max_years$data), 1)
+ti2[ ,2] <- (ti2[,1])^2
+
+NOMSG( gev_nonstatio2 <- gev.fit(max_years$data, ydat = ti2, mul = c(1, 2)) ) 
+
+pval2 <- pchisq(2 *( (-gev_nonstatio2$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1, 
+       lower.tail = F)
+pander(data.frame(p.valeur = pval2, significance = "NO"))
+```
+
+Comparing with the $\chi^2$ as above, it is not statisticaly necessary to have more complex model like this.
+
+It is the same result for higher terms in the polynomial. It is not useful to increase complexity in this manner. However, we will see in section **5.** if there would not be more complex nonlinear patterns.
+
+
+**Diagnostics** of the retained model
+```{r, fig.width=7}
+#gev_nonstatio$mle
+gev.diag(gev_nonstatio)
+```
+
+Problem for high quantiles (as "usual")
+
+**Return levels**, which are the  for model with linear trend. m = 10
+
+```{r, fig.width=3.5, fig.height=3.5}
+
+rl_10_lin <- return.lvl.nstatio(max_years$df$Year,      # See  UsedFunc.R
+                                gev_nonstatio, t = 500, m = 10)
+```
+
+We Note the Increase of the return level with time (due to trend)
+With this kind of trend, in 300 years we will " expect to exceed the value of 40deg every 10 years in Uccle". Or in 100 years for the value of 35deg
+
+However, caution should be exercised in practice concerning whether or not it is believable
+for the upward linear trend in minimum temperatures to continue to be valid
+
+And what if we started the analysis at year (around) 1965 ? When the data became more reliable and the global warming started to "appear" ....
+
+```{r, fig.width=3.5, fig.height=3.5}
+ti_65 <- matrix (ncol = 1, nrow = 51)
+ti_65[ ,1] <- seq(66, 116, 1)
+NOMSG( gev_nstatio_65 <- gev.fit(max_years$data[66:116], ydat = ti_65 , mul = 1) )
+rl_10_lin65 <- return.lvl.nstatio(max_years$df$Year[66:116],
+                                 gev_nstatio_65, t = 500, m = 10) # 1UsedFun.R
+```
+
+Here, the interpretation is : for a return period of 10 years, the expectation of 40deg will be reached after less than 200 years...
+
+However, we recall again that it is not reliable to make so far inferences with a so small amount of data. This is just to higlight the fact that a simple linear trend model is a bit weak... And some adjustments has to be made.
+
+These examples also highlight the fact that return levels are not very accurate in a (simple) nonstationnary context (...)
+
+**Trend + varying scale parameters**
+
+We use an exponential link to ensure $\sigma>0$.
+
+```{r}
+ti_sig <- matrix(ncol = 2, nrow = length(max_years$data))
+ti_sig[,1] <- ti_sig[,2]  <- seq(1, length(max_years$data), 1)
+NOMSG( gev_nstatio3 <- gev.fit(max_years$data, ydat = ti_sig , mul = 1,
+                        sigl = 2, siglink = exp) ) 
+pchisq(2 * ( (-gev_nstatio3$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1,
+       lower.tail = F)
+
+```
+
+P-value tells us that no reasons to vary scale param with time.  But **Problem** in the p-value : complex model with dependent $\sigma$ is not correct. Investigate but result will be the same.
+
+**Seasonal model**
+
+```{r, fig.width=7.5}
+ti_seas <- matrix(ncol = 2, nrow = length(max_years$data))
+ti_seas[ ,1] <- seq(1, length(max_years$data), 1)
+ti_seas[ ,2] <- rep(1:4, length(max_years$data)/4)
+
+
+t <- 1:length(TXTN_closed$TX)
+
+# seas_effect <- sin(2 * pi * t / 365.25)
+# summary(lm_seas_sin <- lm(TXTN_closed$TX ~ seas_effect))
+
+## Better to use nonlinear model But Beware of the complexity.... 
+
+nls.mod <- nls(max_all  ~ a + b * cos(2*pi*t/365.25 - c), 
+               start = list(a = 1, b = 1, c = 1))
+co <- coef(nls.mod) 
+f <- function(x, a, b, c) {a + b*cos(2*pi*x/365.25 - c) }
+
+ggplot(cbind.data.frame(TXTN_closed[1:5000, ], pred = predict(nls.mod)[1:5000])) + 
+  geom_point(aes(x = Date, y = TX), size = 0.4) + geom_line(aes(x = Date, y = pred), col = "red") +
+  ggtitle("5000 first obs. with non linear model (red) for the seasons") + theme_piss(15,14)
+
+```
+
+We see that this "model" seems perfect to capture the seasonal effect in our series.Further, there are many possibilities to use that.
+
+
+### POT 
+
+**Varying Threshold**
+
+Here, we will use the nonlinear model which seems accurate for modelling the seasons. Furthermore, one can easily assume these seasonnal effects are constant over time.
+
+```{r}
+u <- predict(nls.mod)  # see the seasonal model above
+NOMSG( gpd_varu <- fevd(TX, TXTN_closed, threshold = u, verbose = T,
+                 type = "GP", time.units = "365/year", units = "deg C") )
+print(gpd_varu$results$par) ;  print(gpd_varu$results$hessian)
+```
+
+While shape parameter $\xi$ looks very similar (good news) to the previous modelling, scale parameter is slightly different. This is not surprizing while $\sigma=\sigma_u$ is dependent of the threshold in a POT context.
+
+```{r}
+above_u <- TXTN_closed  ;    above_u$exceed <- above_u$TX - u
+above_u1 <- above_u[above_u$exceed>0,]
+ggplot(above_u1[1:2000, ], aes(x = Date, y = TX)) + geom_point() + ggtitle("First 2000 OBS of the series from the nonlinear seasonnal model") + theme_piss(15, 13)
+
+nrow(above_u1)
+```
+
+Lots of exceedances here (> 20000) and thus the seasonnal effects looks to still be there. (...)
+
+Let's now play with the "intercept" of the model 
+
+**Heavier threshold** in the seasonnal model 
+
+(Study bias-variance tradeoff wrt u for the choice)
+
+We increase the threshold. as this allows us to manage the number of thresholds
+
+```{r,fig.height=6.5}
+nls.mod1 <- nls(max_all + 10 ~ a + b * cos(2 * pi * t / 365.25 - c), 
+               start = list(a = 1, b = 1, c = 1))
+above_u$exceed_red <-  above_u$TX - predict(nls.mod1)
+above_ured <- above_u[above_u$exceed_red > 0, ]
+
+g1 <- ggplot(cbind.data.frame(TXTN_closed[1:5000, ], pred = predict(nls.mod1)[1:5000])) + ggtitle("Higher seasonnal varying threshold") + theme_piss(19, 14) + 
+  geom_point(aes(x = Date, y = TX), size = 0.4) + geom_line(aes(x = Date, y = pred), col = "red")
+
+g2 <- ggplot(above_ured, aes(x = Date, y = TX)) + geom_point() + ggtitle("Excesses from this model") + theme_piss(19,14) + 
+  geom_smooth(method = "lm",formula = y~x) + 
+  geom_vline(aes(xintercept = as.numeric(as.Date("1911-07-27"))), 
+             col = "red", size = 0.3) +
+  geom_vline(aes(xintercept = as.numeric(as.Date("1976-06-30"))), 
+             col = "red", size = 0.3) 
+
+grid.arrange(g1, g2, nrow = 2)
+```
+
+Smaller excesses in the end, but heavier excess in the start. That is why this linear (no very informative) trend is slightly decaying. 
+
+Moreover, the **problem of clustering** is still present, but we can have now excesses coming from all seasons (including winter but more for autumns and spring) (investigate)
+
+One can remark for example the same clusters that we noticed above (in red) representing the heat waves in 1911 and 1976 (...)
+
+
+```{r}
+table(above_ured$year) 
+nrow(above_ured)
+```
+
+We clearly see there are more extremes in the end of the series. The total number of exceedances (319) can be tuned.
+
+
+```{r}
+NOMSG( gpd_varu_red <- fevd(TX, TXTN_closed, threshold = predict(nls.mod1), 
+                     verbose = T, type = "GP", time.units = "365/year", units = "deg C") )
+# plot(gpd_varu_red)
+NOMSG( gpd_varu_red <- gpd.fit(max_all, predict(nls.mod1)) ) ; gpd_varu_red$mle
+gpd.diag(gpd_varu_red)
+```
+
+Again the problem for very high quantiles, but model seems okay. MLE's are comparable with those previously obtained (varying with $u$ for $\sigma$ but constant in theory for $\xi$)
+....
+
+
+**Declustering**
+
+We have seen the clusters of exceedances are still appearing in this model. 
+
+```{r}
+extremalindex(max_all, threshold = predict(nls.mod1), method = "intervals") 
+```
+
+Indeed, this is far from the independent series... and exceedances are expected to cluster by groups of mean size $\theta^{-1}\approx$ 3 here !!!
+
+
+```{r}
+# Here, in PP,  value for threshold must be fixed....
+# fpot(max_all, model= "pp", threshold = predict(nls.mod1), cmax = T, r = 0,
+#      start = list(loc = 30, scale = 1, shape = 0), npp = 365.25 )
+
+invisible( unique(decl_varu <- clusters(max_all,u = predict(nls.mod1), cmax = T, rlow = 0)) )
+# change value of parameters, this is probably not optimal.
+
+df_decl <- data.frame(index = names(decl_varu), TX = unname(decl_varu))
+retr_date <- TXTN_closed$Date[rownames(TXTN_closed) %in% as.character(df_decl$index) == T ]
+df_decl <- cbind.data.frame(df_decl, Date = retr_date)
+
+ggplot(df_decl, aes(x = Date, y = TX)) + geom_point() + ggtitle("Declustered series") + theme_piss(20, 14) +   geom_vline(aes(xintercept = as.numeric(as.Date("1911-07-27"))), 
+             col = "red", size = 0.3) +
+  geom_vline(aes(xintercept = as.numeric(as.Date("1976-06-30"))), 
+             col = "red", size = 0.3)
+```
+
+The series seems much more interesting now ! The clustering (see again red lines) and thus dependence is more present, but this seems well visually "better" now, in the sense that we use the whole series. We can also manage (hyper)parameters to obtain "better" results. 
+
+Investigate ! Moreover, the complexity of the model should not be appreciated. Overfitting, ...
+
+
+### Point Process 
+
+this is also possible to do these analysis in the PP framework. Packages enable to implement ""directly"" the (varying) threshold function. 
+We let some results in the following. While there is nothing very new, we hide the output results.
+Some more improvements could be made from this ?
+
+```{r, results = F, eval = F}
+attach(TXTN_closed)
+gev_pp <- fevd(Max, max_years$df,  threshold = 32, 
+               type = "PP", verbose = T, threshold.fun = I(year),
+               location.fun = I(year), time.units = "365/year")
+detach(TXTN_closed)
+
+TXTN_closed$t <- t
+
+gev_pp1 <- fevd(TX, TXTN_closed, threshold = 32, location.fun =
+                ~ cos(2 * pi * t / 365.25) + sin(2 * pi * t / 365.25),
+               type = "PP", units = "deg C")
+lr.test(gev_pp, gev_pp1)
+
+
+
+pp_coles <- fpot(max_all, model= "pp",threshold = 32, 
+                 start = list(loc = 30, scale = 1, shape = 0), 
+                 npp = 365.25 )
+plot(pp_coles)
+excess_coles <- fpot (max_all, threshold = 32, npp = 365.25)
+# Same results for the shape, but no more location parameter
+# since it conditions on the exceedances. Different scale
+
+```
+
+
+
+
+
+Now, let's further in the difficult analysis of non-stationnarity. We want to be able to retrieve more complex relations than only linear, quadratic,... or any proposal function.
+
+# Improving non-stationnary analysis : Neural Networks 
+
+```{r}
+library(GEVcdn)
+
+
+## 1) Define the hierarchy of the models by increasing complexity
+
+models <- list()
+# Stationary model
+models[[1]] <- list(Th = gevcdn.identity,
+                    fixed = c("location", "scale", "shape"))
+# Linear models
+models[[2]] <- list(Th = gevcdn.identity, fixed = c("shape","scale"))
+models[[3]] <- list(Th = gevcdn.identity, fixed = c("shape"))
+models[[4]] <- list(Th = gevcdn.identity)
+
+# Nonlinear (with logistic link) with 1 or 2 hidden nodes
+models[[5]] <- list(n.hidden = 1, Th = gevcdn.logistic, fixed = c("shape", "scale"))
+models[[6]] <- list(n.hidden = 2, Th = gevcdn.logistic, fixed = c("shape", "scale"))
+models[[7]] <- list(n.hidden = 1, Th = gevcdn.logistic, fixed = c("shape"))
+models[[8]] <- list(n.hidden = 2, Th = gevcdn.logistic, fixed = c("shape"))
+models[[9]] <- list(n.hidden = 1, Th = gevcdn.logistic)
+models[[10]] <- list(n.hidden = 2, Th = gevcdn.logistic)
+
+
+
+x <- as.matrix(seq(1, length(max_years$data)))
+y <- as.matrix(max_years$data)
+
+
+## 2) Fit the models and retrieve the weights
+
+weights.models <- list()
+for(i in seq_along(models)){
+  weights.models[[i]] <- gevcdn.fit2(x = x, y = y, n.trials = 1,
+                                    n.hidden = models[[i]]$n.hidden,
+                                    Th = models[[i]]$Th,
+                                    fixed = models[[i]]$fixed)
+  # We slightly modified the function to hide unuseful messages
+}
+
+
+## Select best model
+
+models.AICc <- round(sapply(weights.models, attr, which = "AICc"), 3)
+# Comparing the AICc, we confirm that shape parameter must be held fixed.
+# But last model seems also good... 
+models.BIC <- round(sapply(weights.models, attr, which = "BIC"), 3)
+# Clear evidence for the 5th model (simple linear trend in location parameter)
+# BIC penalizes more the more complex models --> parsimony
+weights.best <- weights.models[[which.min(models.AICc)]]
+parms.best <- gevcdn.evaluate(x, weights.best)
+
+print(data.frame(AICc = models.AICc, BIC = models.BIC))
+
+```
+
+You can see the table in slide 3 (from the "Atelier") which summarize more smoothly the results.
+
+
+Then, we can for example compare our models using the deviance statistics :
+```{r}
+## stationary vs linear trend
+nll1 <- attr(weights.models[[1]], "NLL")  
+nll5 <- attr(weights.models[[5]], "NLL")
+pchisq( 2 *( (-nll5) - (-nll1) ), lower.tail = F,
+        df = attr(weights.models[[5]], "k") - attr(weights.models[[1]], "k"))
+```
+
+$\approx$ exactly the same result as previously done. That is, the linear trend model is clearly significant against the stationnary model. Modelling more complex (nonlinear) relations between time and the behaviour of the extremes do not seem to be statistically important for our task. See e.g. $AIC_c$ and BIC above.
+
+From the best model, we can now retrieve for example some quantiles (...)
+```{r}
+q.best <- sapply(c(0.1, 0.5, 0.9), qgev,
+                 location = parms.best[,"location"],
+                 scale = parms.best[,"scale"],
+                 shape = parms.best[,"shape"])
+
+```
+
+
+However, we see that the results vary : this is due to the random initilization of the weights (...)
+
+A well known ensemble procedure enables to tackle this issue $\Rightarrow$
+
+
+## Bagging 
+
+***B**ootstrap **agg**regat**ing*** is a process of fitting an ensemble of bootstrapped models  and thus to construct more precise (less variable) estimates (...)
+
+
+We allow here for only 1 hidden node. We have see previously that it is not necessary to introduce too much complexity. 
+
+```{r}
+n.boot <- 10 # Increase value
+NOMSG( weights.on <- gevcdn.bag(x = x, y = y, iter.max = 100,
+                         iter.step = 10, n.bootstrap = n.boot,
+                         n.hidden = 1) )
+parms.on <- lapply(weights.on, gevcdn.evaluate, x = x)
+
+# parms <- list()
+# for (i in 1:n.boot){
+#   parms[[i]] <- apply(parms.on[[i]],2, mean)
+# }
+# parms <- lapply(parms.on, 2, FUN = mean)  # Try with this 
+
+parms <- matrix(0, nrow = nrow(parms.on[[1]]), ncol = 3)
+for (i in 1:n.boot){
+  parms <- parms + as.matrix(parms.on[[i]])
+}
+parms <- parms / length(parms.on)
+
+## All The parameters of the model will vary through time
+
+q <- t(sapply(max_years$data, quantile, probs = c(.1, .5, .9)))
+
+q.10.on <- q.50.on <- q.90.on <- c()
+for(i in seq_along(parms.on)){
+  q.10.on <- cbind(q.10.on, VGAM::qgev(p = 0.1,
+                                 location = parms.on[[i]][,"location"],
+                                 scale = parms.on[[i]][,"scale"],
+                                 shape = parms.on[[i]][,"shape"]))
+  q.50.on <- cbind(q.50.on, VGAM::qgev(p = 0.5,
+                                 location = parms.on[[i]][,"location"],
+                                 scale = parms.on[[i]][,"scale"],
+                                 shape = parms.on[[i]][,"shape"]))
+  q.90.on <- cbind(q.90.on, VGAM::qgev(p = 0.9,
+                                 location = parms.on[[i]][,"location"],
+                                 scale = parms.on[[i]][,"scale"],
+                                 shape = parms.on[[i]][,"shape"]))
+}
+## Plot data and quantiles
+matplot(cbind(y, q, rowMeans(q.10.on), rowMeans(q.50.on),
+              rowMeans(q.90.on)), type = c("b", rep("l", 6)),
+        lty = c(1, rep(c(1, 2, 1), 2)),
+        lwd = c(1, rep(c(3, 2, 3), 2)),
+        col = c("red", rep("orange", 3), rep("blue", 3)),
+        pch = 19, xlab = "x", ylab = "y",
+        main = "gevcdn.bag (early stopping on)")   # Change for a ggplot  ?
+```
+
+We see the evolution through time of the quantiles (blue) from the model following hte behaviour of the process (...)
+
+
+
+Doing this with the *P50* dataset(rainfall measurements) also provided by the IRM could be interesting. We can expect more complex non-stationnary behaviour for this kind of processes.
+
+
+
+# Bayesian Analysis
+
+We found that *evdbayes* package typically uses the *Metropolis-Hastings* (MH) algorithm as MCMC sampler. We are aware that this probably not the most efficient algorithm available in the literature, but it is "easy"" to implement and understand.
+**Beware** : We do not know if it is either the MH or the Gibbs sampler which is implemented when doing simulations with this package. [@hartmann_bayesian_2016] state in their article that it is the MH but in the package's source functions we see that this is rather the Gibbs sampler. We found no information about it somewhere else provided in the package....
+
+However, we will try to (compare and to) rely on other ways than this sole package, e.g. 
+
+**1.** Implement our own functions. The idea is to better understand the "black-box" and the hidden Bayesian's mechanism, which is difficult when using only package's functions. Moreoever, it will allow us to implement other algorithm (MH or Gibbs), to have better flexibility,  ...
+We will be mainly based on the book [@dey_extreme_2016,chapter 13]. 
+
+**2.** *Hamiltonian Monte Carlo* based mainly on the same article [@hartmann_bayesian_2016] (...). The objective is then to use the *Stan* language which makes use of this technique, and which is built with the compiled language c++. This is (really) more efficient and thus would be preferable.
+
+**3.** *revdbayes* ? Using sample ratio of uniforms (...) Not yet studied
+
+
+
+## Bayesian : First implementations
+
+There are still problems in there ... Objective would be to create flexible and goal-oriented functions from this (...)
+
+```{r, results=F, eval=F}
+
+# Negative log-likelihood for GEV
+gev.nloglik = function(mu, sig, xi, data){
+  y = 1 + (xi * (data - mu))/sig
+  if((sig < 0) || (min(y) < 0)) {
+    ans = 1e+06
+  } else {
+    term1 = length(data) * logb(sig)
+    term2 = sum((1 + 1/xi) * logb(y))
+    term3 = sum(y^(-1/xi))
+    ans = term1 + term2 + term3
+  }
+  ans
+}
+
+# Posterior Density Function
+# Compute the log_posterior. Be careful to incorporate the fact that
+# the distribution can have finite endpoints.
+log_post <- function(mu, logsig,xi, data) {
+  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig), 
+                        xi = xi, data = data))
+  lprior <- dnorm(mu, sd = 50, log = TRUE) 
+  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd
+}
+
+
+
+
+############   MEtropolis-Hastlings    ###############
+#####################################################
+
+
+# Optimize Posterior Density Function
+fn <- function(par, data) -log_post(par[1], par[2], par[3], data)
+param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+
+opt <- optim(param, fn, data = max_years$data, 
+             method="BFGS", hessian = TRUE)
+opt <- nlm(fn, param, data = max_years$data,
+           hessian=T, iterlim = 1e5) 
+opt
+start <- opt$estimate
+Sig <- solve(opt$hessian)
+c <- (2.4/sqrt(2))^2 * Sig
+
+
+
+# Simulation Loop 
+ev <- eigen(c^2 * Sig)
+varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+iter <- 2000; out <- matrix(NA, nrow = iter+1, ncol = 3)
+dimnames(out) <- list(0:iter, c("mu", "logsig", "xi"))
+out[1,] <- start
+lpost_old <- log_post(out[1,1], out[1,2], out[1,3], max_years$data)
+if(!is.finite(lpost_old)) 
+  stop("starting values give non-finite log_post")
+acc_rates <- numeric(iter)
+for(t in 1:iter) { 
+  prop <- rnorm(3) %*% varmat + out[t,]  # add tuning parameter delta ? 
+  lpost_prop <- log_post(prop[1], prop[2], prop[3], data)
+  r <- exp(lpost_prop - lpost_old) # as the prop is symmetric
+  if(r > runif(1)) {
+    out[t+1,] <- prop
+    lpost_old <- lpost_prop
+  }
+  else out[t+1,] <- out[t,]
+  acc_rates[t] <- min(r, 1)
+}
+
+
+
+
+
+##########  GIBBS sampler  #####################
+###############################################
+
+
+# Optimize Posterior Density Function
+# fn <- function(par, data) -log_post(par[1], par[2], par[3], data)
+# opt <- nlm(fn, param, data = max_years$data,
+#            hessian=T, iterlim = 1e5) 
+# opt$estimate
+
+
+# Simulation Loop 
+#prop_var <- sqrt( (2.4/sqrt(1))^2 * solve(opt$hessian) ) 
+propsd <- c(.4,.1, .1) # As proposed by Coles, but tune(?) it !
+iter <- 1000
+out <- data.frame(mu = rep(NA, iter+1),
+                  logsig = rep(NA, iter+1),
+                  xi = rep(NA, iter+1))
+out[1,] <- opt$estimate
+out <- cbind.data.frame(out, iter = 1:(iter+1))
+lpost_old <- log_post(out[1,1], out[1,2], out[1,3], data)
+if(!is.finite(lpost_old)) 
+  stop("starting values give non-finite log_post")
+acc_rates <- matrix(NA, nrow = iter, ncol = 3)
+
+data <- max_years$data
+for(t in 1:iter) {
+  prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
+  # so that it removes in the ratio.
+  
+  lpost_prop <- log_post(prop1, out[t,2], out[t,3], data)
+  r <- exp(lpost_prop - lpost_old)
+  if(r > runif(1)) {
+    out[t+1,1] <- prop1
+    lpost_old <- lpost_prop
+  }
+  else out[t+1,1] <- out[t,1]
+  acc_rates[t,1] <- min(r, 1)
+  
+  prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+  lpost_prop <- log_post(out[t+1,1], prop2, out[t,3], data)
+  r <- exp(lpost_prop - lpost_old)
+  if(r > runif(1)) {
+    out[t+1,2] <- prop2
+    lpost_old <- lpost_prop
+  }
+  else out[t+1,2] <- out[t,2]
+  acc_rates[t,2] <- min(r, 1)  
+  
+  prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+  lpost_prop <- log_post(out[t+1,1],out[t+1,2], prop3, data)
+  r <- exp(lpost_prop - lpost_old)
+  if(r > runif(1)) {
+    out[t+1,3] <- prop3
+    lpost_old <- lpost_prop
+  }
+  else out[t+1,3] <- out[t,3]
+  acc_rates[t,3] <- min(r, 1)  
+}
+
+mean_acc <- apply(acc_rates, 2, mean)
+mean_acc
+
+# Do not forget Burn in period
+burn <- iter/4
+
+out <- out[-(1:burn),]
+
+library(ggplot2)
+library(gridExtra)
+g.mu <- ggplot(out) + geom_line(aes(x = iter, y = mu))
+g.logsig <- ggplot(out) + geom_line(aes(x = iter, y = logsig))
+g.xi <- ggplot(out) + geom_line(aes(x = iter, y = xi))
+
+
+grid.arrange(g.mu,g.logsig,g.xi, nrow = 3)
+
+param_gibbs <- apply(out[,1:3], 2, mean)
+param_gibbs
+
+
+
+
+
+#####################################################################
+################### Gibbs Sampler with Nonstationarity 
+
+
+
+log_post <- function(mu0, mu1, logsig, xi, data) {
+  theta <- c(mu0, mu1, logsig, xi)
+  tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
+    mean(max_years$df$Year) ) / length(max_years$data)
+  mu <- mu0 + mu1 * tt  # sig <- exp(-delta) * mu
+  #if(any(sig <= 0)) return(-Inf)
+  llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi, 
+                    log = TRUE))
+ 
+   #llhd2 <- sum(log(pgev(-data[cs], loc = -mu[cs], scale = sig[cs], xi)))
+  mnpr <- c(30,0,0,0) ;   sdpr <- c(40,40,10,10)
+  lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE)) 
+  # lprior <- dnorm(mu0, sd = 50, log = TRUE) 
+  # lprior <- dnorm(mu1, sd = 50, log = TRUE) 
+  # lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  # lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd1 #+ llhd2
+}
+
+fn <- function(par, data) -log_post(par[1], par[2], par[3],
+                                        par[4], data)
+param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
+opt <- optim(param, fn, data = max_years$data,
+             method = "BFGS", hessian = T)
+opt <- nlm(fn, param, data = max_years$data,
+    hessian=T, iterlim = 1e5) 
+opt
+
+
+# Starting Values
+set.seed(100)
+start <- list(); k <- 1
+while(k < 5) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
+  sv <- as.numeric(rmvnorm(1, opt$estimate, 50 * solve(opt$hessian)))
+  svlp <- log_post(sv[1], sv[2], sv[3], sv[4], data)
+  print(svlp)
+  if(is.finite(svlp)) {
+    start[[k]] <- sv
+    k <- k + 1
+  }
+}
+
+
+# Simulation Loop  :  4 Chains With Different Starting Values
+set.seed(100)
+for(k in 1:4) {
+  propsd <- c(1.3, 8.5, .05, .05)  # Trial-and-error method
+  iter <- 1000; out <- data.frame(mu0 = rep(NA, iter+1),
+                                  mu1 = rep(NA, iter+1),
+                                  logsig = rep(NA, iter+1),
+                                  xi = rep(NA, iter+1))
+  out[1,] <- start[[k]]
+  lpost_old <- log_post(out[1,1], out[1,2], out[1,3], out[1,4], data)
+  if(!is.finite(lpost_old)) 
+    stop("starting values give non-finite log_post")
+  acc_rates <- matrix(NA, nrow = iter, ncol = 4)
+  
+  for(t in 1:iter) {
+    prop1 <- rnorm(1, mean = out[t,1], propsd[1])
+    lpost_prop <- log_post(prop1, out[t,2], out[t,3], out[t,4], data)
+    r <- exp(lpost_prop - lpost_old)
+    if(r > runif(1)) {
+      out[t+1,1] <- prop1
+      lpost_old <- lpost_prop
+    }
+    else out[t+1,1] <- out[t,1]
+    acc_rates[t,1] <- min(r, 1)
+    
+    prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+    lpost_prop <- log_post(out[t+1,1], prop2, out[t,3], out[t,4], data)
+    r <- exp(lpost_prop - lpost_old)
+    if(r > runif(1)) {
+      out[t+1,2] <- prop2
+      lpost_old <- lpost_prop
+    }
+    else out[t+1,2] <- out[t,2]
+    acc_rates[t,2] <- min(r, 1)  
+    
+    prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+    lpost_prop <- log_post(out[t+1,1], out[t+1,2], prop3, out[t,4], data)
+    r <- exp(lpost_prop - lpost_old)
+    if(r > runif(1)) {
+      out[t+1,3] <- prop3
+      lpost_old <- lpost_prop
+    }
+    else out[t+1,3] <- out[t,3]
+    acc_rates[t,3] <- min(r, 1)  
+    
+    prop4 <- rnorm(1, mean = out[t,4], propsd[4])
+    lpost_prop <- log_post(out[t+1,1], out[t+1,2], out[t+1,3], prop4, data)
+    r <- exp(lpost_prop - lpost_old)
+    if(r > runif(1)) {
+      out[t+1,4] <- prop4
+      lpost_old <- lpost_prop
+    }
+    else out[t+1,4] <- out[t,4]
+    acc_rates[t,4] <- min(r, 1)  
+  }
+  assign(paste0("out", k), out)
+  assign(paste0("acc_rates", k), acc_rates)
+}
+mean_acc <- apply(acc_rates, 2, mean)
+mean_acc
+
+
+# Combine Chains And Remove Burn-In Period
+hf <- ceiling(iter/2 + 1)
+out <- rbind(out1[-(1:hf), ], out2[-(1:hf), ],
+             out3[-(1:hf), ], out4[-(1:hf), ])
+out <- cbind.data.frame(out, iter = (1:nrow(out)))
+
+
+g.mu0 <- ggplot(out) + geom_line(aes(x = iter, y = mu0))
+g.mu1 <- ggplot(out) + geom_line(aes(x = iter, y = mu1))
+g.logsig <- ggplot(out) + geom_line(aes(x = iter, y = logsig))
+g.xi <- ggplot(out) + geom_line(aes(x = iter, y = xi))
+grid.arrange(g.mu0, g.mu1, g.logsig, g.xi, nrow = 4)
+
+
+# Markov Chain Correlations
+autocorr(mcmc(out1))
+crosscorr(mcmc(out1))
+autocorr.diag(mcmc(out1))
+autocorr.plot(mcmc(out1))
+crosscorr.plot(mcmc(out1))
+
+
+#### See end of bayesian01 for predictive dist, quantiles, and other...
+
+```
+
+
+
+
+## With *evdbayes* package
+
+Globally it is the first package to use directly for EVT. It is maybe a bit old (more than 10 years...), so it is not really efficient but it works well.
+This package is also interesting as it easily allows for a trend, and as we have seen it is important for our case.
+
+
+
+### First try :  **Stationary GEV model**
+
+```{r}
+library(evdbayes)
+
+
+var.prior <- diag(c(10000, 10000, 100))
+## Large variance prior : near flat (vague) uninformative priors
+pn <- prior.norm(mean = c(0,0,0), cov = var.prior)
+
+## Arbitray starting values in t_0
+n <- 1000 ;   t0 <- c(31, 1 ,0) ;   s <- c(.02,.1,.1)
+## s contains sd for proposal distributions. Tune it 
+max.mc1 <- posterior(n, t0, prior = pn, lh = "gev", data = max_years$data, psd = s)
+
+library(coda)
+mcmc.max1 <- mcmc (max.mc1, start = 0, end = 1000)
+#plot(mcmc.max1, den = F, sm = F)
+
+
+### Better to optimize the posterior to find better starting values for MCMC
+maxpst <- mposterior(init = t0, prior = pn, lh = "gev", method = "BFGS",
+                     data = max_years$data) # Optimization method, like SANN does not change anything 
+start.val <- maxpst$par
+
+## use this a initial value, then redo the analysis (...)
+max.mc2 <- posterior(n, start.val, prior = pn, lh = "gev", 
+                    data = max_years$data, psd = s)
+mcmc.max2 <- mcmc (max.mc2, start = 0, end = 1000)
+#plot(mcmc.max2, den = F, sm = F)
+
+```
+
+Problem : Mixing of the chains is poor (not shown), especially for $\mu$. Change the standard deviation of the proposal distribution (psd). We also add a necessary (and arbitrary for now) burn-in period.
+
+```{r, results="hide"}
+psd <- invisible( ar.choice(init = t0, prior = pn, lh = "gev", data = max_years$data, 
+                 psd = rep(0.05,3), tol = rep(0.02, 3)) ) $psd 
+max.mc3 <- posterior(2000, start.val, prior = pn, lh = "gev", 
+                     data = max_years$data, psd = psd)
+mcmc.maxF <- mcmc (max.mc3, start = 500, end = 2000)
+plot(mcmc.maxF, den = F, sm = F)
+
+```
+
+The chains seem pretty well. Posterior distribution has probably reached stationarity but before going on with MC diagnostics, we will see other "methods".
+
+
+
+### **Point Process** approach 
+
+We add a bit more iterations and burn-in period as it is not to computationally expensive. We set the threshold that we found previously (30)
+```{r}
+#igamma(shape = c(38.9,7.1,47), scale = c(1.5,6.3,2.6))
+priorpp <- prior.quant(shape = c(0.05, 0.25, 0.1), scale = c(1.5,3,2)) # change
+
+n <- 10000  ;   b <- 2000  # change
+
+rn.prior <- posterior(n, t0, priorpp, "none", psd = psd, burn = b)
+#t0 <- c(43.2, 7.64, 0.32) ; s <- c(2, .2, .07)
+rn.post <- posterior(n, maxpst$par, priorpp, data = max_all, "pp", thresh = 30,
+                     noy = 116, psd = s, burn = b)
+plot(mc.post <- mcmc(rn.post, start = 0, end = 8000))
+
+## Comparison with frequentist result previously obtained
+apply(rn.post, 2, mean)
+gev_tx1$estimate
+```
+
+It seems good as well but again a (strong) autocorrelation in $\mu$. Must handle this by playing with proposal standard deviations,...
+However, The result is similar (but still not the same) as the frequentist. We still do not assess convergence before going through with the nonstationary model. 
+
+
+### Add a trend in the location parameter
+
+```{r, results=F }
+pn.t <- prior.norm(mean = c(0,0,0), cov = var.prior, trendsd = 500)
+rn.post.t <- posterior(10000, c(maxpst$par,1), pn.t, data = max_all, "pp", thresh = 32,
+                     noy = 116, psd = c(s,.25), burn = b)
+summary(rn.post.t)
+plot(mc.post.t <- mcmc(rn.post.t, start = 0, end = 8000))
+
+```
+
+Problem for the parameter associated with mutrend. Too much autocorrelations through the chain
+We then try to handle that introduce **thinning** : i.e., we only take one simulation every *thin* simulation
+
+```{r, fig.height=9}
+thin.post <- posterior(10000, c(maxpst$par,1), pn.t, data = max_all, "pp", thresh = 32,
+                       noy = 116, psd = c(s, .25), burn = b, thin = 5)
+summary(thin.post)   
+plot(mc.post <- mcmc(thin.post, start = , end = nrow(thin.post)))
+
+
+```
+
+However, this does not change anything... We must handle that. Inferences with trend are not reliable.
+
+### Return Leels
+
+```{r}
+#rl.pred(max.mc2, npy = 365.25, qlim = c(30,45))
+#rl.pred(max.mc3, qlim = c(30,45))
+```
+
+
+## Diagnostics
+
+To be continued
+
+
+
+# Performance evaluation of simulated data from the fitted model ? 
+```{r}
+## simulate data from fitted GEV
+sim <- rextRemes(gev_tx2, 10000)
+# fit_sim <- fevd(sim)
+# plot(fit_sim)
+```
+To be continued...
+
+
+
+# References

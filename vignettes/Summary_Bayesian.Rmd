@@ -1,0 +1,1093 @@
+---
+title: "Bayesian methods in Extreme Value Theory"
+author: "Antoine Pissoort"
+date: "March 13, 2017"
+output:
+  html_document:  
+    css: style.css
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 4.5 # Hauteur par défaut des figures
+    fig_width: 6.5 # Largeur par défaut des figure
+    theme: lumen  # Style du document
+    highlight: tango # style de mise en valeur du code
+    code_folding: hide #  Cache le code  
+    number_sections: yes # Ajout table des matières 
+    toc: yes # Table des matière ?
+    toc_depth: 3  # Profondeur table des matière
+    toc_float: no # table des matière flottante
+  word_document: default
+bibliography: sum.bib
+---
+
+```{r setup, message=F, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F, fig.pos = "c")
+setwd('/home/piss/Documents/Extreme/R resources/IRM')
+load("data1.Rdata")
+source("1UsedFunc.R")
+library(evd)
+library(mvtnorm)
+library(KernSmooth)
+library(coda)
+library(pander)
+library(bayesplot)
+
+```
+
+
+
+We found that *evdbayes* package typically uses the *Metropolis-Hastings* (MH) algorithm as MCMC sampler. We are aware that this probably not the most efficient algorithm available in the literature, but it is "easy" to implement and understand.
+**Beware** : We do not know if it is either the MH or the Gibbs sampler which is implemented when doing simulations with this package. [@hartmann_bayesian_2016] state in their article that it is the MH but in the package's source functions we see that this is rather the Gibbs sampler. We found no information about it somewhere else provided in the package....
+
+However, we will try to (compare and to) rely on other ways than this sole package, e.g. 
+
+**1.** Implement our *own functions*. The idea is to better understand the "black-box" and the hidden Bayesian's mechanism, which is difficult when using only package's functions. Moreoever, it will allow us to implement other algorithm (MH or Gibbs), to have better flexibility,  ...
+We will be mainly based on the book [@dey_extreme_2016,chapter 13]. 
+
+**2.** *Hamiltonian Monte Carlo* based mainly on the same article [@hartmann_bayesian_2016] (...). The objective is then to use the *Stan* language which makes use of this technique, and which is built with the compiled language c++. This is (really) more efficient and thus would be preferable.
+
+**3.** *revdbayes* ? Using sample ratio of uniforms (...) Not yet studied
+
+
+
+
+**Functions that we will use for the Bayesian setting** :
+```{r}
+
+
+'gev.nloglik' = function(mu, sig, xi, data){
+  y = 1 + (xi * (data - mu))/sig
+  if((sig < 0) || (min(y) < 0) || (is.na(y))) {
+    ans = 1e+06
+  } else {
+    term1 = length(data) * logb(sig)
+    term2 = sum((1 + 1/xi) * logb(y))
+    term3 = sum(y^(-1/xi))
+    ans = term1 + term2 + term3
+  }
+  ans
+}
+
+# Posterior Density Function
+# Compute the log_posterior. Be careful to incorporate the fact that
+# the distribution can have finite endpoints.
+'log_post0' <- function(mu, logsig,xi, data) {
+  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig), 
+                        xi = xi, data = data))
+  lprior <- dnorm(mu, sd = 50, log = TRUE) 
+  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd
+}
+
+
+
+library(ggplot2)
+library(gridExtra)
+library(grid)
+'chains.plotOwn' <- function(data, moreplot = F, 
+                             title = "TracePlots of the generated Chains " ){ 
+  grid.arrange(
+    ggplot(data) + geom_line(aes(x = iter, y = mu)) + theme_piss(18,16) + 
+      labs(ylab = expression(mu)),
+    ggplot(data) + geom_line(aes(x = iter, y = logsig)) + theme_piss(18,16),
+    ggplot(data) + geom_line(aes(x = iter, y = xi)) + theme_piss(18,16), 
+    #ifelse(!is.na(moreplot), moreplot, nrow = NULL ),
+    ncol = 1, 
+    top = textGrob(title,
+                   gp = gpar(col ="darkolivegreen4",
+                             fontsize = 25, font = 4))
+  )
+  # if(moreplot != F) c(plot, moreplot)
+  # else print(invisible(plot))
+  #invisible(plot)
+}
+
+
+'mixchains.Own' <- function(data, moreplot = F, 
+                             title = "TracePlots of the generated Chains " ){ 
+  grid.arrange(
+    ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) + 
+      geom_line() + theme_piss(18,16, theme_classic()) +
+      scale_colour_brewer(name = "chain nr", palette = "Set1") + 
+      guides(colour = guide_legend(override.aes = list(size= 1.2))),
+    ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
+      geom_line() + theme_piss(18,16, theme_classic()) +
+      scale_colour_brewer(name = "chain nr", palette = "Set1") + 
+      guides(colour = guide_legend(override.aes = list(size= 1.2))),
+    ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) + 
+      geom_line() + theme_piss(18,16, theme_classic()) +
+      scale_colour_brewer(name = "chain nr", palette = "Set1") + 
+      guides(colour = guide_legend(override.aes = list(size= 1.2))), 
+    ncol = 1, top = textGrob(title,
+                   gp = gpar(col ="black",
+                             fontsize = 22.5, font = 4))
+  )
+}
+
+
+# start represents the starting value of the generated chain,
+# must explore different ones, typically take the MPLE 
+# varmat.prop is the variance of the proposal. 
+'MH_mcmc.own' <- function(start, varmat.prop,
+                          data = max_years$data, iter = 2000){
+  out <- matrix(NA, nrow = iter+1, ncol = 3)
+  dimnames(out) <- list(1:(iter+1), c("mu", "logsig", "xi"))
+  out[1,] <- start
+  lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+  if(!is.finite(lpost_old)) 
+    stop("starting values give non-finite log_post")
+  acc_rates <- numeric(iter)
+  for(t in 1:iter) { 
+    prop <- rnorm(3) %*% varmat.prop + out[t,]  # add tuning parameter delta ? 
+    lpost_prop <- log_post0(prop[1], prop[2], prop[3], data)
+    r <- exp(lpost_prop - lpost_old) # as the prop is symmetric
+    if(r > runif(1)) {   
+      out[t+1,] <- prop
+      lpost_old <- lpost_prop
+    }
+    else out[t+1,] <- out[t,]
+    acc_rates[t] <- min(r, 1)
+  }
+  return(list(mean.acc_rates = mean(acc_rates), 
+              out.chain = data.frame(out, iter = 1:(iter+1))))
+}
+
+
+
+# start is the starting point of the algo. Again, use several ones
+# propsd value is as proposed by coles but must tune this value.
+"gibbs_mcmc.own" <- function (start , propsd = c(.4, .1, .1), 
+                              iter = 2000, data = max_years$data ) {
+  
+ out <- data.frame(mu = rep(NA, iter+1),
+                  logsig = rep(NA, iter+1),
+                  xi = rep(NA, iter+1))
+                  
+ out[1,] <- start
+ out <- cbind.data.frame(out, iter = 1:(iter+1))
+ lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+ if(!is.finite(lpost_old)) 
+   stop("starting values give non-finite log_post")
+ acc_rates <- matrix(NA, nrow = iter, ncol = 3)
+
+ data <- max_years$data
+ for (t in 1:iter) {
+   prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
+   # so that it removes in the ratio.
+  
+   lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
+   r <- exp(lpost_prop - lpost_old)
+   if(r > runif(1)) {
+     out[t+1,1] <- prop1
+     lpost_old <- lpost_prop
+   }
+   else out[t+1,1] <- out[t,1]
+   acc_rates[t,1] <- min(r, 1)
+  
+   prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+   lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
+   r <- exp(lpost_prop - lpost_old)
+   if(r > runif(1)) {
+     out[t+1,2] <- prop2
+     lpost_old <- lpost_prop
+   }
+   else out[t+1,2] <- out[t,2]
+   acc_rates[t,2] <- min(r, 1)  
+  
+   prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+   lpost_prop <- log_post0(out[t+1,1],out[t+1,2], prop3, data)
+   r <- exp(lpost_prop - lpost_old)
+   if(r > runif(1)) {
+     out[t+1,3] <- prop3
+     lpost_old <- lpost_prop
+   }
+   else out[t+1,3] <- out[t,3]
+   acc_rates[t,3] <- min(r, 1)  
+ }
+ return(list(mean.acc_rates = apply(acc_rates, 2, mean),
+             out.chain = out))
+}
+
+
+
+
+'log_post1' <- function(mu0, mu1, logsig, xi, data,
+                        mnpr = c(30,0,0,0), sdpr = c(40,40,10,10)) {
+  theta <- c(mu0, mu1, logsig, xi)
+  tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
+             mean(max_years$df$Year) ) / length(max_years$data)
+  #tt <- min(max_years$df$Year):max(max_years$df$Year)
+  mu <- mu0 + mu1 * tt  # sig <- exp(-delta) * mu
+  #if(any(sig <= 0)) return(-Inf)
+  llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi, 
+                         log = TRUE))
+  #llhd2 <- sum(log(pgev(-data[cs], loc = -mu[cs], scale = sig[cs], xi)))
+  lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE)) 
+  # lprior <- dnorm(mu, sd = 50, log = TRUE) 
+  # lprior <- dnorm(mu1, sd = 50, log = TRUE) 
+  # lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  # lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd1 #+ llhd2
+}
+
+
+# propsd must be weel chosen (e.g. Trial-and-error method)
+# start must be a list containing a number of different starting values
+#and this number determines the number of chains generated.
+'gibbs.trend.own' <- function (start, propsd = c(.5, 2.5, .08, .08),
+                               iter = 1000, data = max_years$data) {
+  # To store values inside
+  acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
+  
+  hf <- ceiling(iter/2 + 1) # Determines values for burn.in (see end)
+  
+  out.fin <- data.frame(mu = numeric(0),
+                        mu1 = numeric(0),
+                        logsig = numeric(0),
+                        xi = numeric(0),
+                        chain.nbr = character(0))
+  nr.chain <- length(start)   ;    time <- proc.time() 
+ for(k in 1:nr.chain) {
+   out <- data.frame(mu = rep(NA, iter+1),
+                     mu1 = rep(NA, iter+1),
+                     logsig = rep(NA, iter+1),
+                     xi = rep(NA, iter+1))
+                    
+   out[1,] <- start[[k]]
+   out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
+   
+   lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4], data)
+  
+   # For DIC computation
+   ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+   ic_vals[1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
+                            data)
+  
+   if(!is.finite(lpost_old)) 
+     stop("starting values give non-finite log_post")
+    acc_rates <- matrix(NA, nrow = iter, ncol = 4)
+  
+   for(t in 1:iter) {
+     prop1 <- rnorm(1, mean = out[t,1], propsd[1])
+     lpost_prop <- log_post1(prop1, out[t,2], out[t,3], out[t,4], data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,1] <- prop1
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,1] <- out[t,1]
+     acc_rates[t,1] <- min(r, 1)
+    
+     prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+     lpost_prop <- log_post1(out[t+1,1], prop2, out[t,3], out[t,4], data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,2] <- prop2
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,2] <- out[t,2]
+     acc_rates[t,2] <- min(r, 1)  
+     
+     prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], prop3, out[t,4], data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,3] <- prop3
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,3] <- out[t,3]
+     acc_rates[t,3] <- min(r, 1)  
+     
+     prop4 <- rnorm(1, mean = out[t,4], propsd[4])
+     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], out[t+1,3], prop4, data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,4] <- prop4
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,4] <- out[t,4]
+     acc_rates[t,4] <- min(r, 1)  
+    
+     # For DIC 
+     ic_vals[t+1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
+                                data)
+   }
+   acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+   ic_val.list[[k]] <- ic_vals[-(1:hf), ]
+   out.ind[[k]] <- out
+   
+   # Combine Chains And Remove Burn-In Period
+   out.fin <- rbind.data.frame(out.fin, out[-(1:hf), ]) 
+  # out.fin <- cbind.data.frame(out.fin) 
+                              # chain.nmbr = rep(k, nrow(out.fin)))
+   
+   print(paste("time is ",round((proc.time() - time)[3], 5), " sec"))
+ }
+  
+  out <- cbind.data.frame(out.fin, 
+                          iter = (1:nrow(out.fin)))
+  
+ return( list(n.chains = length(start),
+              mean_acc.rates = acc_rate.list,
+              out.chain = out, 
+              dic.vals = ic_val.list,
+              out.ind = out.ind) )
+}
+
+
+
+
+# DIC Function
+'dic' <- function(out, vals) {
+  pm <- colMeans(out)
+  pmv <- log_post1(pm[1], pm[2], pm[3], pm[4], data)
+  pmv <- sum(pmv, na.rm = TRUE)
+  vec1 <- rowSums(vals, na.rm = TRUE)
+  2*pmv - 4*mean(vec1)
+}
+
+
+# WAIC Function
+'waic' <- function(vals) {
+  vec1 <- log(colMeans(exp(vals))) ;    vec2 <- colMeans(vals)
+  sum(2*vec1 - 4*vec2, na.rm = TRUE)
+}
+
+
+
+
+
+
+```
+
+
+Notice that we will use **non-informative**, i.e. large variance **priors** (so far?) in the following.
+
+# First implementations : stationary GEV setting
+
+
+## Metropolis-Hastlings   
+
+It is recommended to target *an acceptance rate of around 0.25 when all components of* $\theta$* are updated simultaneously, and 0.40 when the components are updated one at a time.*
+
+```{r }
+
+# Optimize Posterior Density Function to find starting values
+fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+# opt <- optim(param, fn, data = max_years$data, 
+#              method="BFGS", hessian = TRUE)
+opt <- nlm(fn, param, data = max_years$data,
+           hessian=T, iterlim = 1e5) 
+start1 <- opt$estimate
+Sig <- solve(opt$hessian)
+ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+
+set.seed(100)
+iter <- 
+mh.mcmc1 <- MH_mcmc.own(start1, varmat %*% c(.36,.46,.57))
+cat(paste("acceptance rate is   ", round(mh.mcmc1$mean.acc_rates,5 )))
+
+chains.plotOwn(mh.mcmc1$out.chain)
+
+```
+
+We can visually verify that here, the posterior's components (=parameters) are update simultaneously, i.e. jumps occur at the same time. (there are of course still not of the same "size", this not veery visible here) 
+
+However, it seems OK. Chains are good, it mix well, and acceptance rate is around 0.25,.... Parameter space could seem quite correctly visited.
+
+**Beware**: add *Burn-in* should be more prudent. We will handle that in the following. 
+
+##  GIBBS sampler 
+
+```{r}
+set.seed(100)
+iter <- 2000
+gibb1 <- gibbs_mcmc.own(start1, iter = iter) # Same starting point as MH 
+
+cat("acceptance rates are ")
+round(gibb1$mean.acc_rates, 5 )
+
+# Do not forget Burn in period (We will make it inside function in  following)
+burn <- iter/4  # Tune value
+
+gibb1$out.chain <- gibb1$out.chain[-(1:burn),]
+
+
+chains.plotOwn(gibb1$out.chain)
+
+```
+
+Here, we can first verify by eyes that the parameters are updated independently, that is one at time. It means that we generate different proposals for each parameter's update, see above $\texttt{gibbs_mcmc.own()}$.
+
+Chains seem well stationnary. Acceptance rates are good too. This is, again,  managed by a tuning of the proposal's variance , made by trial-and-error (so far).
+
+
+For example, we could then see what **rough estimate** this would yield. We averaged the value  over the chains, and compare it  with those obtained by the same  frequentist method (GEV)  
+```{r, results = 'asis'}
+param_gibbs <- apply(gibb1$out.chain[,1:3], 2, mean) # Average over the (3) generated chains
+param_gibbs["logsig"] <- exp(param_gibbs["logsig"] ) 
+
+frame <- data.frame(Bayesian = param_gibbs, 'Frequentist(mle)' = gev_fit$mle)
+row.names(frame) = c("$\\mu \\ $", "$\\sigma \\quad$", "$\\xi \\quad$")
+knitr::kable(frame, align = 'l')
+
+```
+
+These estimates are very close (...)
+
+However, we will now consider our **last model**, by adding the significant linear trend, and then we will do all the (convergence) diagnostics needed before making any inference.
+
+
+
+# Gibbs Sampler with **Nonstationarity** (GEV, linear trend)
+
+From now, this will be our final model ! We will then "expand" a bit more.
+
+
+**1.  We optimize log-posterior to retrieve (good) starting values from it**
+```{r}
+data <- max_years$data
+
+
+fn <- function(par, data) -log_post1(par[1], par[2], par[3],
+                                        par[4], data)
+param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
+opt <- optim(param, fn, data = max_years$data,
+             method = "BFGS", hessian = T)
+cat(paste("Optimized starting values are : \n")) 
+print <- opt$par
+names(print) <- c("mu", "mu1", "logsig", "xi")
+print
+```
+
+However, we will run several chains with this algorithms to improve convergence properties. Hence, we will have several starting values. These starting values will thus be put inside a *random generator of starting starting values* $\Longrightarrow\downarrow$ 
+
+
+**2. Choose several sets of Starting Values randomly :**
+
+This enables to run several different chains. This will be useful for further assesment of the convergence. These sets of starting values must be (over)dispersed to ensure the visit of the whole parameter space. 
+**Note** that these have to be (re)tuned.
+
+```{r}
+set.seed(100)
+start <- list() ; k <- 1 # Put them on a list
+while(k < 5) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
+  sv <- as.numeric(rmvnorm(1, opt$par, 50 * solve(opt$hessian)))
+  svlp <- log_post1(sv[1], sv[2], sv[3], sv[4], max_years$data)
+  #print(svlp)
+  if(is.finite(svlp)) {
+    start[[k]] <- sv
+    names(start[[k]]) <- c("mu", "mu1", "logsig", "xi")
+    k <- k + 1
+  }
+}
+knitr::kable(matrix(unlist(start), ncol = 4, byrow = T, dimnames = list(c("start[[1]]", "start[[2]]", "start[[3]]", "start[[4]]"), c("$\\mu \\ $","$\\mu_{trend}$", "$\\sigma$", "$\\xi$"))), align = "c")
+
+```
+
+Somewhat arbitrarily here, we go for **4 different chains** inside the function.  
+
+**3. Run the final algorithm** 
+
+The number of components in the $\texttt{list()}$ "start" will automatically define the number of chains generated.
+
+```{r}
+# k chains with k different starting values
+set.seed(100)
+gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+                               iter = 1000) # Number of iter is for each chain. 
+acc_rates.param <- colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
+cat("acceptance rates are :")
+round(acc_rates.param, 5 )
+
+param.chain <- gibbs.trend$out.chain[ ,1:4]
+```
+
+It runs relatively fast and the acceptance rates are all close to the target  $\approx 0.4$. 
+
+**NOTE** : 
+
+* **Proposal**'s standard deviation default in the function is from a trial-and-error . This has to be (re)-tuned or adapted. We could find more automatic way to achieve this task.
+* **Burn-in**'s period is done into the function. This also can be tuned, whether by changing inside the function or by adding parameter in the function. Hence, we have ran 1000 iterations for each chains, and deleted half of each. We are thus again left with 2000 posterior samples. Note that it seems not necessary here to burn so much. 
+* Number of **iterations** can also be increased for more precision (...). Algorithm is relatively efficient.
+* 
+
+**Plot of the so-obtained (complete) chains**
+```{r, fig.height= 5.5}
+chains.plotOwn(gibbs.trend$out.chain ) 
+```
+
+
+```{r, fig.height=2}
+ggplot(gibbs.trend$out.chain) + geom_line(aes(x = iter, y = mu1)) + theme_piss(16,14) + labs(ylab = "mu1", xlab = "iter" )
+```
+
+Mixing properties look relatively good for each of the parameter's chains. 
+Even for $\mu_{trend}$ (last one), as compared with our fail with $\texttt{evdbayes package}$ ! (...) 
+
+Now, we must go further with **diagnostics**. 
+
+
+
+## Diagnostics 
+
+No diagnostics can assess convergence without uncertainty. Then, we must use several relevant tools to increase our confidence that convergence indeed happened, i.e. the equilibrium distribution has been reached.
+
+We will now rely on some packages to do this task, namely the well-known $\texttt{coda}$ and the $\texttt{bayesplot}$. While the former is present since a moment, the latter is a new great visual tool relying on $\texttt{ggplot}$. It is mainly used for STAN outputs but it can be used here too, after some structural refinements... but we we did not achieve it so far.
+
+
+Traceplots of the chains with **different starting values :**
+
+```{r, eval=F}
+array.post <- array(unlist(gibbs.trend$out.ind), dim = c(4000/4+1, 4, 4 ),
+                    dimnames = list(iterations = NULL,
+                                    parameters = c("mu", "mu1", "logsig", "xi"),
+                            chains = c("chain:1", "chain:2", "chain:3",
+                                       "chain:4")
+                            ))
+
+color_scheme_set("mix-blue-red")
+mcmc_trace(array.post, pars = c("mu", "mu1"), 
+           facet_args = list(ncol = 1, strip.position = "left"))
+
+mcmc_trace_highlight(array.post, pars = "mu", highlight = 3)
+```
+
+
+```{r}
+chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
+                              iter.chain = rep(1:500, 4))
+mixchains.Own(chain.mix)
+
+```
+
+```{r,fig.height=2}
+ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+  geom_line() + theme_piss(18,16, theme_classic()) +
+      scale_colour_brewer(name = "chain nr", palette = "Set1") + 
+      guides(colour = guide_legend(override.aes = list(size= 1.2)))
+```
+
+Chain mixing seem quite well meaning that, whatever the starting value we use, which are actually very broad (see above), the behaviour of the generated chains are similar, in the sense that they are "reaching" in the same way the targetted stationary distribution.
+
+
+**Gelman-Rubin (Coda) Diagnostics**
+
+This diagnostic compares the behaviour of the several randomly initialized chains. It uses the *potential scal reduction statistic* (or *shrink factor*) $\hat{R}$ which measures now **quantitatively** the mixing of the chains. To do that, It measures the ratio of the average variance of samples within each chain to the variance of the pooled samples accross chains. If convergence occured, these should be the same and $\hat{R}$ will be 1. If not, this will be >1. 
+
+```{r}
+gelman.diag(mcmc.list(mcmc(gibbs.trend$out.ind[[1]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[2]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[3]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[4]][,c("mu", "mu1", "logsig", "xi")])),
+            autoburnin=F)
+gelman.plot(mcmc.list(mcmc(gibbs.trend$out.ind[[1]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[2]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[3]][,c("mu", "mu1", "logsig", "xi")]),
+                      mcmc(gibbs.trend$out.ind[[4]][,c("mu", "mu1", "logsig", "xi")])),
+            autoburnin=F)
+```
+
+**(look at y scales !!!!!)**
+
+We can see that it is quite close to 1, for every chains and for this ('small') number of iterations. The common rule is to be more prudent whenever $\hat{R}>1.1$.
+We remark that for $\xi$, it seems to take more iterations before reaching stationary distribution.
+
+
+Note that we did not make any *thinning* so far, i.e. we did not take only one simulation every *thin* number of simulations. This process is  widely used in the litterature and it is useful to reduce autocorrelations through the chains. However, it has also been proven that *thinning* the chains is actually less efficient than keeping all the generated samples for inference...(see [@link_thinning_2011]) The greater sample size effect of no thinning is generally stronger than the autocorrelation reduce factor of thinning
+It could be easily implemented.
+
+**Markov Chain's autocorrelations :**
+
+This handles correlations **within a single parameter's chain**. As for cross-correlations, we are looking here for small values for good properties.
+
+```{r}
+#autocorr(mcmc(param.chain ))
+pander(autocorr.diag(mcmc(param.chain )))
+autocorr.plot(mcmc(param.chain ))
+```
+
+
+We can see that the autocorrelation behaviour for the chains seem quite fine.
+
+Again, we can remark that this is a bit more "slow" for $\xi$, as we could expect. 
+
+
+**Cross-correlations : **
+
+This one handles the correlations **accross parameter**
+
+```{r}
+pander(crosscorr(mcmc(param.chain)))
+crosscorr.plot(mcmc(param.chain ))
+```
+
+As usual, we can remark that this is only the cross-correlations associated to $\xi$ which retain our attention.  
+
+Could we check how this dependence can be intuitively explained in comparison with frequentist's GEV ?  
+
+
+**Geweke Diagnostics :**
+
+In short, this diagnostic, for each chains, tests for equality of the first $10\%$ of a single parameter's chain with the mean computed from the 2nd half of the chain. Large buffer between these 2 blocks are taken to assume these are probably independent. We then do a classical (frequentist..) z-score test for equality of the 2 means based on the effective sample sizes which account for autocorrelations (...) 
+
+```{r}
+geweke <- geweke.diag(mcmc(param.chain))
+2*dnorm(geweke$z) 
+```
+
+Now, we partitionned the first half into 20 segments of iterations,
+
+```{r, fig.height=6, fig.width=6}
+geweke.plot(mcmc(param.chain), nbins = 20) 
+```
+
+Maybe a few **more iterations** could not be too much to convince ourself that convergence did really occur, especially again for $\xi$ for which the p-value is not far from the common level of $5\%$ .
+
+
+**Raftery and Lewis's Diagnostics**
+
+This is a run length control diagnostic based on a criterion of accuracy of estimation of a quantile q. It also informs if the number of iterations is too small.
+
+For example, here for the quantile $5\%$ with a precision of 95% and an margin's error of 2%, i.e. estimate $q_{0.05}\pm 2\%$ with $95\%$ accuracy. 
+
+We did it for each chains, and here are the results, for the 4 chains separately :
+
+```{r}
+raftery.diag(mcmc(gibbs.trend$out.ind[[1]][,c("mu", "mu1", "logsig", "xi")]), q=0.05, r=0.02, s=0.95)
+raftery.diag(mcmc(gibbs.trend$out.ind[[2]][,c("mu", "mu1", "logsig", "xi")]), q=0.05, r=0.02, s=0.95)
+raftery.diag(mcmc(gibbs.trend$out.ind[[3]][,c("mu", "mu1", "logsig", "xi")]), q=0.05, r=0.02, s=0.95)
+raftery.diag(mcmc(gibbs.trend$out.ind[[4]][,c("mu", "mu1", "logsig", "xi")]), q=0.05, r=0.02, s=0.95)
+```
+
+These values are based on the (auto)correlation inside the generated samples and it informs about minimum values required for a chain with no correlation between consecutive samples. 
+
+1. **Burn-in** number of deleted values is small, meaning that starting values are not very influent.
+2. **Total**  is the advised number of iterations, which is actually quite close to our "choice" (=2000) 
+3. **Lower bound** is the minimum sample size based on zero autocorrelation. Here it is relatively low, so it is a good point.
+4. **Dependence factor** informs about the dependence into the chains, or the extent to which autocorrelation inflates the required sample size. It is common to say that values above 5for this criterion indicate a strong autocorrelation. Here we see that it is slightly the case, especially for... $\xi$. \\
+
+
+## Final Results
+
+**Summary Table from the posterior :**
+
+```{r}
+tab1 <- as.data.frame(summary(mcmc(param.chain))$quantiles)
+colnames(tab1) <- c("$\\boldsymbol{q_{0.025}}$","$\\boldsymbol{q_{0.25}}$","Median","$\\boldsymbol{q_{0.75}}$","$\\boldsymbol{q_{0.975}}$")
+rownames(tab1) <- c("$\\mu \\ $","$\\mu_1 \\quad$", "$\\sigma \\quad$", "$\\xi \\quad$")
+pander(tab1,split.table = Inf)
+```
+
+At first sight, we can appreciate that results seem very similar to the frequentists ones. Let's now compare them, by taking the smaple mean value of the posterior for the Bayesian estimate.
+
+We can also represent the **posterior densities** to have visual insight of the posterior's probability mass. (can smooth it)
+
+```{r}
+
+color_scheme_set("brightblue")
+grid.arrange( mcmc_dens(param.chain, pars = c("mu", "mu1")),
+              mcmc_dens(param.chain, pars = c("logsig", "xi")),
+              nrow = 2)
+```
+
+
+
+**Comparisons with Frequentist's results (GEV) :**
+
+```{r}
+par_gibbs_trend <- apply(gibbs.trend$out.chain[,c("mu", "mu1", "logsig", "xi")],
+                         2, mean) # Average over the (3) generated chains
+par_gibbs_trend["logsig"] <- exp(par_gibbs_trend["logsig"] ) 
+
+frame <- data.frame(Bayesian = par_gibbs_trend, 'Frequentist(mle)' = gev_nonstatio$mle)
+row.names(frame) = c("$\\mu \\ $","$\\boxed{\\mu_1} \\quad$", "$\\sigma \\quad$", "$\\xi \\quad$")
+knitr::kable(frame, align = 'l')
+```
+
+Again, these look very similar. We must **notice** that is natural and this is rather comforting as we used **non-informative priors** so far. ( $\rightarrow$ *study behaviour if we introduce information through priors ?* )
+
+
+
+**why is the value of $\boxed{\mu_1}$ different with this obtained with frequentist ?**
+
+
+ **Note that for $\boldsymbol{\mu_{trend}}$,** time has been rescaled to $\boldsymbol{t}^{scaled}$, to give : 
+
+$$\boldsymbol{\mu}_{trend} = \mu + \mu_1 \cdot \boldsymbol{t}^{scaled} \qquad\text{where}\qquad t_{i}^{scaled} = \frac{t_i - mean(t) }{|\boldsymbol{t}|}, $$ 
+or look inside $\texttt{log_post1()}$.  ${|\boldsymbol{t}|}$ denotes heee the length of ${\boldsymbol{t}}$.
+This scaling had to be done for good behaviour of the generated chains. Verifications have been made, and this is perhaps why it did not work with $\texttt{evdbayes}$ (see below).
+
+
+
+The values we obtain in the **Bayesian setting** for the vector $\boldsymbol{t}_{scaled}$ is  
+```{r}
+t_bayes <- round(( min(max_years$df$Year):max(max_years$df$Year) -
+             mean(max_years$df$Year) ) / length(max_years$data),4)
+t_bayes
+```
+
+while, in the **frequentist setting**, we had  
+
+```{r}
+t_freq <- seq(1, length(max_years$data),1)
+t_freq
+```
+
+for the 166 years [1901 $\rightarrow$ 2016] of data.
+
+Hence, we could now **compare the values** of $\mu_t$ obtained in the **frequentist GEV and with the bayesian**, for time period [1901,1903] and [2014,2016] : 
+
+```{r}
+mut <- par_gibbs_trend["mu"] + par_gibbs_trend["mu1"] * t_bayes
+# cat("First 6 values for frequentist :")
+# head(mut)
+
+mu_freq <- gev_nonstatio$mle[1] + gev_nonstatio$mle[2] * t_freq
+
+
+pander(t(matrix(c(mut[1:4], mut[(length(mut)-3):length(mut)], mu_freq[1:4], mu_freq[(length(mu_freq)-3):length(mu_freq)]), ncol = 2, dimnames = list(c(rep("First values", 4), rep("Last values", 4)), c("Frequentist",  "Bayesian"))))) 
+```
+
+
+These are very similar. Then, we could for example see the differences visually, for example, by putting each parameter on a graph and the plot each estimate (frequentist : mle, moments, pwm, ...) together with its confidence interval. (?)
+
+E.g. for the chain's parameters : 
+
+```{r, fig.width=4, fig.height=4}
+mcmc_intervals(param.chain, pars = c("logsig", "xi"))
+```
+
+And then, why not taking an ensembling rule of all the estimates obtained (frequentists + bayesian ??) to get a "final estimate" 
+$\Rightarrow$ more accurate. (?)
+
+
+
+## Posterior Predictive Distribution 
+
+The posterior predictive distribution (PPD) is the distribution for future predicted data based on the data you have already seen. So the posterior predictive distribution is basically used to predict new data values. 
+
+$$f(x_{m+1}|\boldsymbol{x})= \int_{\Theta}f(x_{m+1},\theta |\boldsymbol{x})\cdot d\theta:=\mathbb{E}_{\theta|\boldsymbol{x}}\big[f(x_{m+1}|\theta)\big]$$
+
+To obtain this, we will estimate it by generating samples from the posterior ditribution to form the PPD. 
+
+```{r}
+tt <- ( min(max_years$df$Year):(max(max_years$df$Year) ) -
+               mean(max_years$df$Year) ) / length(max_years$data)
+
+repl <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt))
+for(t in 1:nrow(repl)) {
+  mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt
+  repl[t,] <- evd::rgev(length(tt), loc = mu, scale = gibbs.trend$out.chain[t,3],
+                                  #shape = unname(par_gibbs_trend["xi"]))
+                                  shape = gibbs.trend$out.chain[t,4])
+}
+post.pred <- apply(repl, 2, function(x) quantile(x, probs = c(0.05,0.5,0.95)))
+
+```
+
+The PPD has the same mean as the posterior distribution, but a greater variance. Additional “sampling uncertainty” since we are drawing a new data from posterior.
+
+
+From this generated sample, we can then plot the original data (points) together with the quantile (5%, median and 95%) estimates generated by the PPD. 
+```{r}
+df.postpred <- data.frame(data = max_years$data, q05 = post.pred["5%",], q50 = post.pred["50%",], q95 = post.pred["95%",], year = seq(1901:2016))
+
+ggplot(df.postpred) + geom_point(aes(x = year, y = data)) + geom_line(aes(x = year, y = q05)) + geom_line(aes(x = year, y = q50)) + geom_line(aes(x = year, y = q95)) + ggtitle("Original data with PPD quantiles 5, 50 and 95%") + theme_piss()
+
+```
+
+We can quite easily see the linear trend contained in the PPD ...
+
+Or we could even go beyod the range of the data and thus make predictions. 
+
+```{r, fig.width=7}
+tt2 <- ( min(max_years$df$Year):(max(max_years$df$Year) +10 ) -
+               mean(max_years$df$Year) ) / length(max_years$data)
+
+repl2 <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt2))
+for(t in 1:nrow(repl2)) {
+  mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt2
+  repl2[t,] <- evd::rgev(length(tt2), loc = mu, scale = gibbs.trend$out.chain[t,3],
+                                  #shape = unname(par_gibbs_trend["xi"]))
+                                  shape = gibbs.trend$out.chain[t,4])
+}
+post.pred2 <- apply(repl2, 2, function(x) quantile(x, probs = c(0.05,0.5,0.95)))
+
+df.postpred2 <- data.frame(org.data = c(max_years$data, repl2[sample(10, 1:nrow(repl2)),117:126] ), q05 = post.pred2["5%",], q50 = post.pred2["50%",], q95 = post.pred2["95%",], year = 1901:2026, 'data' = c(rep('original',116), rep('new', 10)))
+
+ggplot(df.postpred2, aes(col = data)) + geom_point(aes(x = year, y = org.data)) + geom_line(aes(x = year, y = q05)) + geom_line(aes(x = year, y = q50)) + geom_line(aes(x = year, y = q95)) + ggtitle("PPD quantiles 5, 50 and 95% and 10y predictions") + theme_piss()
+```
+
+Note that the 10 new samples generated (points in red on the graph) are randomly picked from the posterior predictives samples at the correct time levels.
+
+Or we can also visualize this for example from their associated densities with respect to time, together with their average :  
+
+```{r, fig.width=10, fig.height=3.5}
+g1 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X1), geom = "line") + labs(x = " TX for year 1901") + theme_piss() + geom_vline(xintercept = mean(repl2[,1]), col = "red")
+g2 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X50), geom = "line") + labs(x = " TX for year 1950") + theme_piss() + geom_vline(xintercept = mean(repl2[,50]), col = "red")
+g3 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X116), geom = "line") + labs(x = " TX for year 2016") + theme_piss() + geom_vline(xintercept = mean(repl2[,116]), col = "red")
+g4 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X126), geom = "line") + labs(x = " TX for year 2026 (?)") + theme_piss() + geom_vline(xintercept = mean(repl2[,126]), col = "red")
+
+grid.arrange(g1, g2, g3, g4, nrow = 1)
+```
+
+<br> 
+<br> 
+
+
+$\underline{\boldsymbol{\text{Further 'diagnostics' on the posterior predictive accuracy}}} :$
+
+However, we present some diagnostics based on the PPD, or how accurate is this distribution. This is also known as posterior predictive checking. The idea is to check whether the observed data y looks plausible under the PPD.
+More insights can come from [@gelman_understanding_2014]
+
+Interesting for two reasons : 
+
+* **Measure the performance** of a model. But for that, we need to have a "reference"...
+
+* **Compare models**. So far, we just have only one 'model', but it could be interesting to compare several models... Add e.g. other nonstationary terms, like seasonnality,... It doesn't look easy but it could be interesting, maybe to compare it with the frequentist's choice ? (see which model could be interesting... Neural Networks do not give us insights on what we could model here... and a simple quadratic or cubic term in $\mu_t$ looks poor... see for $\sigma$ and $\xi$ ?)
+
+
+The next two methods are an *adjusted within-sample predictive accuracy*, in the sense that it corrects for the implicit by correcting for the (effective) number of parameters. This is a similar idea as for well-known AIC and BIC.
+
+
+**1. DIC criterion :**
+
+The *Deviance Information Criterion* uses the following estimate for the effective number of parameters 
+
+$$p^*=2\cdot \bigg(\log f(x|\bar{\theta})-N^{-1}\sum_{t=1}^N\log f(x|\theta^{(t)})\bigg)$$
+where $\bar{\theta}$ is the posterior mean, $\theta=\{\mu,\mu_1,\log\sigma, \xi\}$. 
+
+It is defined on the deviance scale and smaller DIC values indicate better models.
+
+
+$$\text{DIC}= 2\log f(x|\bar{\theta}) - \frac{4}{N} \sum_{t=1}^N\log f(x|\theta^{(t)})$$
+
+
+It handles uncertainty in inferences within each model.
+
+ "DIC is shown to be an approximation to a penalized loss function based 
+ on the deviance, with a penalty derived from a cross-validation argument.
+ This approximation is valid only when the effective number of parameters 
+ in the model is much smaller than the number of independent observations""
+ 
+```{r}
+ic_vals <- gibbs.trend$dic.vals
+
+print(paste(c("DIC for chain 1 is ", round(dic(gibbs.trend$out.ind[[1]][,c("mu", "mu1", "logsig", "xi")], ic_vals[[1]] ) - 2200, 3))))
+print(paste(c("DIC for chain 2 is ", round(dic(gibbs.trend$out.ind[[2]][,c("mu", "mu1", "logsig", "xi")], ic_vals[[2]] ) - 2200, 3))))
+print(paste(c("DIC for chain 3 is ", round(dic(gibbs.trend$out.ind[[3]][,c("mu", "mu1", "logsig", "xi")], ic_vals[[3]] ) - 2200, 3))))
+print(paste(c("DIC for chain 4 is ", round(dic(gibbs.trend$out.ind[[4]][,c("mu", "mu1", "logsig", "xi")], ic_vals[[4]] ) - 2200, 3))))
+```
+
+
+**2. WAIC criterion :**
+
+The *Widely Applicable Information Criterion* (WAIC) is a more recent approach which compute
+
+$$\text{WAIC}= 2 \sum_{i=1}^n\bigg\{\log\Big(\mathbb{E}_{\theta|x}\big[f(x_i|\theta)\big]\Big)- \mathbb{E}_{\theta|x}\big[\log f(x_i|\theta)\big] \bigg\}$$
+
+or
+
+$$\text{WAIC} = \sum_{i=1}^n\Bigg[2\log \bigg(N^{-1}\sum_{t=1}^N f(x_i|\theta^{(t)})\bigg)-\frac{4}{N}\sum_{t=1}^N\log f(x_i|\theta^{(t)})\Bigg]$$
+
+It is thus also defined on the deviance scale.
+
+```{r}
+print(paste(c("WAIC for chain 4 is ", round(waic( ic_vals[[1]] ) - 2200, 3))))
+print(paste(c("WAIC for chain 4 is ", round(waic( ic_vals[[2]]) - 2200, 3))))
+print(paste(c("WAIC for chain 4 is ", round(waic( ic_vals[[3]]) - 2200, 3))))
+print(paste(c("WAIC for chain 4 is ", round(waic( ic_vals[[4]] ) - 2200, 3 ))))
+```
+
+
+WAIC averages over the posterior distribution rather than conditioning on a point estimate. This is relevant in a predictive context, as WAIC is evaluating the predictions that are actually being used for new data in a Bayesian
+context.
+
+From these two criterion, we can for example see that the 2nd chain seems to generate a less accurate fitted 'model'... But we cannot say very much because from now, we only have one model  
+
+
+Let's finally say that these two diagnostics are interesting as their are close to the ones provided by the  Leae-One-Out Cross-Validation (see [@gelman_understanding_2014]).
+
+
+**Cross-Validation** 
+
+It can be preferred as it evaluates the accuracy on a holdout set considered as independent, based on a model fitted on the other portion of the data set (training set). 
+
+However, even if it handles problem of overfitting, it is also tied to the data and hence this is correct only in expectation, as the previous measures (...)
+
+Computationally intensive method ! But very interesting... 
+(try with Stan ??)
+
+
+## Return Levels 
+
+Inferences on Return levels are also possible...
+
+We did not find any ways to implement so will try by "hand" ... 
+
+```{r}
+# gibbs.trend$out.chain[,"sigma"] <- exp(gibbs.trend$out.chain[,"logsig"])
+# rl.data <-gibbs.trend$out.chain[, c("mu", "mu1", "sigma", "xi")]
+# rl.pred(rl.data, qlim = c(.25, .95))
+# 
+# rl_bayes_trend <- function(data_year, params, t = 10, m = 10 ){
+#     y_m <- -(1 / log(1 - 1/m))
+#     t <- seq(max(data_year), max(data_year) + t, 1)
+#     rl_m <- (params[1] + params[2] *
+#                (t-max(max_years$df$Year))) + 
+#       (params[3] / params[4]) *
+#       (y_m^params[4] - 1)
+#     g <- ggplot(data.frame(r.lvels = rl_m, years = t)) +
+#       geom_point(aes(x = years, y = r.lvels)) 
+#     print(g)
+#     return(rl_m)
+# }
+# par_gibbs_trend[3] <- exp(par_gibbs_trend["logsig"])
+# rl_bayes_trend(max_years$data, par_gibbs_trend)
+
+```
+
+The package $\texttt{evdbayes}$ does not permit to incorporate a trend inside their return leels functions. However, we could guess what the return levels behaviour would be, for a *linear* trend....
+
+# Results with $\texttt{evdbayes}$ package
+
+Globally it is the first package to use directly for EVT. It is maybe a bit old (more than 10 years...), so it is not really efficient but it works well.
+This package is also interesting as it easily allows for a trend, and as we have seen it is important for our case.
+
+
+
+## First try :  **Stationary GEV model**
+
+```{r}
+library(evdbayes)
+
+
+var.prior <- diag(c(10000, 10000, 100))
+## Large variance prior : near flat (vague) uninformative priors
+pn <- prior.norm(mean = c(0,0,0), cov = var.prior)
+
+## Arbitray starting values in t_0
+n <- 1000 ;   t0 <- c(31, 1 ,0) ;   s <- c(.02,.1,.1)
+## s contains sd for proposal distributions. Tune it 
+max.mc1 <- posterior(n, t0, prior = pn, lh = "gev", data = max_years$data, psd = s)
+
+library(coda)
+mcmc.max1 <- mcmc (max.mc1, start = 0, end = 1000)
+#plot(mcmc.max1, den = F, sm = F)
+
+
+### Better to optimize the posterior to find better starting values for MCMC
+maxpst <- mposterior(init = t0, prior = pn, lh = "gev", method = "BFGS",
+                     data = max_years$data) # Optimization method, like SANN does not change anything 
+start.val <- maxpst$par
+
+## use this a initial value, then redo the analysis (...)
+max.mc2 <- posterior(n, start.val, prior = pn, lh = "gev", 
+                    data = max_years$data, psd = s)
+mcmc.max2 <- mcmc (max.mc2, start = 0, end = 1000)
+#plot(mcmc.max2, den = F, sm = F)
+
+```
+
+**1.** Problem : Mixing of the chains is poor (not shown), especially for $\mu$. 
+
+**2.**Change the standard deviation of the proposal distribution (psd). We also add a necessary (and arbitrary for now) burn-in period $\downarrow$
+
+```{r, results="hide"}
+psd <- invisible( ar.choice(init = t0, prior = pn, lh = "gev", data = max_years$data, 
+                 psd = rep(0.05,3), tol = rep(0.02, 3)) ) $psd 
+max.mc3 <- posterior(2000, start.val, prior = pn, lh = "gev", 
+                     data = max_years$data, psd = psd)
+mcmc.maxF <- mcmc (max.mc3, start = 500, end = 2000)
+plot(mcmc.maxF, den = F, sm = F)
+
+```
+
+The chains seem pretty well. Posterior distribution has probably reached stationarity but before going on with MC diagnostics, we will see other "methods".
+
+
+
+## **Point Process** approach 
+
+We add a bit more iterations and burn-in period as it is not to computationally expensive. We set the threshold that we found previously (30)
+```{r, fig.height = 7}
+#igamma(shape = c(38.9,7.1,47), scale = c(1.5,6.3,2.6))
+priorpp <- prior.quant(shape = c(0.05, 0.25, 0.1), scale = c(1.5,3,2)) # change
+
+n <- 10000  ;   b <- 2000  # change
+
+rn.prior <- posterior(n, t0, priorpp, "none", psd = psd, burn = b)
+#t0 <- c(43.2, 7.64, 0.32) ; s <- c(2, .2, .07)
+rn.post <- posterior(n, maxpst$par, priorpp, data = max_all, "pp", thresh = 30,
+                     noy = 116, psd = s, burn = b)
+plot(mc.post <- mcmc(rn.post, start = 0, end = 8000))
+```
+
+**Comparison with frequentist result previously obtained**
+ 
+```{r}
+
+frame <- data.frame(Bayesian = apply(rn.post, 2, mean), 'Frequentist(mle)' = gev_tx1$estimate)
+
+rownames(frame) <- c("$\\mu \\ $","$\\sigma \\quad$", "$\\xi \\quad$")
+
+knitr::kable(frame, align = 'l')
+
+```
+
+
+It seems good as well but again a (strong) autocorrelation in $\mu$. Must handle this by playing with proposal standard deviations,...
+However, The result is similar (but still not the same) as the frequentist. We still do not assess convergence before going through with the nonstationary model. 
+
+
+## Add the **trend** in the location parameter
+
+
+Posterior summary of the estimates :
+
+```{r, results=F }
+pn.t <- prior.norm(mean = c(0,0,0), cov = var.prior, trendsd = 500)
+rn.post.t <- posterior(10000, c(maxpst$par,1), pn.t, data = max_all, "pp", thresh = 32,
+                     noy = 116, psd = c(s,.25), burn = b)
+pander(summary(rn.post.t))
+#plot(mc.post.t <- mcmc(rn.post.t, start = 0, end = 8000))
+
+```
+
+Problem for the parameter associated with mutrend. Too much autocorrelations through the chain
+We then try to handle that introduce **thinning** : i.e., we only take one simulation every *thin* simulation
+
+```{r, fig.height=9}
+thin.post <- posterior(10000, c(maxpst$par,1), pn.t, data = max_all, "pp", thresh = 32,
+                       noy = 116, psd = c(s, .25), burn = b, thin = 5)
+pander(summary(thin.post))   
+plot(mc.post <- mcmc(thin.post, start = , end = nrow(thin.post)))
+
+
+```
+
+However, this does not change anything... We must handle that. Here, **inferences** with  a linear trend component for $\mu$ are **not reliable**.
+
+We tried several broad standard deviations for the proposals,  
+
+## Return Levels
+
+```{r}
+#rl.pred(max.mc2, npy = 365.25, qlim = c(30,45))
+#rl.pred(max.mc3, qlim = c(30,45))
+```
+
+
+## Diagnostics
+
+To be continued
+
+
+# References
+
+
