@@ -45,3 +45,11 @@ Marcelo Hartmann and Ricardo Ehlers. Bayesian Inference for
 Generalized Extreme Value Distributions via Hamiltonian Monte Carlo.
 Communications in Statistics - Simulation and Computation, pages 0–0, March 2016.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{http://github.com/proto4426/PissoortThesis}
+  \item Report bugs at \url{http://github.com/proto4426/PissoortThesis/issues}
+}
+
+}

@@ -4,7 +4,11 @@ Title: Thesis in Extreme Value Theory
 Version: 0.1.0
 Author: Antoine Pissoort
 Maintainer: Antoine Pissoort <antoine.pissoort@student.uclouvain.be>
+Description: This package aims to provide the main functions that has been created for my thesis to ease the analytic part, to make it both smoother and more efficient.
+URL: http://github.com/proto4426/PissoortThesis
+BugReports: http://github.com/proto4426/PissoortThesis/issues
 License: No license
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
+VignetteBuilder: knitr
