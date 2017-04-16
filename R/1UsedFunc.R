@@ -10,7 +10,8 @@
 #' @param size_p Size of the plot's title.
 #' @param size_c Size of the axis' title.
 #' @param size_l Size of the legend's title.
-#' @param theme ggplot's theme for the plot.
+#' @param theme ggplot's theme for the plot. Set it to NULL if you 
+#' want put your own theme construction in the "..."
 #'
 #' @return A personalized ggplot2 theme object to add to every builded plots.
 #' @details
@@ -22,20 +23,36 @@
 #' ggplot(data = data.frame(empirical,model_est), aes(x=empirical,y=model_est)) +
 #' geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
 #' theme_piss() +  ggtitle("Probability plot")
-"theme_piss" <-
-  function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
-  theme(plot.title = element_text(size = size_p, hjust=0.5,
-                                  colour = "#33666C", face="bold"),
-        axis.title = element_text(face = "bold", size= size_c,
-                                    colour = "#33666C"),
-        legend.position = c(.888, .152),
-        legend.title = element_text(colour="#33666C", size = size_l, face="bold"),
-        legend.background = element_rect(colour = "black"),
-        legend.key = element_rect(fill = "white")) +
-  guides(colour = guide_legend(override.aes = list(size = 2))) +
-  theme
+# "theme_piss" <-
+#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
+#   theme(plot.title = element_text(size = size_p, hjust=0.5,
+#                                   colour = "#33666C", face="bold"),
+#         axis.title = element_text(face = "bold", size= size_c,
+#                                    colour = "#33666C"),
+#         legend.position = c(.888, .152),
+#         legend.title = element_text(colour="#33666C", size = size_l, face="bold"),
+#         legend.background = element_rect(colour = "black"),
+#         legend.key = element_rect(fill = "white")) +
+#   guides(colour = guide_legend(override.aes = list(size = 2))) +
+#   theme
+# }
+# Handle 'Error: Don't know how to add RHS to a theme object'
+"theme_piss" <- 
+  function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
+ 
+ out <- 
+   list( theme(plot.title = element_text(size = size_p, hjust=0.5, 
+                                  colour = "#33666C", face="bold")) ,
+         theme(axis.title = element_text(face = "bold", size= size_c,
+                                    colour = "#33666C"), ...) ,
+         theme(legend.title = element_text(colour="#33666C", 
+                                           size = size_l, face="bold"),
+               legend.background = element_rect(colour = "black"),
+               legend.key = element_rect(fill = "white"))
+       )
+    if(!is.null(theme))  out <- list(out, theme)
+ out
 }
-
 
 
 # This function aims to retrieve specific seasons from month standing
@@ -210,10 +227,24 @@
 #' This will be implemented in \code{ggplot} if shown in the finalo thesis.
 #' @examples
 #' acfpacf_plot(max_years$data)
-'acfpacf_plot' <- function(data, lagmax = length(data)){
+'acfpacf_plot' <- function(data, lagmax = length(data), ...){
   par(mfrow = c(2, 1))
-  acf(data, lag.max = lagmax)
-  pacf(data, lag.max = lagmax)
+  acf(data, lag.max = lagmax, ...)
+  pacf(data, lag.max = lagmax, ...)
+  # ACF <- acf(data, plot = FALSE)
+  # ACF <- setNames(data.frame(unclass(ACF)[c("acf", "lag")]), c("ACF","Lag"))
+  # g1 <- ggplot(ACF, aes(x = Lag, y = ACF)) +
+  #   geom_hline(aes(yintercept = 0)) +
+  #   geom_segment(mapping = aes(xend = Lag, yend = 0))
+  # 
+  # 
+  # PACF <- pacf(data, plot = FALSE)
+  # PACF <- setNames(data.frame(unclass(PACF)[c("pacf", "lag")]), c("PACF","Lag"))
+  # g2 <- ggplot(ACF, aes(x = Lag, y = ACF)) +
+  #   geom_hline(aes(yintercept = 0)) +
+  #   geom_segment(mapping = aes(xend = Lag, yend = 0))
+  # 
+  # grid.arrange(g1,g2, nrow=2)
 }
 
 

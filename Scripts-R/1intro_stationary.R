@@ -4,6 +4,7 @@ library(magrittr) # usefull for pipe %>% operators
 library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
 library(data.table)
 library(ggplot2)
+library(tidyverse)
 
 library(PissoortThesis)
 # To call our Functions stored for better smoothness
@@ -144,38 +145,41 @@ dygraph(xtdata) %>% dyRangeSelector()
 # Seems stationnary as well... or not
 
 
+## Plot the yearly maxima together with some "standard" fitting methods
 
 summary(lm1 <- lm(max_years$data ~ max_years$df$Year))
 lm1_1 <- lm1$coefficients[1]
 lm1_2 <- lm1$coefficients[2]
 
+Broken_lin1 <-  predict(lm(max_years$data[1:75] ~ max_years$df$Year[1:75]) )
+Broken_lin2 <-  predict(lm(max_years$data[77:116] ~ max_years$df$Year[77:116]) )
+
 g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
   geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
   geom_line(data = max_years$df[max_years$df$Year %in% 1901:1975,],
             aes(x = Year, colour = "BrokenLinear",
-                y = predict(lm(max_years$data[1:75] ~ max_years$df$Year[1:75]))),
+                y = Broken_lin1),
              size = 1.5, linetype = "twodash") +
   geom_line(data = max_years$df[max_years$df$Year %in% 1977:2016,],
             aes(x = Year, colour = "BrokenLinear",
-                y = predict(lm(max_years$data[77:116] ~ max_years$df$Year[77:116]))),
+                y = Broken_lin2),
             size = 1.5, linetype = "twodash") +
   stat_smooth(method = "loess", se = F, aes(colour = 'LOESS')) +
-  labs(title = "Complete Serie of Annual TX in Uccle") +
-  theme_piss(20, 15) +
+  labs(title = "Complete Serie of Annual TX in Uccle",
+       y = expression( Max~(T~degree*C))) +
   theme(axis.line = element_line(color="#33666C", size = .45)) +
   scale_colour_manual(name="Trend",
                       values=c(Linear="blue", BrokenLinear="cyan", LOESS="red")) +
-  #scale_linetype_manual( name = "Trend", values = c(BrokenLinear="twodash")
-  theme(legend.position = c(.888, .152)) +
-  theme(legend.title = element_text(colour="#33666C",
-                                    size=12, face="bold"),
-        legend.background = element_rect(colour = "black"),
-        legend.key = element_rect(fill = "white")) +
-  guides(colour = guide_legend(override.aes = list(size = 2)))
-
+  theme_piss(20, 15, legend.position = c(.888, .152), 
+             guides(colour = guide_legend(override.aes = list(size = 2)))) 
+  # theme(legend.title = element_text(colour="#33666C",
+  #                                   size=12, face="bold"),
+  #       legend.background = element_rect(colour = "black"),
+  #       legend.key = element_rect(fill = "white")) +
 g1
 # Red line is local polynomial regression fitting curve (loees)
 # The (optimal) default method is convenient
+
 
 ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_point() +
   geom_abline(intercept = lm1_1,slope=lm1_2,col="red")+ theme_bw()
@@ -710,14 +714,6 @@ plot(above_thres_s[1:length(above_thres_s)-1],above_thres_s[2:length(above_thres
 
 
 save.image("data.Rdata")
-
-
-
-
-
-
-
-
 
 
 

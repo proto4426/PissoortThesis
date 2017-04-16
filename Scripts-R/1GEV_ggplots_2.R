@@ -1,3 +1,7 @@
+# *Antoine Pissoort* # 
+## Script providing the main plot(s?) for the thesis ## 
+#######################################################
+
 library(evd)
 library(fExtremes)
 library(ismev)

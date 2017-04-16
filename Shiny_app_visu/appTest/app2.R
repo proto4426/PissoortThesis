@@ -22,18 +22,66 @@ library(highcharter)
 library(dplyr)
 library(tidyr)
 
-# Define server logic required to draw a histogram
+
+
+
+
+
+
 server <- function(input, output) {
+
+  # hcbase <- reactive({
+  #   # hcbase <- function() highchart()
+  #   hc <- highchart()
+  #
+  #
+  #   if (input$credits)
+  #     hc <- hc %>% hc_credits(enabled = TRUE, text = "Highcharter", href = "http://jkunst.com/highcharter/")
+  #
+  #   if (input$exporting)
+  #     hc <- hc %>% hc_exporting(enabled = TRUE)
+  #
+  #   if (input$theme != FALSE) {
+  #     theme <- switch(input$theme,
+  #                     null = hc_theme_null(),
+  #                     economist = hc_theme_economist(),
+  #                     dotabuff = hc_theme_db(),
+  #                     darkunica = hc_theme_darkunica(),
+  #                     gridlight = hc_theme_gridlight(),
+  #                     sandsignika = hc_theme_sandsignika(),
+  #                     fivethirtyeight = hc_theme_538(),
+  #                     chalk = hc_theme_chalk(),
+  #                     handdrwran = hc_theme_handdrawn()
+  #     )
+  #
+  #     hc <- hc %>% hc_add_theme(theme)
+  #   }
+  #
+  #   hc
+  #
+  # })
 
   output$plot1 <- renderHighchart({
     x <- TXTN_closed
-   hc <-  highchart() %>%
+     highchart() %>%
       hc_add_series(x[ x$year == input$year,], type = "scatter",
                     hcaes(x = Date, y = TX), name = 'TX' ) %>%
       hc_add_series(x[ x$year == input$year,], type = "scatter",
                     hcaes(x = Date, y = TN), name = 'TN' ) %>%
-      hc_add_theme(hc_theme_flatdark())
-  hc
+      hc_add_theme(hc_theme_flatdark()) %>%
+     hc_title(text = "draggable points demo") %>%
+     hc_xAxis(categories = month.abb) %>%
+     hc_plotOptions(
+       series = list(
+         point = list(
+           events = list(
+             drop = JS("function(){
+                    console.log(this.series)
+                    window.data = _.map(this.series.data, function(e) { return e.y })
+                    Shiny.onInputChange('inputname', data);
+                    }"))
+         )))
+
     # if(input$fit == 'loess') g <- g +
     #   stat_smooth(method = "loess", se = F, aes(colour = 'LOESS'))
   })

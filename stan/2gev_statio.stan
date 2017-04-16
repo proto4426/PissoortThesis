@@ -12,7 +12,6 @@ real gev_log (vector y, real mu, real logsig, real xi){
   return -sum(res);
   }
 }
-
 data {
   int<lower=0> n;
   vector[n] y;
@@ -28,9 +27,9 @@ parameters {
  real xi;
  real logsig;
   // location has upper/lower bounds depending on the value of xi
- // real<lower=if_else( xi < 0, min_y + logsig / xi, negative_infinity() ),
- //      upper=if_else( xi > 0, positive_infinity(), max_y + logsig / xi )>
- real mu;
+ real<lower=if_else( xi < 0, min_y + logsig / xi, negative_infinity() ),
+      upper=if_else( xi > 0, positive_infinity(), max_y + logsig / xi )>
+      mu;
        // vector[3] theta;
        // real theta = [mu, sigma, xi ];
  #vector[3] theta;

@@ -1,19 +1,9 @@
-# library("rstanarm")
-# fit <- stan_glm(
-#   mpg ~ ., # ~ . includes all other variables in dataset
-#   data = mtcars, 
-#   chains = 4, 
-#   iter = 2000,
-#   seed = 1111
-# )
-# print(fit)
-# 
-# posterior <- as.array(fit)
-# dim(posterior)
-# str(posterior)
-install.packages("rstantools")
+setwd('/home/piss/Documents/Extreme/R resources/IRM')
+setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
 
-load("data1.Rdata")
+library("rstantools")
+
+load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 
 options(mc.cores=parallel::detectCores()) # all available cores
 # can be used without needing to manually specify the cores argument.
@@ -22,35 +12,40 @@ options(mc.cores=parallel::detectCores()) # all available cores
 library("rstan")      
 library(bayesplot)
 library(mvtnorm)
-fit_stan <- stan(file = 'gev.stan', data = list(n = length(max_years$data),
-                                                     y = max_years$data), 
-                  iter = 2000, chains = 4, warmup = 100, cores = 8,
-                       control = list(adapt_delta = .9))
-fit_stan
-sampler_par <- get_sampler_params(fit_stan, inc_warmup = TRUE)
-summary(do.call(rbind, sampler_par), digits = 2)
-lapply(sampler_par, summary, digits = 2)
+
+library(PissoortThesis)
 
 #######
 fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
 param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
 opt <- nlm(fn, param, data = max_years$data,
            hessian=T, iterlim = 1e5) 
-start <- list() ; k <- 1
+
+start0 <- list() ;  k <- 1
 while(k < 5) { 
   sv <- as.numeric(rmvnorm(1, opt$estimate, 50 * solve(opt$hessian)))
   svlp <- log_post0(sv[1], sv[2], sv[3], max_years$data)
   if(is.finite(svlp)) {
-    start[[k]] <- as.list(sv) ;  names(start[[k]]) <- c("mu", "logsig","xi") 
+    start0[[k]] <- as.list(sv) ;  names(start0[[k]]) <- c("mu", "logsig","xi") 
     k <- k + 1
   } }
 ######
 
-fit_st <- stan(file = '2gev_statio.stan', data = list(N = length(max_years$data),
-                                                      y = max_years$data), 
-               iter = 2000, chains = 4, warmup = 100, cores = 8,
-              control = list(adapt_delta = .89))
-fit_st
+fit_stan <- stan(file = 'gev.stan', data = list(n = length(max_years$data),
+                                                y = max_years$data), 
+                 init = start0, iter = 2000, chains = 4, warmup = 100, 
+                 cores = 8, control = list(adapt_delta = .9))
+fit_stan
+summary(fit_stan)
+pairs(fit_stan)
+sampler_par <- get_sampler_params(fit_stan, inc_warmup = TRUE)
+summary(do.call(rbind, sampler_par), digits = 2)
+lapply(sampler_par, summary, digits = 2)
+
+lookup(Inf)
+
+
+
 tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
           mean(max_years$df$Year) ) / length(max_years$data)
 start <- list() ; k <- 1
@@ -64,13 +59,14 @@ while(k < 5) { # starting value is randomly selected from a distribution
     k <- k + 1
   }
 }
-fit_st <- stan(file = 'gev_lin.stan', data = list(n = length(max_years$data),
+
+fit_lin <- stan(file = 'gev_lin.stan', data = list(n = length(max_years$data),
                                                   y = max_years$data,
                                                   tt = tt), 
               init=start, iter = 2000, chains = 4, warmup = 100, cores = 8,
-               control = list(adapt_delta = .999))
-fit_st
-sampler_params <- get_sampler_params(fit_st, inc_warmup = TRUE)
+               control = list(adapt_delta = .99))
+fit_lin
+sampler_params <- get_sampler_params(fit_lin, inc_warmup = TRUE)
 summary(do.call(rbind, sampler_params), digits = 2)
 lapply(sampler_params, summary, digits = 2)
 
@@ -96,11 +92,16 @@ test_fun <-' functions {
   } }
   model {}
 '
-test_fun <- ' functions { vector gg(int x, int y) {
-return x:y; } }   
-model {}'
+test_fun <- ' functions { 
+  real gg( int y) {
+   return 1e15+y; 
+  } 
+}   
+  model {}
+'
 expose_stan_functions(stanc(model_code = test_fun))
 gev_log(max_years$data, 30, 0.7, -.22)
+gg(20)
 sm <- stan_model(model_code = test_fun)
 optimizing(sm, data = list(y = max_years$data,
                            N = length(max_years$data)), hessian = T)
