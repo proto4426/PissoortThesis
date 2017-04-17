@@ -2,7 +2,10 @@
 R package for thesis of Antoine Pissoort
 
 ## R code to install the package from GitHub
-1. `devtools::install_github("proto4426/PissoortThesis")`
+1. `devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)`
+
+If you are not able to download the vignettes directly, please use the .tar.gz file containing the html's in the folder.
+
 2. `library(PissoortThesis)`
 
 ## R code to install the package from a local repository:
