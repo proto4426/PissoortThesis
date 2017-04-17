@@ -222,7 +222,7 @@ lines(unlist(gam3.dsig$decr) ~ Year, data = pdat, col = "red", lwd = 3)
 # =========================================================================
 
 
-## for Linear regression model... Not very interesting
+## Linear regression model... Not very interesting
 
 # ctrl <- list(niterEM = 0, msVerbose = TRUE, optimMethod="L-BFGS-B")
 # m2 <- gamm(Temperature ~ s(nMonth, bs = "cc", k = 12) + s(Time, k = 20),

@@ -29,6 +29,7 @@
   ans
 }
 
+
 # Posterior Density Function
 # Compute the log_posterior in a stationary context.
 # Be careful to incorporate the fact that the distribution can have finite endpoints.
@@ -101,6 +102,7 @@
 }
 
 # ===============================================================
+#' @export MH_mcmc.own
 #' @title Return Levels with nonstationarity
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
@@ -120,7 +122,6 @@
 # start represents the starting value of the generated chain,
 # must explore different ones, typically take the MPLE
 # varmat.prop is the variance of the proposal.
-#' @export
 'MH_mcmc.own' <- function(start, varmat.prop,
                           data = max_years$data, iter = 2000){
   out <- matrix(NA, nrow = iter+1, ncol = 3)
@@ -718,6 +719,7 @@
 }
 
 
+
 # ===============================================================
 #' @name return_levels_gg
 #' @title Return Levels with nonstationarity
@@ -761,6 +763,7 @@
   return(list(x = rps, y = mat))
 }
 
+
 #' @rdname rlfuns
 #' @export
 "rl.pred_gg" <- function(post, qlim, npy, method = c("gev", "gpd"), period = 1, ...) {
@@ -789,4 +792,45 @@
       theme_piss(...)
    print(g)
     return(list(x = 1/(npy * p.upper ), y = qnt))
+}
+
+
+
+
+
+# ===============================================================
+#' @export Pred_Dens_ggPlot
+#' @title Predictive Posterior density plots
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+
+#' @description
+#' Compute a \code{ggplot} of the Density associated with the
+#' Posterior Predictive Distribution (PPD)
+#' @param year numeric value giving the year for which we want to compute the
+#' predictive density
+#' @param data_ppd numeric matrix or df of size [n,p] containing the posterior predictive
+#'  samples, where \code{n} is the number of simulated samples and \code{p}
+#'   is the prediction horizon.
+#' @param ylim and \code{xlim} define the grid for the plot.
+#'
+#' @return a ggplot
+#' @examples
+#' # For the PPD density plot of the year 2026 :
+#' gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2)
+#' # where repl2 is the matrix containing the predictive samples (see Bayes_own_gev.R)
+#'
+'Pred_Dens_ggPlot' <- function(year, data_ppd ,
+                               ylim = c(0.01,.55), xlim = c(27.5,36)) {
+  index <- year - 1900 # Retrieve the index from our data series.
+
+  ggplot(data.frame(repl2)) +
+    stat_density(aes_string(x = paste0("X",index)), geom = "line") +
+    labs(x = paste("TX for year", as.character(year))) +
+    geom_vline(xintercept = mean(repl2[,index]), col = "blue") +
+    geom_vline(xintercept = post.pred2["5%", index], col = "blue") +
+    geom_vline(xintercept = post.pred2["95%", index], col = "blue") +
+    coord_cartesian(ylim = ylim, xlim = xlim) +
+    geom_vline(xintercept = hpd_pred['lower', index], col = "green") +
+    geom_vline(xintercept = hpd_pred['upper', index], col = "green") +
+    theme_piss()
 }

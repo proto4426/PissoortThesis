@@ -23,20 +23,7 @@
 #' ggplot(data = data.frame(empirical,model_est), aes(x=empirical,y=model_est)) +
 #' geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
 #' theme_piss() +  ggtitle("Probability plot")
-# "theme_piss" <-
-#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
-#   theme(plot.title = element_text(size = size_p, hjust=0.5,
-#                                   colour = "#33666C", face="bold"),
-#         axis.title = element_text(face = "bold", size= size_c,
-#                                    colour = "#33666C"),
-#         legend.position = c(.888, .152),
-#         legend.title = element_text(colour="#33666C", size = size_l, face="bold"),
-#         legend.background = element_rect(colour = "black"),
-#         legend.key = element_rect(fill = "white")) +
-#   guides(colour = guide_legend(override.aes = list(size = 2))) +
-#   theme
-# }
-# Handle 'Error: Don't know how to add RHS to a theme object'
+#' 
 "theme_piss" <- 
   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
  
@@ -53,16 +40,31 @@
     if(!is.null(theme))  out <- list(out, theme)
  out
 }
+# "theme_piss" <-
+#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
+#   theme(plot.title = element_text(size = size_p, hjust=0.5,
+#                                   colour = "#33666C", face="bold"),
+#         axis.title = element_text(face = "bold", size= size_c,
+#                                    colour = "#33666C"),
+#         legend.position = c(.888, .152),
+#         legend.title = element_text(colour="#33666C", size = size_l, face="bold"),
+#         legend.background = element_rect(colour = "black"),
+#         legend.key = element_rect(fill = "white")) +
+#   guides(colour = guide_legend(override.aes = list(size = 2))) +
+#   theme
+# }
+# Handle 'Error: Don't know how to add RHS to a theme object'
 
 
-# This function aims to retrieve specific seasons from month standing
-# in a particular dataset
+
 # ===============================================================
 #' @export func_season
 #' @title Retrieve seasons from months
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description
-#' To characterize our dataset and the temperatures in terms of seasons
+#' This function aims to retrieve specific seasons from a month standing
+#  in a particular dataset. Helpful to characterize our dataset 
+#' and the temperatures in terms of seasons
 #'
 #' @param month of the year from which we want to return the season
 #'
@@ -86,7 +88,7 @@
 
 
 # ===============================================================
-#' @export theme_piss
+#' @export yearly.extrm
 #' @title Homogeneous theme for ggplots
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description

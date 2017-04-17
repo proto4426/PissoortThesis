@@ -35,6 +35,7 @@ Values of other parameters such as colours could be changed inside the function.
 ggplot(data = data.frame(empirical,model_est), aes(x=empirical,y=model_est)) +
 geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
 theme_piss() +  ggtitle("Probability plot")
+
 }
 \author{
 Antoine Pissoort, \email{antoine.pissoort@student.uclouvain.be}

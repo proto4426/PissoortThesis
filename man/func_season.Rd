@@ -13,7 +13,8 @@ func_season(month)
 the meteoroglogical season associated to each month
 }
 \description{
-To characterize our dataset and the temperatures in terms of seasons
+This function aims to retrieve specific seasons from a month standing
+and the temperatures in terms of seasons
 }
 \examples{
 # Retrieve seasons based on meteorological seasons
