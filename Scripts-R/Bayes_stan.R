@@ -1,4 +1,4 @@
-setwd('/home/piss/Documents/Extreme/R resources/IRM')
+#setwd('/home/piss/Documents/Extreme/R resources/IRM')
 setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
 
 library("rstantools")
@@ -8,12 +8,12 @@ load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 options(mc.cores=parallel::detectCores()) # all available cores
 # can be used without needing to manually specify the cores argument.
 
-########################
 library("rstan")      
 library(bayesplot)
 library(mvtnorm)
 
 library(PissoortThesis)
+
 
 #######
 fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
@@ -22,7 +22,8 @@ opt <- nlm(fn, param, data = max_years$data,
            hessian=T, iterlim = 1e5) 
 
 start0 <- list() ;  k <- 1
-while(k < 5) { 
+while(k < 5) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
   sv <- as.numeric(rmvnorm(1, opt$estimate, 50 * solve(opt$hessian)))
   svlp <- log_post0(sv[1], sv[2], sv[3], max_years$data)
   if(is.finite(svlp)) {
@@ -33,8 +34,8 @@ while(k < 5) {
 
 fit_stan <- stan(file = 'gev.stan', data = list(n = length(max_years$data),
                                                 y = max_years$data), 
-                 init = start0, iter = 2000, chains = 4, warmup = 100, 
-                 cores = 8, control = list(adapt_delta = .9))
+                 iter = 2000, chains = 4, warmup = 0,# init = rev(start0), 
+                 cores = 8, verbose = T, control = list(adapt_delta = .9))
 fit_stan
 summary(fit_stan)
 pairs(fit_stan)
@@ -49,8 +50,7 @@ lookup(Inf)
 tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
           mean(max_years$df$Year) ) / length(max_years$data)
 start <- list() ; k <- 1
-while(k < 5) { # starting value is randomly selected from a distribution
-  # that is overdispersed relative to the target
+while(k < 5) { 
   sv <- as.numeric(rmvnorm(1, opt$par, 50 * solve(opt$hessian)))
   svlp <- log_post1(sv[1], sv[2], sv[3], sv[4], max_years$data)
   print(svlp)

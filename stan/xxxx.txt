@@ -1,0 +1,22 @@
+In file included from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/BH/include/boost/config.hpp:39:0,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/BH/include/boost/math/tools/config.hpp:13,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/stan/math/rev/core/var.hpp:7,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/stan/math/rev/core/gevv_vvv_vari.hpp:5,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/stan/math/rev/core.hpp:12,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/stan/math/rev/mat.hpp:4,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/stan/math.hpp:4,
+                 from /home/piss/R/x86_64-pc-linux-gnu-library/3.3/StanHeaders/include/src/stan/model/model_header.hpp:4,
+                 from file1ce1ab0bd88.cpp:8:
+/home/piss/R/x86_64-pc-linux-gnu-library/3.3/BH/include/boost/config/compiler/gcc.hpp:186:0: warning: "BOOST_NO_CXX11_RVALUE_REFERENCES" redefined
+ #  define BOOST_NO_CXX11_RVALUE_REFERENCES
+ ^
+<command-line>:0:0: note: this is the location of the previous definition
+[[1]]
+Stan model 'gev' does not contain samples.
+
+[[2]]
+Stan model 'gev' does not contain samples.
+
+[[3]]
+Stan model 'gev' does not contain samples.
+

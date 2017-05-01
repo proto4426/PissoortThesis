@@ -4,21 +4,26 @@ library(magrittr) # usefull for pipe %>% operators
 library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
 library(data.table)
 library(ggplot2)
+library(gridExtra)
 library(tidyverse)
 
-library(PissoortThesis)
-# To call our Functions stored for better smoothness
+library(PissoortThesis) # We load it but we will call the functions by
+# the namespace environnement :: to make it more clear.
+
+# Apply the created theme to all ggplots without having to specify it !
+theme_set(PissoortThesis::theme_piss())
+
 
 
 #################### Uccle ################
 ###########################################
+
 
 # From 1833. Free dataset from the KNMI
 TX_public <- read.csv("TX Uccle public.csv")
 TX_public$TX <- TX_public$TX/10
 
 ## From IRM
-
 TXTN_open <- read.csv('Uccle TX TN 1901.csv',sep="")
 setnames(TXTN_open,"DAY","Date")
 
@@ -30,41 +35,47 @@ TXTN_closed$month <- as.numeric(substr(TXTN_closed$Date,5,6))
 TXTN_closed$year <- substr(TXTN_closed$Date,1,4)
 
 
-# Retrieve seasons  with our function
-#Of course, we are based on meteorological seasons
-TXTN_closed$season <- sapply(TXTN_closed$month, function(x) func_season(x))
+# Retrieve seasons with our function
+# Of course, we are here based on meteorological seasons
+TXTN_closed$season <- sapply(TXTN_closed$month, 
+                             function(x) PissoortThesis::func_season(x))
 
 
 
 ##### Differences between the public and the IRM datasets ######
 
-# remove missing values and start from 1901
+# remove missing values and start from 1901 => have same period for both. 
 TX_public_1901 <- TX_public[TX_public$DATE >= 19010101 & TX_public$Q_TX != 9,]
 
 TXTN_open_compare <- TXTN_open[TXTN_open$Date < 20000101, ]
 TXTN_closed_compare <- TXTN_closed[TXTN_closed$Date < 20000101, ]
+
+# Now, we decide to compare the TX 
 diff_tx_open <- TX_public_1901$TX - TXTN_open_compare$TX
 diff_tx_closed <- TX_public_1901$TX - TXTN_closed_compare$TX
-
 
 library(psych)
 describe(diff_tx_closed)
 describe(diff_tx_open)
 
-diff_tx_open <- data.frame(diff = diff_tx_open, method = 'open')
+diff_tx_open <- data.frame(difference = diff_tx_open, method = 'open')
 
 diff_tx <- rbind(diff_tx_open,
-                 data.frame(diff = diff_tx_closed, method =  "closed"))
-ggplot(diff_tx, aes(group = method)) + geom_boxplot(aes(y = diff, x = method))
+                 data.frame(difference = diff_tx_closed, method =  "closed"))
+ggplot(diff_tx, aes(col = method)) + geom_boxplot(aes(y = difference, x = method)) +
+  ggtitle("cccc") 
 
 sum(equals(diff_tx_open$diff, 0.0), na.rm = T) / length(diff_tx_open$diff)
 sum(equals(diff_tx_closed, 0.0), na.rm = T) / length(diff_tx_closed)
 # 53 % of the public data is the same with open shellter, and only 12 % for
 # closed shellter. Indeed, this could be problematic (...)
+# We go for the closed shellter's data as advised by the IRM.
 
 
-rm(diff_tx_open);   rm(diff_tx_closed);   rm(diff_tx_closed)
-rm(diff_tx_open)
+
+rm(diff_tx_open, diff_tx_closed, diff_tx_closed, diff_tx_open)
+
+#=======================================================================
 
 
 # Insert "-" in dat so as they match date values in R
@@ -95,12 +106,11 @@ ggplot(data=TXTN_closed, aes(group = month)) + geom_boxplot(aes(x = month, y = T
 library(RColorBrewer)
 # months
 ggplot(data = TXTN_closed, aes(TX, colour = as.factor(month))) +
-  geom_density(size = 1.1) + theme_minimal() + scale_color_discrete()
+  geom_density(size = 1.1) +  scale_color_discrete()
 # !! same smoothing factor for all densities
 
 # seasons
-ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1) +
-  theme_bw()
+ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1) 
 
 ggplot(data=TXTN_closed,aes(x=season,y=TX,group=season)) + geom_boxplot()
 
@@ -109,40 +119,37 @@ ggplot(data=TXTN_closed,aes(x=season,y=TX,group=season)) + geom_boxplot()
 ##########################################################
 ##################    GEV     ###########################
 ##########################################################
-
 library(evd)
 library(extRemes)
+
 
 # block length : usual method of 1 year
 
 list_by_years <- split(TXTN_closed, TXTN_closed$year)
-# 116 years of data. Now we will use the function created in UsedFunc.R
-# To retrieve yearly extrema
+# 116 years of data !
+
+
+##################   MAX  by year.  See ?yearly.extrm()
+max_years <- PissoortThesis::yearly.extrm()
+
+####################   MIN
+min_years <- PissoortThesis::yearly.extrm(Fun = min, tmp = "TN")
 
 
 
-################## MAX  by year. We take our function (see source() above)
-max_years <- yearly.extrm()
-
-#################### (MIN)
-min_years <- yearly.extrm(Fun = min, tmp = "TN")
-
-
-
-# Get a global view of the serie of extrema
+## Get a global view of the serie of extrema
 library(xts)
 library(dygraphs)
 library(zoo)
-library(gridExtra)
 
 xtdata0 <- xts(TXTN_closed$TX, order.by = (TXTN_closed$Date), f = 12)
 dygraph(xtdata0, main = "(Dynamic) Time series of TX in Uccle",
         xlab = "Date", ylab = "TX") %>% dyRangeSelector()
-# Seasonality is remarkable... nonstationarity indications !
+# Seasonality is remarkable... indications of nonstationarity !...
 
 xtdata <- xts(max_years$df$Max, order.by = as.yearmon(max_years$df$Year), f = 12)
 dygraph(xtdata) %>% dyRangeSelector()
-# Seems stationnary as well... or not
+# Well another shape when we take 
 
 
 ## Plot the yearly maxima together with some "standard" fitting methods
@@ -157,12 +164,10 @@ Broken_lin2 <-  predict(lm(max_years$data[77:116] ~ max_years$df$Year[77:116]) )
 g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
   geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
   geom_line(data = max_years$df[max_years$df$Year %in% 1901:1975,],
-            aes(x = Year, colour = "BrokenLinear",
-                y = Broken_lin1),
+            aes(x = Year, colour = "BrokenLinear", y = Broken_lin1),
              size = 1.5, linetype = "twodash") +
   geom_line(data = max_years$df[max_years$df$Year %in% 1977:2016,],
-            aes(x = Year, colour = "BrokenLinear",
-                y = Broken_lin2),
+            aes(x = Year, colour = "BrokenLinear", y = Broken_lin2),
             size = 1.5, linetype = "twodash") +
   stat_smooth(method = "loess", se = F, aes(colour = 'LOESS')) +
   labs(title = "Complete Serie of Annual TX in Uccle",
@@ -170,12 +175,8 @@ g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
   theme(axis.line = element_line(color="#33666C", size = .45)) +
   scale_colour_manual(name="Trend",
                       values=c(Linear="blue", BrokenLinear="cyan", LOESS="red")) +
-  theme_piss(20, 15, legend.position = c(.888, .152), 
-             guides(colour = guide_legend(override.aes = list(size = 2)))) 
-  # theme(legend.title = element_text(colour="#33666C",
-  #                                   size=12, face="bold"),
-  #       legend.background = element_rect(colour = "black"),
-  #       legend.key = element_rect(fill = "white")) +
+  theme_piss(legend.position = c(.888, .152)) +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
 g1
 # Red line is local polynomial regression fitting curve (loees)
 # The (optimal) default method is convenient
@@ -187,7 +188,6 @@ ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_point() +
 ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_point() +theme_bw()
 ggplot(data = max_years$df,aes(x=Max)) + geom_histogram() +theme_minimal()
 ggplot(data = max_years$df,aes(x=Max)) + geom_density() +theme_bw()
-
 
 
 
@@ -204,6 +204,11 @@ summary(lm_min <- lm(min_years$data ~ min_years$df$Year))
 ## Both ?
 grid.arrange(g1, g2, nrow = 2)
 # and with the full series ? see intro here
+
+
+###############################
+# Please refer to the other code of introduction for the trend analysis with splines
+################################
 
 
 
@@ -309,11 +314,9 @@ for(i in 1:length(max_order)){
 
 # compute Distribution function of the modelled GEV
 GEV.DF <- function(data,mu,sigma,xi){
-  if(xi == 0){
-    GEV <- exp(-exp(-((data-mu)/sigma)))}
-  else{
-    GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi))}
-return(GEV)
+  if(xi == 0)  GEV <- exp(-exp(-((data-mu)/sigma))) 
+  else  GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi)) 
+ return(GEV)
 }
 
 model_est <- c()
@@ -713,12 +716,7 @@ plot(above_thres_s[1:length(above_thres_s)-1],above_thres_s[2:length(above_thres
 
 
 
-save.image("data.Rdata")
-
-
-
-
-
+save.image("data.Rdata") #  To load in the other scripts 
 
 
 

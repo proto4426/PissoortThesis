@@ -6,30 +6,30 @@ functions {
     real inv_xi; 
     real inv_xi_p1; 
     real neg_inv_xi; 
-    z <- ((1 + y) - mu) * (xi / sigma); 
-    inv_xi <- inv(xi); 
-    inv_xi_p1 <- 1 + inv_xi; 
-    neg_inv_xi <- -inv_xi; 
+    z = ((1 + y) - mu) * (xi / sigma); 
+    inv_xi = inv(xi); 
+    inv_xi_p1 = 1 + inv_xi; 
+    neg_inv_xi = -inv_xi; 
     for (n in 1:num_elements(y)) 
-      lp[n] <-  inv_xi_p1 * log(z[n]) + pow(z[n],neg_inv_xi); 
-    lp[num_elements(y) + 1] <- num_elements(y) * log(sigma); 
+      lp[n] =  inv_xi_p1 * log(z[n]) + pow(z[n],neg_inv_xi); 
+    lp[num_elements(y) + 1] = num_elements(y) * log(sigma); 
     return -sum(lp); 
   } 
 
 }
 
 data {
-  int<lower=0> N;
-  real y[N];
+  int<lower=0> n;
+  real y[n];
 }
 
 transformed data {
   real min_y;
   real max_y;
   real sd_y;
-  min_y <- min(y);
-  max_y <- max(y);
-  sd_y <- sd(y);
+  min_y = min(y);
+  max_y = max(y);
+  sd_y = sd(y);
 }
 parameters {
   real<lower=-0.5,upper=0.5> xi;

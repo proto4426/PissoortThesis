@@ -4,6 +4,7 @@ library(mvtnorm)
 library(KernSmooth)
 library(coda)
 library(pander)
+library(gridExtra)
 load("data1.Rdata")
 
 library(PissoortThesis)
@@ -291,8 +292,9 @@ ggplot(df.postpred) + geom_point(aes(x = year, y = data)) +
 
 
 ## And for predictions ? 10 years here
+n_future <- 10 
 
-tt2 <- ( min(max_years$df$Year):(max(max_years$df$Year) +10 ) -
+tt2 <- ( min(max_years$df$Year):(max(max_years$df$Year) + n_future ) -
            mean(max_years$df$Year) ) / length(max_years$data)
 
 repl2 <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt2))
@@ -319,39 +321,13 @@ ggplot(df.postpred2, aes(col = data)) + geom_point(aes(x = year, y = org.data)) 
 hpd_pred <- hdi(repl2)
 
 # Densities associated with the PPD, with mean(red) and
-g1 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X1), geom = "line") +
-  labs(x = " TX for year 1901") + theme_piss() +
-  geom_vline(xintercept = mean(repl2[,1]), col = "blue") +
-  geom_vline(xintercept = post.pred2["5%", 1], col = "blue") +
-  geom_vline(xintercept = post.pred2["95%", 1], col = "blue") +
-  coord_cartesian(ylim = c(0.01,.55), xlim = c(27.5,36)) +
-  geom_vline(xintercept = hpd_pred['lower', 1], col = "green") +
-  geom_vline(xintercept = hpd_pred['upper', 1], col = "green")
-g2 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X50), geom = "line") +
-  labs(x = " TX for year 1950") + theme_piss() +
-  geom_vline(xintercept = mean(repl2[,50]), col = "blue") +
-  geom_vline(xintercept = post.pred2["5%", 50], col = "blue") +
-  geom_vline(xintercept = post.pred2["95%", 50], col = "blue") +
-  coord_cartesian(ylim = c(0.01,.55), xlim = c(27.5,36)) +
-  geom_vline(xintercept = hpd_pred['lower', 50], col = "green") +
-  geom_vline(xintercept = hpd_pred['upper', 50], col = "green")
-g3 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X116), geom = "line") +
-  labs(x = " TX for year 2016") + theme_piss() +
-  geom_vline(xintercept = mean(repl2[,116]), col = "blue") +
-  geom_vline(xintercept = post.pred2["5%", 116], col = "blue") +
-  geom_vline(xintercept = post.pred2["95%", 116], col = "blue") +
-  coord_cartesian(ylim = c(0.01,.55), xlim = c(27.5,36)) +
-  geom_vline(xintercept = hpd_pred['lower', 116], col = "green") +
-  geom_vline(xintercept = hpd_pred['upper', 116], col = "green")
-g4 <- ggplot(data.frame(repl2)) + stat_density(aes(x = X126), geom = "line") +
-  labs(x = " TX for year 2026 (?)") + theme_piss() +
-  geom_vline(xintercept = mean(repl2[,126]), col = "blue") +
-  geom_vline(xintercept = post.pred2["5%", 126], col = "blue") +
-  geom_vline(xintercept = post.pred2["95%", 126], col = "blue") +
-  coord_cartesian(ylim = c(0.01,.55), xlim = c(27.5,35)) +
-  geom_vline(xintercept = hpd_pred['lower', 126], col = "green") +
-  geom_vline(xintercept = hpd_pred['upper', 126], col = "green")
-grid.arrange(g1, g2, g3, g4, nrow = 1)
+
+gg1 <- PissoortThesis::Pred_Dens_ggPlot(1901, repl2) 
+gg2 <- PissoortThesis::Pred_Dens_ggPlot(1950, repl2) 
+gg3 <- PissoortThesis::Pred_Dens_ggPlot(2016, repl2) 
+gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2) 
+
+grid.arrange(gg1, gg2, gg3, gg4, nrow = 1)
 
 
 

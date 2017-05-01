@@ -26,20 +26,36 @@
 #' 
 "theme_piss" <- 
   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
- 
- out <- 
-   list( theme(plot.title = element_text(size = size_p, hjust=0.5, 
-                                  colour = "#33666C", face="bold")) ,
-         theme(axis.title = element_text(face = "bold", size= size_c,
-                                    colour = "#33666C"), ...) ,
-         theme(legend.title = element_text(colour="#33666C", 
-                                           size = size_l, face="bold"),
-               legend.background = element_rect(colour = "black"),
-               legend.key = element_rect(fill = "white"))
-       )
-    if(!is.null(theme))  out <- list(out, theme)
- out
-}
+    
+    text <- function(size,...) element_text(size = size, colour = "#33666C", 
+                                            face="bold", ...)
+    theme + 
+      theme(plot.title = text(size_p, hjust = 0.5),
+            axis.title = text(size_c),
+            legend.title = text(size_l),
+      ) + 
+      theme(legend.background = element_rect(colour = "black"),
+            legend.key = element_rect(fill = "white"), ...
+      )
+  }
+# "theme_piss" <- 
+#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
+#  
+#   text <- function(size,...) element_text(size = size, colour = "#33666C", 
+#                                           face="bold", ...)
+#  out <- 
+#    list( theme(plot.title = text(size_p, hjust = 0.5) ) ,
+#          theme(axis.title = text(size_c), ...) ,
+#          theme(legend.title = element_text(colour="#33666C", 
+#                                            size = size_l, face="bold"),
+#                legend.background = element_rect(colour = "black"),
+#                legend.key = element_rect(fill = "white"))
+#        )
+#  
+#     if(!is.null(theme))  out <- list(out, theme)
+#  
+#  out
+# }
 # "theme_piss" <-
 #   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
 #   theme(plot.title = element_text(size = size_p, hjust=0.5,
@@ -75,21 +91,17 @@
 #' TXTN_closed$season <- sapply(TXTN_closed$month, function(x) func_season(x))
 #'
 'func_season' <- function(month){
-  if (month %in% c(01, 02, 03))
-    return("Winter")
-  else if (month %in% c(04, 05, 06))
-    return( "Spring" )
-  else if (month %in% c(07, 08, 09))
-    return("Summer")
-  else
-    return("Autumn")
+  if (month %in% c(12, 01, 02))  return("Winter")
+  else if (month %in% c(03, 04, 05))  return( "Spring" )
+  else if (month %in% c(06, 07, 08))  return("Summer")
+  else  return("Autumn")
 }
 
 
 
 # ===============================================================
 #' @export yearly.extrm
-#' @title Homogeneous theme for ggplots
+#' @title Yearly extrema retrieval
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description
 #' retrieve the (yearly) extremes for a given list of extrema.

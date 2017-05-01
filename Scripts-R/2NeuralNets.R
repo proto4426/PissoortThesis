@@ -1,5 +1,4 @@
 setwd('/home/piss/Documents/Extreme/R resources/IRM')
-source("1Code_local.R")
 load("data1.Rdata")
 
 library(PissoortThesis)
@@ -37,7 +36,6 @@ models[[10]] <- list(n.hidden = 2, Th = gevcdn.logistic)
 
 
 
-
 x <- as.matrix(seq(1, length(max_years$data)))
 y <- as.matrix(max_years$data)
 ## 2) Fit the models and retrieve the weights
@@ -49,6 +47,9 @@ for(i in seq_along(models)){
                                     Th = models[[i]]$Th,
                                     fixed = models[[i]]$fixed)
 }
+# Printed outputs correspond to the value of the optimized ?gevcdn.cost (see also ?optim())
+#for each model in this loop.
+
 
 
 ## Select best model
@@ -82,7 +83,7 @@ q.best <- sapply(c(0.1, 0.5, 0.9), qgev,
 
 ############ Bagging ################
 
-n.boot <- 10
+n.boot <- 10 # Number of boostrapped iterations
 
 ## Do it through parallel computing
 weights.on <- gevcdn.bag(x = x, y = y, iter.max = 100,
@@ -130,12 +131,12 @@ matplot(cbind(y, q, rowMeans(q.10.on), rowMeans(q.50.on),
         main = "gevcdn.bag (early stopping on)")
 
 
+
+
+# More relevant to do this with rainfall data !?
 #############
 datap50 <- read.csv('P50_Uccle_1880.csv',sep="")
 #################
-
-
-
 
 
 

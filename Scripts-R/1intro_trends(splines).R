@@ -1,7 +1,11 @@
 load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 source('/home/piss/PissoortRepo/PissoortThesis/Scripts-R/Funs_introSplines.R')
 
+# Apply the created theme to all ggplots without having to specify it
+theme_set(PissoortThesis::theme_piss())
+
 ### Broken linear trend : Try to `smooth´ it, ie add constraint to make it continuous.
+
 
 
 library(mgcv)
