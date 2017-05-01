@@ -18,6 +18,14 @@ If you are not able to download the vignettes directly, please use the .tar.gz f
 
 
 
+# First visualisation : Shiny
+
+After having loaded the package in your environement, you can run
+
+`# Be sure to have grid, gridExtra, plotly and ggplot2 already installed`
+
+`runExample()  # Present the yearly analysis visualizaiton for Block-Maxima (...)`
+
 
 # Where can you find the DATA ? 
 
