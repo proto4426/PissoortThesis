@@ -1,11 +1,16 @@
-load('/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata')
-
+# load('C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\min_years.Rdata')
+# save(min_years, file = "C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\data\\min_years.RData")
+# load("C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\data\\data_shiny_yearly.RData")
+data("min_years")
+data("max_years")
 
 library(PissoortThesis)
 library(ggplot2)
 library(plotly)
 library(gridExtra)
 library(grid)
+
+
 
 shinyServer(function(input, output) {
 
