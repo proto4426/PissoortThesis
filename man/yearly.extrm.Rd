@@ -2,7 +2,7 @@
 % Please edit documentation in R/1UsedFunc.R
 \name{yearly.extrm}
 \alias{yearly.extrm}
-\title{Homogeneous theme for ggplots}
+\title{Yearly extrema retrieval}
 \usage{
 yearly.extrm(list.y = list_by_years, Fun = max, tmp = "TX")
 }

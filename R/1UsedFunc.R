@@ -10,7 +10,7 @@
 #' @param size_p Size of the plot's title.
 #' @param size_c Size of the axis' title.
 #' @param size_l Size of the legend's title.
-#' @param theme ggplot's theme for the plot. Set it to NULL if you 
+#' @param theme ggplot's theme for the plot. Set it to NULL if you
 #' want put your own theme construction in the "..."
 #'
 #' @return A personalized ggplot2 theme object to add to every builded plots.
@@ -23,37 +23,37 @@
 #' ggplot(data = data.frame(empirical,model_est), aes(x=empirical,y=model_est)) +
 #' geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
 #' theme_piss() +  ggtitle("Probability plot")
-#' 
-"theme_piss" <- 
+#'
+"theme_piss" <-
   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
-    
-    text <- function(size,...) element_text(size = size, colour = "#33666C", 
+
+    text <- function(size,...) element_text(size = size, colour = "#33666C",
                                             face="bold", ...)
-    theme + 
+    theme +
       theme(plot.title = text(size_p, hjust = 0.5),
             axis.title = text(size_c),
             legend.title = text(size_l),
-      ) + 
+      ) +
       theme(legend.background = element_rect(colour = "black"),
             legend.key = element_rect(fill = "white"), ...
       )
   }
-# "theme_piss" <- 
+# "theme_piss" <-
 #   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
-#  
-#   text <- function(size,...) element_text(size = size, colour = "#33666C", 
+#
+#   text <- function(size,...) element_text(size = size, colour = "#33666C",
 #                                           face="bold", ...)
-#  out <- 
+#  out <-
 #    list( theme(plot.title = text(size_p, hjust = 0.5) ) ,
 #          theme(axis.title = text(size_c), ...) ,
-#          theme(legend.title = element_text(colour="#33666C", 
+#          theme(legend.title = element_text(colour="#33666C",
 #                                            size = size_l, face="bold"),
 #                legend.background = element_rect(colour = "black"),
 #                legend.key = element_rect(fill = "white"))
 #        )
-#  
+#
 #     if(!is.null(theme))  out <- list(out, theme)
-#  
+#
 #  out
 # }
 # "theme_piss" <-
@@ -79,7 +79,7 @@
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description
 #' This function aims to retrieve specific seasons from a month standing
-#  in a particular dataset. Helpful to characterize our dataset 
+#  in a particular dataset. Helpful to characterize our dataset
 #' and the temperatures in terms of seasons
 #'
 #' @param month of the year from which we want to return the season
@@ -241,8 +241,8 @@
 #' This will be implemented in \code{ggplot} if shown in the finalo thesis.
 #' @examples
 #' acfpacf_plot(max_years$data)
-'acfpacf_plot' <- function(data, lagmax = length(data), ...){
-  par(mfrow = c(2, 1))
+'acfpacf_plot' <- function(data, lagmax = length(data), mfrow = c(2, 1), ...){
+  par(mfrow = mfrow)
   acf(data, lag.max = lagmax, ...)
   pacf(data, lag.max = lagmax, ...)
   # ACF <- acf(data, plot = FALSE)
@@ -250,14 +250,14 @@
   # g1 <- ggplot(ACF, aes(x = Lag, y = ACF)) +
   #   geom_hline(aes(yintercept = 0)) +
   #   geom_segment(mapping = aes(xend = Lag, yend = 0))
-  # 
-  # 
+  #
+  #
   # PACF <- pacf(data, plot = FALSE)
   # PACF <- setNames(data.frame(unclass(PACF)[c("pacf", "lag")]), c("PACF","Lag"))
   # g2 <- ggplot(ACF, aes(x = Lag, y = ACF)) +
   #   geom_hline(aes(yintercept = 0)) +
   #   geom_segment(mapping = aes(xend = Lag, yend = 0))
-  # 
+  #
   # grid.arrange(g1,g2, nrow=2)
 }
 
@@ -334,7 +334,7 @@
     geom_line(aes( x = y, y = low), col = "red") +
     geom_line(aes (x = y, y = upp), col = "red") +
     scale_x_log10(breaks = c(1,10,100),labels = c(1,10,100)) +
-    labs(title = " Return Level plot", x = "y (log scale)", y = "q") +
+    labs(title = " Return Level plot", x = "Year (log scale)", y = "Quantile") +
     geom_point(aes(x = point, y = pdat), col = "#33666C", shape = 1) +
     thm
 }

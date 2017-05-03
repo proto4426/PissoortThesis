@@ -4,8 +4,12 @@
 \alias{runExample}
 \title{Shiny application}
 \usage{
-runExample()
+runExample(example)
+}
+\arguments{
+\item{example}{chooses the example you want. Run runExample() to have the list}
 }
 \examples{
-ValUSunSSN::runExample() # and you should see the app
+library(PissoortThesis)
+runExample('Name of the app') # and you will see the app you want
 }

@@ -4,7 +4,7 @@
 \alias{acfpacf_plot}
 \title{(P)ACF plots}
 \usage{
-acfpacf_plot(data, lagmax = length(data), ...)
+acfpacf_plot(data, lagmax = length(data), mfrow = c(2, 1), ...)
 }
 \arguments{
 \item{data}{numeric ector containing}

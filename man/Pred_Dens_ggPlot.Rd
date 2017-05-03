@@ -20,12 +20,12 @@ samples, where \code{n} is the number of simulated samples and \code{p}
 a ggplot
 }
 \description{
-Compute a \code{ggplot} of the Density associated with the 
+Compute a \code{ggplot} of the Density associated with the
 Posterior Predictive Distribution (PPD)
 }
 \examples{
-# For the PPD density plot of the year 2026 : 
-gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2) 
+# For the PPD density plot of the year 2026 :
+gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2)
 # where repl2 is the matrix containing the predictive samples (see Bayes_own_gev.R)
 
 }

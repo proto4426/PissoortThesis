@@ -37,20 +37,20 @@ TXTN_closed$year <- substr(TXTN_closed$Date,1,4)
 
 # Retrieve seasons with our function
 # Of course, we are here based on meteorological seasons
-TXTN_closed$season <- sapply(TXTN_closed$month, 
+TXTN_closed$season <- sapply(TXTN_closed$month,
                              function(x) PissoortThesis::func_season(x))
 
 
 
 ##### Differences between the public and the IRM datasets ######
 
-# remove missing values and start from 1901 => have same period for both. 
+# remove missing values and start from 1901 => have same period for both.
 TX_public_1901 <- TX_public[TX_public$DATE >= 19010101 & TX_public$Q_TX != 9,]
 
 TXTN_open_compare <- TXTN_open[TXTN_open$Date < 20000101, ]
 TXTN_closed_compare <- TXTN_closed[TXTN_closed$Date < 20000101, ]
 
-# Now, we decide to compare the TX 
+# Now, we decide to compare the TX
 diff_tx_open <- TX_public_1901$TX - TXTN_open_compare$TX
 diff_tx_closed <- TX_public_1901$TX - TXTN_closed_compare$TX
 
@@ -63,7 +63,7 @@ diff_tx_open <- data.frame(difference = diff_tx_open, method = 'open')
 diff_tx <- rbind(diff_tx_open,
                  data.frame(difference = diff_tx_closed, method =  "closed"))
 ggplot(diff_tx, aes(col = method)) + geom_boxplot(aes(y = difference, x = method)) +
-  ggtitle("cccc") 
+  ggtitle("cccc")
 
 sum(equals(diff_tx_open$diff, 0.0), na.rm = T) / length(diff_tx_open$diff)
 sum(equals(diff_tx_closed, 0.0), na.rm = T) / length(diff_tx_closed)
@@ -110,7 +110,7 @@ ggplot(data = TXTN_closed, aes(TX, colour = as.factor(month))) +
 # !! same smoothing factor for all densities
 
 # seasons
-ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1) 
+ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1)
 
 ggplot(data=TXTN_closed,aes(x=season,y=TX,group=season)) + geom_boxplot()
 
@@ -149,7 +149,7 @@ dygraph(xtdata0, main = "(Dynamic) Time series of TX in Uccle",
 
 xtdata <- xts(max_years$df$Max, order.by = as.yearmon(max_years$df$Year), f = 12)
 dygraph(xtdata) %>% dyRangeSelector()
-# Well another shape when we take 
+# Well another shape when we take
 
 
 ## Plot the yearly maxima together with some "standard" fitting methods
@@ -162,6 +162,7 @@ Broken_lin1 <-  predict(lm(max_years$data[1:75] ~ max_years$df$Year[1:75]) )
 Broken_lin2 <-  predict(lm(max_years$data[77:116] ~ max_years$df$Year[77:116]) )
 
 g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
+  geom_point() +
   geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
   geom_line(data = max_years$df[max_years$df$Year %in% 1901:1975,],
             aes(x = Year, colour = "BrokenLinear", y = Broken_lin1),
@@ -179,7 +180,7 @@ g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
   guides(colour = guide_legend(override.aes = list(size = 2)))
 g1
 # Red line is local polynomial regression fitting curve (loees)
-# The (optimal) default method is convenient
+# The (optimal) default method is convenient. See ?loess
 
 
 ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_point() +
@@ -193,8 +194,11 @@ ggplot(data = max_years$df,aes(x=Max)) + geom_density() +theme_bw()
 
 ###  what for the minima ??
 g2 <- ggplot(data = min_years$df, aes(x=Year,y=Min)) + geom_line() +
-  geom_smooth(method='lm',formula=y~x) + theme_piss() +
-  stat_smooth(method = "loess", se = F, col = 'red' )
+  geom_smooth(method='lm',formula=y~x) + geom_point() +
+  stat_smooth(method = "loess", se = F, col = 'red' ) +
+  labs(title = "Complete Serie of Annual TN in Uccle") +
+  theme_piss(20, 15) +
+  theme(axis.line = element_line(color="#33666C", size = .45))
 
 # as expected , trend is a bit less strong as for maxima
 summary(lm_min <- lm(min_years$data ~ min_years$df$Year))
@@ -216,11 +220,11 @@ grid.arrange(g1, g2, nrow = 2)
 ###############
 gev_tx <- gev.fit(max_years$data)
 gev_tx1 <- fgev(max_years$data)
-gev_tx1
 gev_tx2 <- fevd(max_years$data, units = "deg C")
 summary(gev_tx2)
 distill(gev_tx2)
 plot(gev_tx2)
+
 ##################
 ci(gev_tx2,type="parameter")
 ci(gev_tx2,type="parameter",which.par = 3,xrange=c(-.4,.1),method="proflik",verbose=TRUE)
@@ -248,52 +252,76 @@ plot(fit_sim)
 
 ######  Manually
 
-# Function to compute the log-likelihood
-# gev.nloglik <- function(param, dataset){
-#   mu <- param[1]  ; sigma <- param[2]   ;   xi <- param[3]
-#   m <- min((1 + (xi * (dataset - mu)/sigma)))   # minimize the negative log-likelihood !!
-#   if(m < 1e-6) return(as.double(1e6)) # High value for neg.L-Likelihood
-#   if(sigma < 1e-6) return(as.double(1e6)) # ensure that conditions are fulfilled
-#   if(xi == 0){    # Gumbel log-likelihood
-#     loglik <- -length(dataset) * log(sigma) - sum((dataset - mu) / sigma)
-#      -sum(exp(-((dataset - mu) / sigma)))}
-#   else{    # Frechet or Weibull log-likelihood
-#     loglik <- -length(dataset) * log(sigma)
-#      -(1/xi + 1) * sum(log(1 + (xi * (dataset - mu) / sigma)))
-#      -sum((1 + (xi * (dataset-mu)/sigma))^(-1/xi))
-#     }
-# return(-loglik)
-# }
-
-gev.loglik = function(theta, data){
-    y = 1 + (theta[1] * (data - theta[2]))/theta[3]
-    if((theta[3] < 0) || (min(y) <= 0)) {
-      ans = -1e+06
-    } else {
-      term1 = length(data) * logb(theta[3])
-      term2 = sum((1 + 1/theta[1]) * logb(y))
-      term3 = sum(y^(-1/theta[1]))
-      ans = term1 + term2 + term3
+# Function to compute the (negative) log-likelihood
+'gev.nloglik' <- function(param, dataset){
+  mu <- param[1]  ; sigma <- param[2]   ;   xi <- param[3]
+  m <- min((1 + (xi * (dataset - mu)/sigma)))   # minimize the negative log-likelihood !!
+  if(m < 1e-6) return(as.double(1e6)) # High value for neg.L-Likelihood
+  if(sigma < 1e-6) return(as.double(1e6)) # ensure that conditions are fulfilled
+  if(xi == 0){    # Gumbel log-likelihood
+    loglik <- -length(dataset) * log(sigma) - sum((dataset - mu) / sigma)
+     -sum(exp(-((dataset - mu) / sigma)))}
+  else{    # Frechet or Weibull log-likelihood
+    loglik <- -length(dataset) * log(sigma)
+     -(1/xi + 1) * sum(log(1 + (xi * (dataset - mu) / sigma)))
+     -sum((1 + (xi * (dataset-mu)/sigma))^(-1/xi))
     }
-    ans
+ return(-loglik)
+}
+
+# Or
+gev.loglik <- function(theta, data){
+  y <- 1 + (theta[1] * (data - theta[2]))/theta[3]
+  if((theta[3] < 0) || (min(y) < 0)) {
+    ans <- 1e+06
+  } else {
+    term1 <- length(data) * logb(theta[3])
+    term2 <- sum((1 + 1/theta[1]) * logb(y))
+    term3 <- sum(y^(-1/theta[1]))
+    ans <- term1 + term2 + term3
   }
+  ans
+}
 
 param <- c(mean(max_years$df$Max),sd(max_years$df$Max),
-            0.1 )
+           0.1 )
+# 0.1 starting value for Xi is common (~ mean of all practical applications in meteo), or see Coles
+
+dataset <- max_years$data
+nlm(gev.loglik, param, data = dataset,
+    hessian=T, iterlim = 1e5)$estimate
+#
+# fn <- function (param, data)
+#   -(gev.nloglik(mu = param[1], sig = param[2], xi = param[3], data ))
+#
+# param <- c(mean(max_years$df$Max), sd(max_years$df$Max), 0.1 )
 # 0.1 starting value for Xi is common (~ mean of all practical applications in meteo)
 
 dataset <- max_years$data
-numerical_max <- nlm(gev.loglik, param, data = dataset,
-                     hessian=T, iterlim = 1e5)  # Problem...........
+numerical_max <- nlm(gev.nloglik, param, data = dataset)  # Problem ?
 numerical_max
+
+nlm(fn, param, data = max_years$data, hessian=T, iterlim = 1e5)
 # hessian is exactly the obs. Info Matrix as we dealt with -loglik
 
-#optim(param, gev.nloglik,dataset, hessian = TRUE,method = "Nelder-Mead")
+optim(param, gev.nloglik, data = dataset, hessian = T, method = "BFGS")
 
 Var_max <- solve(numerical_max$hessian)
 sqrt(diag(Var_max))
 
 ###############
+
+library(stargazer)
+
+tab <- rbind.data.frame(gev_tx2$results$par, unname(gev_tx1$std.err) )
+colnames(tab) <- c("Location", "Scale", "Shape")
+rownames(tab) <- c("Estimates", "Std.errors")
+tab
+stargazer(tab, summary = F)
+
+
+## Other Methods
+
 
 
 #############   Model diagnostics   #################
@@ -314,8 +342,8 @@ for(i in 1:length(max_order)){
 
 # compute Distribution function of the modelled GEV
 GEV.DF <- function(data,mu,sigma,xi){
-  if(xi == 0)  GEV <- exp(-exp(-((data-mu)/sigma))) 
-  else  GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi)) 
+  if(xi == 0)  GEV <- exp(-exp(-((data-mu)/sigma)))
+  else  GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi))
  return(GEV)
 }
 
@@ -324,10 +352,11 @@ for(i in 1:length(max_order)){
   model_est[i] <- GEV.DF(max_order[i],gev_tx1$estimate[1],
                          gev_tx1$estimate[2],gev_tx1$estimate[3])
 }
-pp_gg <- ggplot(data = data.frame(empirical,model_est),
+gg_pp <- ggplot(data = data.frame(empirical,model_est),
        aes(x=empirical,y=model_est)) +
   geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
-  theme_piss(16, 11) +  ggtitle("Probability plot")
+  theme_piss(16, 11) + labs(y = "Estimated proportions", x = "Normal proportions") +
+  ggtitle("PP-plot")
 
 # Fit seems quite well
 
@@ -347,9 +376,14 @@ for(i in 1:length(max_order)){
  model_quantile[i] <- GEV.INV(empirical[i], gev_tx1$estimate[1],
                               gev_tx1$estimate[2], gev_tx1$estimate[3])
 }
-ggplot(data=data.frame(model_quantile,max_order), aes(x=max_order,y=model_quantile)) +
-  geom_point() + geom_abline(intercept = 0,slope = 1,col = "red") + theme_bw()
+gg_qq <- ggplot(data=data.frame(model_quantile,max_order), aes(x=max_order,y=model_quantile)) +
+  geom_point(shape = 1, col = "#33666C") + geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) + labs(y = "Model quantiles", x = "Normal quantiles") +
+  ggtitle("QQ-plot")
 # Same conclusion
+
+
+gridExtra::grid.arrange(gg_qq,gg_pp, nrow = 1)
 
 
 
@@ -427,8 +461,33 @@ gev.prof(gev_tx,20,xlow=min(max_data)+7,xup=max(max_data))
 
 gev.profxi(gev_tx,xlow=0,xup=2)
 
+par(mfrow=(c(1,3)))
+plot(profile(gev_tx1), ci=c(0.95,0.99))
 
 
+# Return Levels and empirical Quantiles
+gev_tx <- gev.fit(max_years$data)
+
+gg_rl <- PissoortThesis::rl_piss(gev_tx$mle, gev_tx$cov, gev_tx$data)
+
+## Density plots
+x <- seq(min(max_years$data)-5, max(max_years$data)+5, length = length(max_years$data))
+weib_fit_dens <- evd::dgev(x,loc = gev_tx$mle[1],
+                           scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+
+density <- c( "empirical" = "blue", "fitted" = "red")
+gg_ds <- ggplot(data.frame(x,weib_fit_dens)) + stat_density(aes(x = max_years$data, col = "empirical"), geom = "line") + ggtitle("Empirical (black) vs fitted (red) density") +
+  geom_line(aes(x = x, y = weib_fit_dens, col = "fitted")) + theme_piss(size_p = 5) +
+  coord_cartesian(xlim = c(25, 38)) + labs(x = "TX") +
+  geom_vline(xintercept = min(max_years$data), linetype = 2) +
+  geom_vline(xintercept = max(max_years$data), linetype = 2) + theme_piss(17) +
+  scale_colour_manual(name = "Density", values = density) +
+  theme(legend.position = c(.888, .82))  +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+gg_ds
+# Red is the fitted density while black is the empirical one.
+
+gridExtra::grid.arrange(gg_rl, gg_ds, nrow = 1)
 
 ##########################################################
 # ##################    POT   ########################
@@ -460,7 +519,7 @@ tcplot(max_all,tlim = c(20, max(max_all)) )
 
 
 ### Do not consider the following pack as EVI<0 here.
-source("1UsedFunc.R")
+library(PissoortThesis)
 MeanExcess(max_all, plot = T, k =1000)
 genHill(max_all)
 library(evir)
@@ -716,7 +775,7 @@ plot(above_thres_s[1:length(above_thres_s)-1],above_thres_s[2:length(above_thres
 
 
 
-save.image("data.Rdata") #  To load in the other scripts 
+save.image("data.Rdata") #  To load in the other scripts
 
 
 

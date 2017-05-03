@@ -1,6 +1,7 @@
 # load('C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\min_years.Rdata')
 # save(min_years, file = "C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\data\\min_years.RData")
 # load("C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\data\\data_shiny_yearly.RData")
+
 data("min_years")
 data("max_years")
 
@@ -18,7 +19,7 @@ shinyServer(function(input, output) {
     x <- cbind.data.frame(max_years$df, Min = min_years$data)
 
 
-    g <- ggplot(x, aes_string(x = 'Year', y = input$max)) + theme_bw() + geom_line() +
+    g <- ggplot(x, aes_string(x = 'Year', y = input$max)) + theme_bw() + geom_line() + geom_point() +
       theme(plot.title = element_text(size = 22, hjust=0.5,
                                       colour = "#33666C", face="bold"),
             axis.title = element_text(face = "bold", size= 18,

@@ -14,7 +14,7 @@ theme_piss(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(),
 
 \item{size_l}{Size of the legend's title.}
 
-\item{theme}{ggplot's theme for the plot. Set it to NULL if you 
+\item{theme}{ggplot's theme for the plot. Set it to NULL if you
 want put your own theme construction in the "..."}
 }
 \value{
