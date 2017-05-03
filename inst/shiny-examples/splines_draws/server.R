@@ -94,9 +94,9 @@ shinyServer(function(input, output) {
       labs(y = expression( Max~(T~degree*C)), x = "Year",
            title = "Point-wise & Simultaneous 95% conf. intervals for fitted GAM",
            subtitle = sprintf("Each line is one of %i draws from the posterior distribution of the model", input$draws)) +
-      annotate(geom = "text", label = paste("coverage", " is \n",
+      annotate(geom = "text", label = paste("coverages", " are \n",
                                                        round(pointw_cov, 5),
-                                          " for pointwise and \n", round(simult_cov, 5),
+                                          " for pointwise \n", round(simult_cov, 5),
                                           " for simultaneous"),
                x = 1915,
                y = 33, col = "#33666C" , size = 6) +
