@@ -6,6 +6,7 @@ library(ggplot2)
 library(plotly)
 library(gridExtra)
 library(grid)
+library(mgcv)
 
 
 gam3.0 <- gam(Max ~ s(Year, k = 20), data = max_years$df, method = "REML")
@@ -54,14 +55,12 @@ shinyServer(function(input, output) {
     masd <- apply(absDev, 2L, max)
 
     # Find the crit value used to scale standard errors to yield the simultaneous interval
-    crit <- quantile(masd, prob = 0.95, type = 8) # = 2.9
-    # compared with pointwise, it is now 2.9/1.96 ~ 1.5 times wider !
+    crit <- quantile(masd, prob = 1-(input$level*.01), type = 8)
 
-
-    # Now, compute and show the simultaneous confidence interval !
+    # Now, compute and show the pointwise vs simultaneous confidence interval !
     pred <- transform(cbind(data.frame(pred), newd),
-                      uprP = fit + (2 * se.fit),
-                      lwrP = fit - (2 * se.fit),
+                      uprP = fit + (qnorm(1-input$level*.01/2) * se.fit),
+                      lwrP = fit - (qnorm(1-input$level*.01/2) * se.fit),
                       uprS = fit + (crit * se.fit),
                       lwrS = fit - (crit * se.fit))
 
@@ -94,17 +93,17 @@ shinyServer(function(input, output) {
       labs(y = expression( Max~(T~degree*C)), x = "Year",
            title = "Point-wise & Simultaneous 95% conf. intervals for fitted GAM",
            subtitle = sprintf("Each line is one of %i draws from the posterior distribution of the model", input$draws)) +
-      annotate(geom = "text", label = paste("coverages", " are \n",
-                                                       round(pointw_cov, 5),
-                                          " for pointwise \n", round(simult_cov, 5),
+      annotate(geom = "text", label = paste("coverages", " are : \n",
+                                            round(pointw_cov, 5),
+                                          " for pointwise \n", "   ",
+                                          round(simult_cov, 5),
                                           " for simultaneous"),
                x = 1915,
                y = 33, col = "#33666C" , size = 6) +
       scale_fill_manual(name = "Interval", values = interval) +
+      guides(colour = guide_legend(override.aes = list(size = 15))) +
       theme_piss(size_p = 25, plot.subtitle = text(31, hjust = 0.5, colour = "#33666C"),
-                 legend.position = c(.888, .152)) +
-      guides(colour = guide_legend(override.aes = list(size = 2)))
-
+                 legend.position = c(.888, .152))
     # expression(paste(underline("Coverage"), " is ", pointw_cov,
     #                  " for pointwise and ", simult_cov,
     #                  " for simultaneous")),

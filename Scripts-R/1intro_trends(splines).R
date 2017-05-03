@@ -409,8 +409,8 @@ crit <- quantile(masd, prob = 0.95, type = 8) # = 2.9
 
 # Now, compute and show the simultaneous confidence interval !
 pred <- transform(cbind(data.frame(pred), newd),
-                  uprP = fit + (2 * se.fit),
-                  lwrP = fit - (2 * se.fit),
+                  uprP = fit + (qnorm(.975) * se.fit),
+                  lwrP = fit - (qnorm(.975) * se.fit),
                   uprS = fit + (crit * se.fit),
                   lwrS = fit - (crit * se.fit))
 ggplot(pred, aes(x = Year)) +
