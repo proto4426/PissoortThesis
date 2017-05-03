@@ -24,7 +24,8 @@ After having loaded the package in your environement, you can run
 
 `# Be sure to have grid, gridExtra, plotly and ggplot2 already installed`
 
-`runExample()  # Present the yearly analysis visualizaiton for Block-Maxima (...)`
+`runExample('trend_modes')  # Present the yearly analysis visualizaiton for Block-Maxima (...)`
+`runExample('splines_draws')  # Present the simulation study of the GAM model with splines (...)`
 
 
 # Where can you find the DATA ? 
