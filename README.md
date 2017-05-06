@@ -1,5 +1,5 @@
 # PissoortThesis
-R package for thesis of Antoine Pissoort
+R package for the master's thesis in statistics of Antoine Pissoort at Université Catholique de Louvain
 
 ## R code to install the package from GitHub
 `devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)`
@@ -10,7 +10,7 @@ Sometimes, you may have to use
 
 If you are not able to download the vignettes directly, please use the .tar.gz file containing the html's in the folder.
 
-2. `library(PissoortThesis)`
+`library(PissoortThesis)`
 
 ## R code to install the package from a local repository:
 1. `install.packages("path-to-PissoortThesis", repos = NULL, type="source")`
