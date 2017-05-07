@@ -38,39 +38,45 @@
             legend.key = element_rect(fill = "white"), ...
       )
   }
-# "theme_piss" <-
-#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw(), ...){
-#
-#   text <- function(size,...) element_text(size = size, colour = "#33666C",
-#                                           face="bold", ...)
-#  out <-
-#    list( theme(plot.title = text(size_p, hjust = 0.5) ) ,
-#          theme(axis.title = text(size_c), ...) ,
-#          theme(legend.title = element_text(colour="#33666C",
-#                                            size = size_l, face="bold"),
-#                legend.background = element_rect(colour = "black"),
-#                legend.key = element_rect(fill = "white"))
-#        )
-#
-#     if(!is.null(theme))  out <- list(out, theme)
-#
-#  out
-# }
-# "theme_piss" <-
-#   function(size_p = 18, size_c = 14, size_l = 12, theme = theme_bw()){
-#   theme(plot.title = element_text(size = size_p, hjust=0.5,
-#                                   colour = "#33666C", face="bold"),
-#         axis.title = element_text(face = "bold", size= size_c,
-#                                    colour = "#33666C"),
-#         legend.position = c(.888, .152),
-#         legend.title = element_text(colour="#33666C", size = size_l, face="bold"),
-#         legend.background = element_rect(colour = "black"),
-#         legend.key = element_rect(fill = "white")) +
-#   guides(colour = guide_legend(override.aes = list(size = 2))) +
-#   theme
-# }
-# Handle 'Error: Don't know how to add RHS to a theme object'
 
+
+
+
+# ===============================================================
+#' @export grid_arrange_legend
+#' @title Format legend for several ggplots
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+#' @description
+#'
+#' @return A \code{grid.arrange()} with legend formatted
+#' @details
+#' This function is useful to decrease the amount of code for each ggplots
+#' generated as this thesis will use exclusive \code{ggplot2} for the plots.
+#' Values of other parameters such as colours could be changed inside the function.
+#' @examples
+'grid_arrange_legend' <- function(..., ncol = length(list(...)), nrow = 1,
+                                  position = c("bottom", "right")) {
+  plots <- list(...)
+  position <- match.arg(position)
+  g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
+  legend <- g[[which(sapply(g, function(x) x$name) == "guide-box")]]
+  lheight <- sum(legend$height)
+  lwidth <- sum(legend$width)
+  gl <- lapply(plots, function(x) x + theme(legend.position="none"))
+  gl <- c(gl, ncol = ncol, nrow = nrow)
+  
+  combined <- switch(position,
+                     "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
+                                            legend,
+                                            ncol = 1,
+                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                     "right" = arrangeGrob(do.call(arrangeGrob, gl),
+                                           legend,
+                                           ncol = 2,
+                                           widths = unit.c(unit(1, "npc") - lwidth, lwidth)))
+  grid.newpage()
+  grid.draw(combined)
+}
 
 
 # ===============================================================

@@ -432,6 +432,8 @@ stackFits <- stack(as.data.frame(fits[, rnd]))
 stackFits <- transform(stackFits, Year = rep(newd$Year, length(rnd)))
 
 interval <- c("pointwise" =  "yellow", "simultaneous" = "darkred")
+
+
 ggplot(pred, aes(x = Year, y = fit)) +
   geom_ribbon(aes(ymin = lwrS, ymax = uprS, fill = "simultaneous"), alpha = 0.4) +
   geom_ribbon(aes(ymin = lwrP, ymax = uprP, fill = "pointwise"), alpha = 0.4) +
@@ -441,6 +443,13 @@ ggplot(pred, aes(x = Year, y = fit)) +
   labs(y = expression( Max~(T~degree*C)), x = "Year",
        title = "Point-wise & Simultaneous 95% conf. intervals for fitted GAM",
        subtitle = sprintf("Each line is one of %i draws from the posterior distribution of the model", nrnd)) +
+  annotate(geom = "text", label = paste("coverages", " are : \n",
+                                        round(pointw_cov, 5),
+                                        " for pointwise \n", "   ",
+                                        round(simult_cov, 5),
+                                        " for simultaneous"),
+           x = 1915,
+           y = 33.4, col = "#33666C" , size = 4) +
   scale_fill_manual(name = "Interval", values = interval) +
   theme_piss(size_p = 15, plot.subtitle = text(12, hjust = 0.5, colour = "#33666C"), legend.position = c(.888, .152)) +
   guides(colour = guide_legend(override.aes = list(size = 2)))
@@ -474,6 +483,19 @@ sum(fitsInOldCI) / length(fitsInOldCI)
 
 # We have computed actual simultaneous interval but only for the fitted smoother
 
+
+ggplot(pred, aes(x = Year, y = fit)) +
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS, fill = "simultaneous"), alpha = 0.4) +
+  geom_ribbon(aes(ymin = lwrP, ymax = uprP, fill = "pointwise"), alpha = 0.4) +
+  geom_path(lwd = 2) +
+  geom_path(data = stackFits, mapping = aes(y = values, x = Year, group = ind),
+            alpha = 0.5, colour = "grey20") +
+  labs(y = expression( Max~(T~degree*C)), x = "Year",
+       title = "Point-wise & Simultaneous 95% conf. intervals for fitted GAM",
+       subtitle = sprintf("Each line is one of %i draws from the posterior distribution of the model", nrnd)) +
+  scale_fill_manual(name = "Interval", values = interval) +
+  theme_piss(size_p = 15, plot.subtitle = text(12, hjust = 0.5, colour = "#33666C"), legend.position = c(.888, .152)) +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
 
 
 #  ===========================================================================

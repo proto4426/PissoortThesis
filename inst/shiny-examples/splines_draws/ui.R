@@ -19,7 +19,7 @@ shinyUI(fluidPage(
   fluidRow(
     column(3, offset = 1,
   numericInput("seed", "Set the seed ",
-               "1234", min = "1", max = "1000000000" ),
+               "99", min = "1", max = "1000000000" ),
 
   numericInput("draws", "Howmuch simulations to draw ? (must be < M)",
                "50", min = "2", max = "1000"  )

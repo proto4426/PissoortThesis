@@ -1,12 +1,14 @@
 # *Antoine Pissoort* # 
-## Script providing the main plot(s?) for the thesis ## 
-#######################################################
+## Script providing the main plot for the thesis in the chapter 1 : GEV ## 
+##########################################################################
 
 library(evd)
 library(fExtremes)
 library(ismev)
 library('ggplot2')
 
+
+## Create data frames for ggplot 
 
 'GEV.df.Fun' <-
   function (x = seq(-10, 10, length = 10^3), mu1 = 0, sig = 1, ksi = 0) {
@@ -17,7 +19,6 @@ library('ggplot2')
 
 'GEVdfFun' <- 
   function (x = seq(-10, 10, length = 10^4), mu = 0, sig = 1, ksi = 0) {
-    # Manually ? 
     if (ksi ==0) { dens <-  exp(-x) * exp(-exp(-x)) }
     else 
     s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
@@ -42,7 +43,7 @@ dens_f <- ifelse(GEVdf[GEVdf$xi == 0.5,]$density < endpoint_f, NA,
 GEVdf[GEVdf$xi == 0.5,]$density <- dens_f
 
 
-# plot the normal distribution as reference ?? !!!! 
+# plot the normal distribution as reference 
 
 GEVdf <- cbind(GEVdf, norm = dnorm(GEVdf$x))
 
@@ -145,40 +146,48 @@ print(gright, vp = vpright)
 
 
 
+
+## Inspect the influence of the parameters mu and sigma on the shape of the distribution
+
+
+x <- seq(min(TXTN_closed$TX), max(TXTN_closed$TX) +4, length = 10^3)
+GEVmu <- rbind(GEV.df.Fun(x = x, ksi = -.5, mu = 25),GEV.df.Fun(x = x,ksi = 0, mu = 25),
+               GEV.df.Fun(x = x,ksi = .5, mu = 25),
+               GEV.df.Fun(x = x,ksi = -.5, mu = 30),GEV.df.Fun(x = x,ksi = 0, mu = 30),
+               GEV.df.Fun(x = x,ksi = .5, mu = 30), 
+               GEV.df.Fun(x = x,ksi = -.5, mu = 35),GEV.df.Fun(x = x,ksi = 0, mu = 35),
+               GEV.df.Fun(x = x,ksi = .5, mu = 35))
+titles <- labs( title = expression(paste("GEV densities where ", sigma, "=1 and different values for ", mu)),
+                caption = expression(italic("The endpoints of the distributions are not clearly displayed here for convenience, but you can easily find them.")),
+                colour = expression(paste(xi,"=")),linetype = expression(paste(mu,"=")))
+gmu <- ggplot(GEVmu, aes(linetype = mu, colour = xi)) + geom_line(aes(x = x, y = density)) + 
+  theme_bw() + theme_piss(legend.position = c(.96, .58)) + coord_cartesian(xlim = c(22, 40), ylim = c(0.015, .435)) +
+  geom_vline(xintercept = 25) +   geom_vline(xintercept = 30, linetype = 3) + 
+  geom_vline(xintercept = 35, linetype = 2) + 
+  guides(colour = guide_legend(override.aes = list(size = 1.5))) + titles
+gmu
+
 GEVsig <- rbind(GEV.df.Fun(ksi = -.5, sig = .5),GEV.df.Fun(ksi = 0, sig = .5),
                 GEV.df.Fun(ksi = .5, sig = .5),
                 GEV.df.Fun(ksi = -.5, sig = 1),GEV.df.Fun(ksi = 0, sig = 1),
                 GEV.df.Fun(ksi = .5, sig = 1), 
                 GEV.df.Fun(ksi = -.5, sig = 1.5),GEV.df.Fun(ksi = 0, sig = 1.5),
                 GEV.df.Fun(ksi = .5, sig = 1.5))
-ggplot(GEVsig, aes(colour = xi)) + geom_line(aes(x = x, y = density)) + 
-  coord_cartesian(xlim = c(-5, 5)) + theme_piss(18, 15)
-  theme(legend.title = element_text(colour="#330000", 
-                                    size=18, face="bold")) + 
-  guides(colour = guide_legend(override.aes = list(size = 1.5))) +
-  facet_grid(~scale, as.table = T)
+# levels(GEVsig$scale) <- c(expression(paste(sigma, "= 0.5")), expression(paste(sigma, "= 1")),
+#                           expression(paste(sigma, "= 1.5" )))
+titles <- labs( title = expression(paste("GEV densities where  µ=0 and ", sigma, " =")), 
+                colour = expression(paste(xi,"=")))
+gsig <- ggplot(GEVsig, aes(colour = xi)) +
+  geom_vline(xintercept = 0) +
+  geom_line(aes(x = x, y = density)) + 
+  coord_cartesian(xlim = c(-5, 5), ylim = c(0.03,.81)) + theme_piss(18, 15, legend.position = c(.96, .79)) +
+  guides(colour = guide_legend(override.aes = list(size = 1.5))) + 
+  facet_wrap(~scale) + titles
+gsig
 
 
-
-
-
-GEVmu <- rbind(GEV.df.Fun(ksi = -.5, mu = 0),GEV.df.Fun(ksi = 0, sig = .5),
-                GEV.df.Fun(ksi = .5, sig = .5),
-                GEV.df.Fun(ksi = -.5, sig = 1),GEV.df.Fun(ksi = 0, sig = 1),
-                GEV.df.Fun(ksi = .5, sig = 1), 
-                GEV.df.Fun(ksi = -.5, sig = 1.5),GEV.df.Fun(ksi = 0, sig = 1.5),
-                GEV.df.Fun(ksi = .5, sig = 1.5))
-ggplot(GEVmu, aes(colour = xi)) + geom_line(aes(x = x, y = density)) + 
-  coord_cartesian(xlim = c(-5, 5)) + theme_bw() +
-  theme(plot.title = element_text(size=18, hjust=0.5, 
-                                  colour = "#330000", face="bold")) +
-  theme(axis.title = element_text(face = "bold", size= 15,
-                                  colour = "#330000")) +
-  theme(legend.title = element_text(colour="#330000", 
-                                    size=18, face="bold")) + 
-  guides(colour = guide_legend(override.aes = list(size = 1.5))) +
-  facet_grid(~mu, as.table = T)
-
+#grid_arrange_legend(gmu, gsig, ncol = 1, nrow = 2, position = "bottom")
+grid.arrange(gmu, gsig, nrow = 2)
 
 
 
@@ -202,9 +211,7 @@ ggplot(gev_data) +
 
 
 
-
-
-################# Beamer 
+################# For Beamer Presentation 
 
 p <- ggplot(TXTN_closed) + geom_density(aes(x = TX), fill = "grey") + 
   labs(title = "Distribution of maximum daily temperatures (TX)") 
