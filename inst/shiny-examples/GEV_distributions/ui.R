@@ -3,16 +3,16 @@ library(shiny)
 shinyUI(fluidPage(
 
   # Application title
-  titlePanel("Shiny app for Val-U-Sun project! Compare 2 stations"),
+  titlePanel("Shiny app to visualize the 3 GEV distributions"),
 
 
   # Sidebar with a slider input for the number of bins
   fluidRow(
     column(3,
-           numericInput("ksi1", "Which value of shape parameter for Weibull-type",
+           numericInput("ksi1", "Shape parameter for Weibull-type",
                         "-0.5", min = "-100", max = "0" ),
            #numericInput("ksi2", "Which value of shape for 2nd density","0", min = "-100", max = "100" ),
-           numericInput("ksi3", "Which value of shape parameter for Fréchet-type",
+           numericInput("ksi3", "Shape parameter for Fréchet-type",
                         "0.5", min = "0", max = "100" )
     ),
     width = "100px",

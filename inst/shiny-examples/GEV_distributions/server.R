@@ -3,33 +3,32 @@ library(ggplot2)
 library(PissoortThesis)
 
 
-## Create data frames for ggplot
-'GEVdfFun' <-
-  function (x = seq(-10, 10, length = 10^3), mu = 0, sig = 1, ksi = 0) {
-    if (ksi ==0) { dens <-  exp(-x) * exp(-exp(-x)) }
-    else
-      s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
-    t <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1)
-    if (ksi < 0) {dens <-  s * exp(-t) * ( (x - mu)/sig  < -1/ksi ) }
-    if (ksi > 0) {dens <- sig^{-1} * s * exp(-t) * ( (x - mu)/sig  > -1/ksi ) }
-
-    df <- data.frame(x = x, density = dens, xi = as.factor(ksi),
-                     mu = as.factor(mu), scale = as.factor(sig))
-    return(df)
- }
-
-
-
 
 
 shinyServer(function(input, output) {
 
   output$plot1 <- renderPlot({
 
+    ## Create data frames for ggplot
+    'GEVdfFun' <-
+      function (x = seq(input$mu-10, input$mu + 10, length = 10^3), mu = 0, sig = 1, ksi = 0) {
+        if (ksi ==0) dens <-  (sig^-1) * exp(-(x-mu)/sig) * exp(-exp(-(x-mu)/sig))
+        else
+          s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
+        t <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1)
+        if (ksi < 0) {dens <-  s * exp(-t) * ( (x - mu)/sig  < -1/ksi ) }
+        if (ksi > 0) {dens <- sig^{-1} * s * exp(-t) * ( (x - mu)/sig  > -1/ksi ) }
 
+        df <- data.frame(x = x, density = dens, xi = as.factor(ksi),
+                         mu = as.factor(mu), scale = as.factor(sig))
+        return(df)
+      }
+
+
+    ksi_gumb <- 0
 
     GEVdf <- rbind(GEVdfFun(mu = input$mu, sig=input$sig, ksi = input$ksi1),
-                   GEVdfFun(mu = input$mu, sig=input$sig, ksi = 0),
+                   GEVdfFun(mu = input$mu, sig=input$sig, ksi = ksi_gumb),
                    GEVdfFun(mu = input$mu, sig=input$sig, ksi = input$ksi3))
 
     # Dealing with endpoints
@@ -49,7 +48,7 @@ shinyServer(function(input, output) {
     #GEVdf[GEVdf$density < 10^{-312}, ]$density <- NA
 
     pres <- labs(title = expression(paste(underline(bold('Generalized Extreme Value density')))),
-                 colour = expression(paste(xi,"=")),linetype = expression(paste(xi,"=")))
+                 colour = expression(paste(xi,"=")))
 
 
     ggplot(GEVdf, aes(x = x, y = density, colour = xi )) +
