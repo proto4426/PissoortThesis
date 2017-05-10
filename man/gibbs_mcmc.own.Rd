@@ -2,30 +2,50 @@
 % Please edit documentation in R/BayesFunc.R
 \name{gibbs_mcmc.own}
 \alias{gibbs_mcmc.own}
-\title{Return Levels with nonstationarity}
+\title{Gibbs Sampler for GEV (MCMC)}
 \usage{
 gibbs_mcmc.own(start, propsd = c(0.4, 0.1, 0.1), iter = 2000,
   data = max_years$data)
 }
 \arguments{
-\item{data}{numeric vector containing the GEV block-maxima}
+\item{start}{numeric vector of length 3 containing the starting values for the parameters theta=
+(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE}
 
-\item{gev_nstatio}{Nonstationary GEV fitted model of class \code{gev.fit}
-(from package \code{ismev})}
+\item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
 
-\item{t}{Maximum time period for which the return levels are considered}
+\item{data}{numeric vector containing the GEV in block-maxima}
 
-\item{m}{Return period}
+\item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
+To facilitate convergence, it is advised to target an acceptance rate of around 0.25
+when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+is as proposed by Coles (2001) but we should tune this value. (from package \code{ismev})}
 }
 \value{
-The return levels for the considered time period (t)
+A named list containing
+\describe{
+\item{\code{mean.acc_rates} : the meanS of the acceptance rates}
+\item{\code{out.chain} : The generated chainS}
+}
 }
 \description{
 Compute return levels plot of nonstationary model with the data (in years)
 }
 \examples{
-rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
-
+data("max_years")
+fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+# opt <- optim(param, fn, data = max_years$data,
+#              method="BFGS", hessian = TRUE)
+opt <- nlm(fn, param, data = max_years$data,
+           hessian=T, iterlim = 1e5)
+start <- opt$estimate
+Sig <- solve(opt$hessian)
+ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+varmat <- ev$vectors \%*\% diag(sqrt(ev$values)) \%*\% t(ev$vectors)
+## GIBBS
+ set.seed(100)
+iter <- 2000
+gibb1 <- gibbs_mcmc.own(start, iter = iter)
 }
 \author{
 Antoine Pissoort, \email{antoine.pissoort@student.uclouvain.be}

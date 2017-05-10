@@ -31,7 +31,7 @@
     n.hidden <- 3
   GML <- Inf
   x.min <- apply(x, 2, min) ;   x.max <- apply(x, 2, max)
-  x <- sweep(sweep(x, 2, x.min, "-"), 2, x.max - x.min, "/")
+  x <- sweep(sweep(x, 2, x.min, "-"), 2, x.max - x.min, "/")  # Standardize
   y.min <- min(y) ;   y.max <- max(y)
   y <- (y - y.min)/(y.max - y.min)
   for (i in seq_len(n.trials)) {

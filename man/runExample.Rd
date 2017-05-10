@@ -12,4 +12,7 @@ runExample(example)
 \examples{
 library(PissoortThesis)
 runExample('Name of the app') # and you will see the app you want
+# You juste have to run runExample('') with whatever incorrect name to display the names
+# of the existing apps
+
 }

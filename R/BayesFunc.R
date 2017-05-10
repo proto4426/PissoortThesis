@@ -1,20 +1,51 @@
 
 # ===============================================================
-#' @title Return Levels with nonstationarity
+#' @title Negative GEV log-likelihood and Log-Posterior with
+#' uninformative normal priors.
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
+#' Functions to compute the negative log-likelihood og a GEV
+#' distribution. Whereas this can be used for other purpose, this
+#' also allows in particular to compute the log-posterior with diffuse normal
+#' priors. Note that we could add parameters to control the informativness of
+#' the priors, but as we have no reliable information, we decide to arbitrarily
+#'  fix it to large values, to improve computation . (More parameters are
+#'  harmful for computation time)
 #'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
 #'
-#' @return The return levels for the considered time period (t)
+#' @param mu numeric representig the location parameter of the GEV
+#' @param sig or \code{logsig} are numeric representig the scale parameter
+#' of the GEV. BE CAREFULL : this is in logarithm for the log_post0 only in
+#' order to avoid computational problems later in the MCMC's.
+#' @param xi numeric representig the shape parameter of the GEV
+#' @param data numeric vector representing the data (GEV) of interest.
+#'
+#' @return a numeric value representing the negative log-likelihood or the log-posterior
+#' of interest.
 #' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
+#' data('max_years')
+#' # Optimize the log-Posterior Density Function to find starting values
+#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+#' opt <- nlm(fn, param, data = max_years$data,
+#'            hessian=T, iterlim = 1e5)
+#' start <- opt$estimate
+#' @rdname log_post0
+#' @export
+'log_post0' <- function(mu, logsig,xi, data) {
+  # Posterior Density Function
+  # Compute the log_posterior in a stationary context.
+  # Be careful to incorporate the fact that the distribution can have finite endpoints.
+  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
+                        xi = xi, data = data))
+  lprior <- dnorm(mu, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd
+}
+
+#' @rdname log_post0
 #' @export
 'gev.nloglik' = function(mu, sig, xi, data){
   y = 1 + (xi * (data - mu))/sig
@@ -30,37 +61,46 @@
 }
 
 
-# Posterior Density Function
-# Compute the log_posterior in a stationary context.
-# Be careful to incorporate the fact that the distribution can have finite endpoints.
-#' @export
-'log_post0' <- function(mu, logsig,xi, data) {
-  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
-                        xi = xi, data = data))
-  lprior <- dnorm(mu, sd = 50, log = TRUE)
-  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
-  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
-  lprior + llhd
-}
-
-
 
 # ===============================================================
-#' @title Return Levels with nonstationarity
+#' @title Plots to assess the mixing of the Chains
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
+#' Compute the ggplots for each parameter of interest in a single page.
 #'
 #' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
+#' @param ... Other parameters from \code{gridExtra::grid.arrange()}
+#' @param title Global title for the plot
+#' @return a grid.arrange() of ggplots.
 #' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
+#' data("max_years")
+#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+#' # opt <- optim(param, fn, data = max_years$data,
+#' #              method="BFGS", hessian = TRUE)
+#' opt <- nlm(fn, param, data = max_years$data,
+#'            hessian=T, iterlim = 1e5)
+#' start <- opt$estimate
+#' Sig <- solve(opt$hessian)
+#' ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+#' varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+#' # (MH)
+#' set.seed(100)
+#' mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
+#' mh.mcmc1$mean.acc_rates
+#'
+#' chains.plotOwn(mh.mcmc1$out.chain)
+#'
+#' # (GIBBS)
+#' # k chains with k different starting values
+#' set.seed(100)
+#' gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+#'                               iter = 1000)
+#'## TracePlots
+#' chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
+#'                              iter.chain = rep(1:500, 4))
+#' mixchains.Own(chain.mix)
 #' @import ggplot2  gridExtra grid
 #' @rdname ggplotbayesfuns
 #' @export
@@ -77,7 +117,6 @@
                              fontsize = 25, font = 4))
   )
 }
-
 #' @rdname ggplotbayesfuns
 #' @export
 'mixchains.Own' <- function(data, moreplot = F,
@@ -103,27 +142,43 @@
 
 # ===============================================================
 #' @export MH_mcmc.own
-#' @title Return Levels with nonstationarity
+#' @title Metropolis-Hastings algorithm for GEV
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
 #' Compute return levels plot of nonstationary model with the data (in years)
 #'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
+#' @param start numeric vector of length 3 containing the starting values for the parameters theta=
+#'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
+#' @param varmat.prop The proposal's variance : controlling the cceptance rate. To facilitate convergence, it
+#' is advised to target an acceptance rate of around 0.25 when all components of theta are updated
+#' simultaneously, and 0.40 when the components are updated one at a time.
+#' @param data  numeric vector containing the GEV in block-maxima
+#' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
 #'
-#' @return The return levels for the considered time period (t)
+#' @return A named list containing
+#' \describe{
+#' \item{\code{mean.acc_rates} : the mean of the acceptance rates}
+#' \item{\code{out.chain} : The generated chain}
+#' }
 #' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
-#'
-# start represents the starting value of the generated chain,
-# must explore different ones, typically take the MPLE
-# varmat.prop is the variance of the proposal.
+#' data("max_years")
+#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+#' # opt <- optim(param, fn, data = max_years$data,
+#' #              method="BFGS", hessian = TRUE)
+#' opt <- nlm(fn, param, data = max_years$data,
+#'            hessian=T, iterlim = 1e5)
+#' start <- opt$estimate
+#' Sig <- solve(opt$hessian)
+#' ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+#' varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+#' # (MH)
+#' set.seed(100)
+#' mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
 'MH_mcmc.own' <- function(start, varmat.prop,
                           data = max_years$data, iter = 2000){
+
   out <- matrix(NA, nrow = iter+1, ncol = 3)
   dimnames(out) <- list(1:(iter+1), c("mu", "logsig", "xi"))
   out[1,] <- start
@@ -148,24 +203,41 @@
 
 
 # ===============================================================
-#' @title Return Levels with nonstationarity
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
-
+#' @title Gibbs Sampler for GEV (MCMC)
 #' @description
 #' Compute return levels plot of nonstationary model with the data (in years)
 #'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
+#' @param start numeric vector of length 3 containing the starting values for the parameters theta=
+#'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
+#' @param proposd The proposal's standard deviations : controlling the cceptance rate.
+#' To facilitate convergence, it is advised to target an acceptance rate of around 0.25
+#' when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+#' is as proposed by Coles (2001) but we should tune this value. (from package \code{ismev})
+#' @param data  numeric vector containing the GEV in block-maxima
+#' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
 #'
-#' @return The return levels for the considered time period (t)
+#' @return A named list containing
+#' \describe{
+#' \item{\code{mean.acc_rates} : the meanS of the acceptance rates}
+#' \item{\code{out.chain} : The generated chainS}
+#' }
 #' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
-#'
-# start is the starting point of the algo. Again, use several ones
-# propsd value is as proposed by coles but must tune this value.
+#' data("max_years")
+#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+#' # opt <- optim(param, fn, data = max_years$data,
+#' #              method="BFGS", hessian = TRUE)
+#' opt <- nlm(fn, param, data = max_years$data,
+#'            hessian=T, iterlim = 1e5)
+#' start <- opt$estimate
+#' Sig <- solve(opt$hessian)
+#' ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+#' varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+#' ## GIBBS
+#'  set.seed(100)
+#' iter <- 2000
+#' gibb1 <- gibbs_mcmc.own(start, iter = iter)
 #' @export
 "gibbs_mcmc.own" <- function (start , propsd = c(.4, .1, .1),
                               iter = 2000, data = max_years$data ) {
@@ -220,25 +292,69 @@
 }
 
 
-# ===============================================================
-#' @title Return Levels with nonstationarity
-#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
+
+# ===============================================================
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+#' @title Gibbs Sampler for nonstationary GEV (MCMC)
 #' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
+#' Compute the Gibbs sampler accounting for nonstationarity (trend) in GEV. It is computed
+#' based on a diffuse normal prior.
+#' @param start named list of length 4 (this number determines the number of chains generated)
+#' containing the starting values for the parameters theta=(intercept mu0, trend mu1,
+#' LOG-scale and shape).
+#' It is advised explore different ones, and typically take the MPLE.
+#' @param proposd The proposal's standard deviations : controlling the cceptance rate.
+#' To facilitate convergence, it is advised to target an acceptance rate of around 0.25
+#' when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+#' It must be wel chosen (e.g. Trial-and-error method)
+#' @param data  numeric vector containing the GEV in block-maxima
+#' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
 #'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
+#' @return A named list containing
+#' \describe{
+#' \item{\code{n.chains} : The number of chains generated melted in a data.frame}
+#' \item{\code{mean.acc_rates} : the meanS of the acceptance rates}
+#' \item{\code{out.chain} : The generated chainS}
+#' \item{\code{dic.vals} : contains the DIC values (for further diagnostics on
+#' predictive accuracy, see ?dic)}
+#' \item{\code{out.ind} : The generated individual chainS (in a list)}
+
+#' }
 #' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
+#' data("max_years")
+#' data <- max_years$data
 #'
-# Compute Log-posterior  of the model in a nonstationary context.
-# By default, we consider the simple linear trend model.
+#' fn <- function(par, data) -log_post1(par[1], par[2], par[3],
+#'                                      par[4], data)
+#' param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
+#' opt <- optim(param, fn, data = max_years$data,
+#'              method = "BFGS", hessian = T)
+#'
+#' # Starting Values
+#' set.seed(100)
+#' start <- list() ; k <- 1
+#' while(k < 5) { # starting value is randomly selected from a distribution
+#'   # that is overdispersed relative to the target
+#'   sv <- as.numeric(rmvnorm(1, opt$par, 50 * solve(opt$hessian)))
+#'   svlp <- log_post1(sv[1], sv[2], sv[3], sv[4], max_years$data)
+#'   print(svlp)
+#'   if(is.finite(svlp)) {
+#'     start[[k]] <- sv
+#'     k <- k + 1
+#'   }
+#' }
+#'
+#' # k chains with k different starting values
+#' set.seed(100)
+#' gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+#'                                iter = 1000)
+#' colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
+#'
+#' param.chain <- gibbs.trend$out.chain[ ,1:4]
+#'
+#' ### Plot of the chains
+#' chains.plotOwn(gibbs.trend$out.chain )
 #' @export
 'log_post1' <- function(mu0, mu1, logsig, xi, data,
                         model.mu = mu0 + mu1 * tt,
@@ -252,11 +368,6 @@
   lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
   lprior + llhd1 #+ llhd2
 }
-
-
-# propsd must be weel chosen (e.g. Trial-and-error method)
-# start must be a list containing a number of different starting values
-#and this number determines the number of chains generated.
 #' @export
 'gibbs.trend.own' <- function (start, propsd = c(.5, 2.5, .08, .08),
                                iter = 1000, data = max_years$data) {
@@ -271,6 +382,7 @@
                         xi = numeric(0),
                         chain.nbr = character(0))
   nr.chain <- length(start)   ;    time <- proc.time()
+
  for(k in 1:nr.chain) {
    out <- data.frame(mu = rep(NA, iter+1),
                      mu1 = rep(NA, iter+1),
@@ -345,7 +457,7 @@
   # out.fin <- cbind.data.frame(out.fin)
                               # chain.nmbr = rep(k, nrow(out.fin)))
 
-   print(paste("time is ",round((proc.time() - time)[3], 5), " sec"))
+   print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
  }
 
   out <- cbind.data.frame(out.fin,
@@ -357,6 +469,7 @@
               dic.vals = ic_val.list,
               out.ind = out.ind) )
 }
+
 
 
 # ===============================================================

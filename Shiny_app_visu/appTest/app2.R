@@ -1,7 +1,7 @@
 library(shiny)
 #options(shiny.error = browser)
-load('/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata')
-
+library(PissoortThesis)
+data("max_years")
 
 ui <- fluidPage(
 
@@ -13,7 +13,6 @@ ui <- fluidPage(
     plotOutput("plot1", height = '600px', width = "900px")
   )
 )
-library(PissoortThesis)
 library(ggplot2)
 library(plotly)
 library(gridExtra)
@@ -22,7 +21,7 @@ library(highcharter)
 library(dplyr)
 library(tidyr)
 
-
+load('C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data.RData')
 
 
 

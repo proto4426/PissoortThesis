@@ -3,7 +3,7 @@
 \name{chains.plotOwn}
 \alias{chains.plotOwn}
 \alias{mixchains.Own}
-\title{Return Levels with nonstationarity}
+\title{Plots to assess the mixing of the Chains}
 \usage{
 chains.plotOwn(data, ..., title = "TracePlots of the generated Chains ")
 
@@ -13,21 +13,44 @@ mixchains.Own(data, moreplot = F,
 \arguments{
 \item{data}{numeric vector containing the GEV block-maxima}
 
-\item{gev_nstatio}{Nonstationary GEV fitted model of class \code{gev.fit}
-(from package \code{ismev})}
+\item{...}{Other parameters from \code{gridExtra::grid.arrange()}}
 
-\item{t}{Maximum time period for which the return levels are considered}
-
-\item{m}{Return period}
+\item{title}{Global title for the plot}
 }
 \value{
-The return levels for the considered time period (t)
+a grid.arrange() of ggplots.
 }
 \description{
-Compute return levels plot of nonstationary model with the data (in years)
+Compute the ggplots for each parameter of interest in a single page.
 }
 \examples{
-rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
+data("max_years")
+fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+# opt <- optim(param, fn, data = max_years$data,
+#              method="BFGS", hessian = TRUE)
+opt <- nlm(fn, param, data = max_years$data,
+           hessian=T, iterlim = 1e5)
+start <- opt$estimate
+Sig <- solve(opt$hessian)
+ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+varmat <- ev$vectors \%*\% diag(sqrt(ev$values)) \%*\% t(ev$vectors)
+# (MH)
+set.seed(100)
+mh.mcmc1 <- MH_mcmc.own(start, varmat \%*\% c(.1,.3,.4))
+mh.mcmc1$mean.acc_rates
+
+chains.plotOwn(mh.mcmc1$out.chain)
+
+# (GIBBS)
+# k chains with k different starting values
+set.seed(100)
+gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+                              iter = 1000)
+## TracePlots
+chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
+                             iter.chain = rep(1:500, 4))
+mixchains.Own(chain.mix)
 }
 \author{
 Antoine Pissoort, \email{antoine.pissoort@student.uclouvain.be}
