@@ -154,7 +154,6 @@ dygraph(xtdata) %>% dyRangeSelector()
 
 ## Plot the yearly maxima together with some "standard" fitting methods
 
-summary(lm1 <- lm(max_years$data ~ max_years$df$Year))
 lm1_1 <- lm1$coefficients[1]
 lm1_2 <- lm1$coefficients[2]
 
@@ -181,6 +180,12 @@ g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_line() +
 g1
 # Red line is local polynomial regression fitting curve (loees)
 # The (optimal) default method is convenient. See ?loess
+
+# Check that the shaded grey area around linear trend is indeed 95% ci (prediction)
+summary(lm1 <- lm(max_years$data ~ max_years$df$Year))
+x <- seq(1901, 2016, by = 1e-3)
+predict(lm1, newdata = x[sample(x, 116)])
+
 
 
 ggplot(data = max_years$df,aes(x=Year,y=Max)) + geom_point() +

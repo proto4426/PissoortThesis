@@ -13,8 +13,7 @@ shinyServer(function(input, output) {
     'GEVdfFun' <-
       function (x = seq(input$mu-10, input$mu + 10, length = 10^3), mu = 0, sig = 1, ksi = 0) {
         if (ksi ==0) dens <-  (sig^-1) * exp(-(x-mu)/sig) * exp(-exp(-(x-mu)/sig))
-        else
-          s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
+        else   s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
         t <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1)
         if (ksi < 0) {dens <-  s * exp(-t) * ( (x - mu)/sig  < -1/ksi ) }
         if (ksi > 0) {dens <- sig^{-1} * s * exp(-t) * ( (x - mu)/sig  > -1/ksi ) }
@@ -35,9 +34,9 @@ shinyServer(function(input, output) {
     endpoint_w <- input$mu - (input$sig / input$ksi1)
     endpoint_f <- input$mu - (input$sig / input$ksi3)
 
-    dens_f <- ifelse(GEVdf[GEVdf$xi == 0.5,]$density < endpoint_f, NA,
-                     GEVdf[GEVdf$xi == 0.5,]$density )
-    GEVdf[GEVdf$xi == 0.5,]$density <- dens_f
+    dens_f <- ifelse(GEVdf[GEVdf$xi == input$ksi3,]$density < endpoint_f, NA,
+                     GEVdf[GEVdf$xi == input$ksi3,]$density )
+    GEVdf[GEVdf$xi == input$ksi3,]$density <- dens_f
 
 
     # plot the normal distribution as reference

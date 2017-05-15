@@ -4,7 +4,7 @@ library(shiny)
 
 shinyUI(fluidPage(
 
-  titlePanel("EVT thesis: Simulating GAM fit for trend to visualize uncertainty"),
+  titlePanel("EVT thesis: Simulating GAM fit for the trend to visualize uncertainty"),
 
   fluidRow(
     column(3,

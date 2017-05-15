@@ -2,30 +2,75 @@
 % Please edit documentation in R/BayesFunc.R
 \name{log_post1}
 \alias{log_post1}
-\title{Return Levels with nonstationarity}
+\title{Gibbs Sampler for nonstationary GEV (MCMC)}
 \usage{
 log_post1(mu0, mu1, logsig, xi, data, model.mu = mu0 + mu1 * tt,
   mnpr = c(30, 0, 0, 0), sdpr = c(40, 40, 10, 10))
 }
 \arguments{
-\item{data}{numeric vector containing the GEV block-maxima}
+\item{data}{numeric vector containing the GEV in block-maxima}
 
-\item{gev_nstatio}{Nonstationary GEV fitted model of class \code{gev.fit}
-(from package \code{ismev})}
+\item{start}{named list of length 4 (this number determines the number of chains generated)
+containing the starting values for the parameters theta=(intercept mu0, trend mu1,
+LOG-scale and shape).
+It is advised explore different ones, and typically take the MPLE.}
 
-\item{t}{Maximum time period for which the return levels are considered}
+\item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
+To facilitate convergence, it is advised to target an acceptance rate of around 0.25
+when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+It must be wel chosen (e.g. Trial-and-error method)}
 
-\item{m}{Return period}
+\item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
 }
 \value{
-The return levels for the considered time period (t)
+A named list containing
+\describe{
+\item{\code{n.chains} : The number of chains generated melted in a data.frame}
+\item{\code{mean.acc_rates} : the meanS of the acceptance rates}
+\item{\code{out.chain} : The generated chainS}
+\item{\code{dic.vals} : contains the DIC values (for further diagnostics on
+predictive accuracy, see ?dic)}
+\item{\code{out.ind} : The generated individual chainS (in a list)}
+}
 }
 \description{
-Compute return levels plot of nonstationary model with the data (in years)
+Compute the Gibbs sampler accounting for nonstationarity (trend) in GEV. It is computed
+based on a diffuse normal prior.
 }
 \examples{
-rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
+data("max_years")
+data <- max_years$data
 
+fn <- function(par, data) -log_post1(par[1], par[2], par[3],
+                                     par[4], data)
+param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
+opt <- optim(param, fn, data = max_years$data,
+             method = "BFGS", hessian = T)
+
+# Starting Values
+set.seed(100)
+start <- list() ; k <- 1
+while(k < 5) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
+  sv <- as.numeric(rmvnorm(1, opt$par, 50 * solve(opt$hessian)))
+  svlp <- log_post1(sv[1], sv[2], sv[3], sv[4], max_years$data)
+  print(svlp)
+  if(is.finite(svlp)) {
+    start[[k]] <- sv
+    k <- k + 1
+  }
+}
+
+# k chains with k different starting values
+set.seed(100)
+gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+                               iter = 1000)
+colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
+
+param.chain <- gibbs.trend$out.chain[ ,1:4]
+
+### Plot of the chains
+chains.plotOwn(gibbs.trend$out.chain )
 }
 \author{
 Antoine Pissoort, \email{antoine.pissoort@student.uclouvain.be}
