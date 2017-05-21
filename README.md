@@ -2,6 +2,7 @@
 R package for the master's thesis in statistics of Antoine Pissoort at Université Catholique de Louvain
 
 ## R code to install the package from GitHub
+Install the `devtools` if you don't have it yet. Then 
 `devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)`
 
 Sometimes, you may have to use 
