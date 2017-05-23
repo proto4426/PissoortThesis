@@ -11,7 +11,7 @@ shinyServer(function(input, output) {
 
     ## Create data frames for ggplot
     'GEVdfFun' <-
-      function (x = seq(input$mu-10, input$mu + 10, length = 10^3), mu = 0, sig = 1, ksi = 0) {
+      function (x = seq(input$mu-10, input$mu + 10, length = 5e3), mu = 0, sig = 1, ksi = 0) {
         if (ksi ==0) dens <-  (sig^-1) * exp(-(x-mu)/sig) * exp(-exp(-(x-mu)/sig))
         else   s <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1 - 1)
         t <- (1 + ksi * (x - mu)/sig)^(-(ksi)^-1)
