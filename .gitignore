@@ -4,8 +4,8 @@
 .RData
 .Ruserdata
 NULL.stan
-/Shiny_app_visu/*
-/Shiny_app_visu/appTest/*
+Shiny_app_visu/*
+Shiny_app_visu/appTest/*
 <<<<<<< HEAD
 .jpg
 =======
