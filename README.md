@@ -2,32 +2,43 @@
 R package for the master's thesis in statistics of Antoine Pissoort at Université Catholique de Louvain
 
 ## R code to install the package from GitHub
-Install the `devtools` if you don't have it yet. Then 
-`devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)`
+Install the `devtools` package if you don't have it yet. Then 
+
+```coffee
+devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)
+```
 
 Sometimes, you may have to use 
 
-`devtools::install_github("proto4426/PissoortThesis", force=T)`
+```coffee
+devtools::install_github("proto4426/PissoortThesis", force=T)
+```
 
 If you are not able to download the vignettes directly, please use the .tar.gz file containing the html's in the folder.
 
-`library(PissoortThesis)`
+```coffee
+library(PissoortThesis)
+```
 
 ## R code to install the package from a local repository:
-1. `install.packages("path-to-PissoortThesis", repos = NULL, type="source")`
-2. `library(PissoortThesis)`
 
+```coffee
+install.packages("path-to-PissoortThesis", repos = NULL, type="source")
+library(PissoortThesis)
+```
 
 
 # First visualisation : Shiny
 
-After having loaded the package in your environement, you can run
+After having loaded the package in your environement, you can run : 
 
-`# Be sure to have grid, gridExtra, plotly and ggplot2 already installed`
+```coffee
+# Be sure to have grid, gridExtra, plotly and ggplot2 already installed
 
-`runExample('GEV_distributions')  # Present the GEV distribution and dependence with parameters`
-`runExample('trend_models')  # Present the yearly analysis visualizaiton for Block-Maxima (see Section 6.2.2)`
-`runExample('splines_draws')  # Present the simulation study of the GAM model with splines (see Section 6.2.3)`
+runExample('GEV_distributions')  # Present the GEV distribution and dependence with parameters
+runExample('trend_models')  # Present the yearly analysis visualizaiton for Block-Maxima (see Section 6.2.2)
+runExample('splines_draws')  # Present the simulation study of the GAM model with splines (see Section 6.2.3)
+```
 
 
 
