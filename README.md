@@ -32,14 +32,28 @@ library(PissoortThesis)
 
 After having loaded the package in your environement, you can run : 
 
-```coffee
-# Be sure to have grid, gridExtra, plotly and ggplot2 already installed
+### 1.) GEV Distribution 
 
-runExample('GEV_distributions')  # Present the GEV distribution and dependence with parameters
-runExample('trend_models')  # Present the yearly analysis visualizaiton for Block-Maxima (see Section 6.2.2)
-runExample('splines_draws')  # Present the simulation study of the GAM model with splines (see Section 6.2.3)
+Present the GEV distribution and the dependence with its parameters
+```coffee
+runExample('GEV_distributions') 
+# Be sure to have grid, gridExtra, plotly and ggplot2 already installed
 ```
 
+![gap_test](https://github.com/proto4426/Thesis/blob/master/gapminder2.gif)
+
+
+### 2. Models for the Trend
+Present the yearly analysis visualizaiton for Block-Maxima (see Section 6.2.2)
+```
+runExample('trend_models')  
+```
+
+### 3. Splines draws with GAM 
+Present the simulation study of the GAM model with splines (see Section 6.2.3)
+```
+runExample('splines_draws') 
+```
 
 
 # Where can you find the DATA ? 
