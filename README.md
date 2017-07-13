@@ -30,16 +30,15 @@ library(PissoortThesis)
 
 # First visualisation : Shiny
 
-After having loaded the package in your environement, you can run : 
+After having loaded the package in your environement, with one signle line of code you can run the shiny applications in your local environment : 
 
 ### 1.) GEV Distribution 
-
 Present the GEV distribution and the dependence with its parameters
 ```coffee
 runExample('GEV_distributions') 
 # Be sure to have grid, gridExtra, plotly and ggplot2 already installed
 ```
-
+Example of what this application does : 
 ![gap_test](https://github.com/proto4426/Thesis/blob/master/gapminder2.gif)
 
 
