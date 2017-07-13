@@ -1,4 +1,6 @@
-setwd('/home/piss/Documents/Extreme/R resources/IRM')
+#setwd('/home/piss/Documents/Extreme/R resources/IRM')
+
+setwd("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM")
 
 library(magrittr) # usefull for pipe %>% operators
 library(dplyr, quietly = TRUE, warn.conflicts = FALSE)
@@ -105,9 +107,44 @@ ggplot(data=TXTN_closed, aes(group = month)) + geom_boxplot(aes(x = month, y = T
 
 library(RColorBrewer)
 # months
+
+library(RColorBrewer)
+dodge <- position_dodge(width = 0.4)
+
+ggplot(TXTN_closed,aes(x = season, y = TX)) + 
+  geom_jitter(color='red', size = .6, alpha=0.99,width = 0.2) + 
+  geom_violin(fill = "lightseagreen", alpha=0.7, draw_quantiles = T, position = dodge, width = 1.8) +
+  geom_boxplot(width=.06, outlier.colour=NA, position = dodge) + 
+  labs(title = 'Violin-plots for daily Max. t°c by seasons', 
+       x = "Season", y = expression( Maximum~T~degree*C)) + theme_piss( size_p = 16)
+
+
 ggplot(data = TXTN_closed, aes(TX, colour = as.factor(month))) +
   geom_density(size = 1.1) +  scale_color_discrete()
 # !! same smoothing factor for all densities
+
+
+## Violin-plots
+summer <- TXTN_closed[TXTN_closed$season == "Summer",]
+spring <- TXTN_closed[TXTN_closed$season == "Spring",]
+winter <- TXTN_closed[TXTN_closed$season == "Winter",]
+autumn <- TXTN_closed[TXTN_closed$season == "Autumn",]
+
+m_summer <- mean(summer$TX)
+m_spring =  mean(spring$TX)
+m_winter <- mean(winter$TX)
+m_autum <- mean(autumn$TX)
+
+ggplot(data=TXTN_closed, aes(TX,fill = season, colour=season)) + 
+  geom_density(alpha = .1, size=1.1) + scale_fill_brewer(palette = "Set1" )+ 
+  scale_color_brewer(palette= "Set1") + geom_hline(yintercept=0, colour="white", size=1.1) +
+  labs(title = 'Kernel Densities for daily Max. t°c by seasons',
+       y = "Density", x = expression( Maximum~T~degree*C)) +
+  theme_piss(legend.position = c(0.9, .82), size_p = 16) + 
+  geom_vline(xintercept = m_summer, colour = "darkgreen", linetype = 2) + 
+  geom_vline(xintercept = m_spring, colour = "blue", linetype = 2) +
+  geom_vline(xintercept = m_winter, colour = "violet", linetype = 2) +
+  geom_vline(xintercept = m_autum, colour = "red", linetype = 2)
 
 # seasons
 ggplot(data=TXTN_closed,aes(TX,colour=season)) + geom_density(size=1.1)

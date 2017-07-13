@@ -7,8 +7,8 @@ my_sso <- launch_shinystan(fit_stan) # Put you stan model in here.
 
 
 
+deploy_shinystan(my_sso, appName = "ShinyStanGEV", account = "proto4426")
 
-deploy_shinystan(my_sso, appName = "MyModel", account = "username")
 
 
 

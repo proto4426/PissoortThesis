@@ -1,8 +1,10 @@
-setwd('/home/piss/Documents/Extreme/R resources/IRM')
+setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
 load("data1.Rdata")
 
-library(PissoortThesis)
+#load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.RData")
 
+
+library(PissoortThesis)
 library(GEVcdn)
 
 # fit <- gevcdn.fit(as.matrix(seq(1, length(max_years$data))), as.matrix(max_years$data))
@@ -121,6 +123,7 @@ for(i in seq_along(parms.on)){
                                  scale = parms.on[[i]][,"scale"],
                                  shape = parms.on[[i]][,"shape"]))
 }
+
 ## Plot data and quantiles
 matplot(cbind(y, q, rowMeans(q.10.on), rowMeans(q.50.on),
               rowMeans(q.90.on)), type = c("b", rep("l", 6)),
@@ -129,14 +132,3 @@ matplot(cbind(y, q, rowMeans(q.10.on), rowMeans(q.50.on),
         col = c("red", rep("orange", 3), rep("blue", 3)),
         pch = 19, xlab = "x", ylab = "y",
         main = "gevcdn.bag (early stopping on)")
-
-
-
-
-# More relevant to do this with rainfall data !?
-#############
-datap50 <- read.csv('P50_Uccle_1880.csv',sep="")
-#################
-
-
-

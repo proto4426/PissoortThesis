@@ -1,12 +1,15 @@
 #setwd('/home/piss/Documents/Extreme/R resources/IRM')
-setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
+
+# setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
+# load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 
 library("rstantools")
 
-load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
-
 options(mc.cores=parallel::detectCores()) # all available cores
 # can be used without needing to manually specify the cores argument.
+
+load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.RData")
+setwd("C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\stan")
 
 library("rstan")      
 library(bayesplot)
@@ -34,7 +37,7 @@ while(k < 5) { # starting value is randomly selected from a distribution
 
 fit_stan <- stan(file = 'gev.stan', data = list(n = length(max_years$data),
                                                 y = max_years$data), 
-                 iter = 2000, chains = 4, warmup = 0,# init = rev(start0), 
+                 iter = 2000, chains = 4, warmup = 0, #init = rev(start0), 
                  cores = 8, verbose = T, control = list(adapt_delta = .9))
 fit_stan
 summary(fit_stan)

@@ -5,7 +5,6 @@ data("max_years")
 library(ggplot2)
 library(plotly)
 library(gridExtra)
-library(grid)
 library(mgcv)
 
 
