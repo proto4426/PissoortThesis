@@ -18,9 +18,10 @@
 #' @references Cannon, A.J., 2010. A flexible nonlinear modelling framework for nonstationary generalized
 #' extreme value analysis in hydroclimatology. Hydrological Processes, 24: 673-685. DOI: 10.1002/hyp.7506
 'gevcdn.fit2' <- function (x, y, iter.max = 1000, n.hidden = 2, Th = gevcdn.logistic,
-                           fixed = NULL, init.range = c(-0.25, 0.25), scale.min = .Machine$double.eps,
-                           beta.p = 3.3, beta.q = 2, sd.norm = Inf, n.trials = 5, method = c("BFGS",
-                                                                                             "Nelder-Mead"), max.fails = 100, ...)
+                           fixed = NULL, init.range = c(-0.25, 0.25),
+                           scale.min = .Machine$double.eps,
+                           beta.p = 3.3, beta.q = 2, sd.norm = Inf, n.trials = 5,
+                           method = c("BFGS", "Nelder-Mead"), max.fails = 100, ...)
 {
   if (!is.matrix(x))
     stop("\"x\" must be a matrix")
@@ -44,9 +45,9 @@
       else {
         weights <- gevcdn.initialize(x, n.hidden, init.range)
       }
-      fit.cur <- try(suppressWarnings(optim(weights, gevcdn.cost,
-                                            method = method, control = list(maxit = iter.max,
-                                                                            ...), x = x, y = y, n.hidden = n.hidden, Th = Th,
+      fit.cur <- try(suppressWarnings(optim(weights, gevcdn.cost, method = method,
+                                            control = list(maxit = iter.max, ...),
+                                            x = x, y = y, n.hidden = n.hidden, Th = Th,
                                             fixed = fixed, scale.min = scale.min, beta.p = beta.p,
                                             beta.q = beta.q, sd.norm = sd.norm)), silent = TRUE)
       if (!class(fit.cur) == "try-error") {
