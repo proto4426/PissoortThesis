@@ -1,17 +1,28 @@
-setwd('/home/piss/Documents/Extreme/R resources/IRM')
-source("1Code_local.R")
-load("data.Rdata")
+#setwd('/home/piss/Documents/Extreme/R resources/IRM')
+#setwd("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM")
+load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
+library(tidyverse)
+library(gridExtra)
+
+library(evd)
+library(extRemes)
+library(ismev)
+#library(extremeStat)
 
 library(PissoortThesis)
 
 
+################### Introduction :
+##################################
 
 ######### Division and analysis of the 4 real seasons separately ? #######
                                       ##########################
 #### For TX
 
 ggplot(TXTN_closed[1:2000, ]) + geom_point(aes(x = Date, y = TX))  # change value
-# As we have seen, strong reccurent pattern occurs
+# As we have seen, strong reccurent pattern occurs due to seasons.
+
 
 
 TXTN_cl_wint <- TXTN_closed[TXTN_closed$season == "Winter", ]
@@ -39,6 +50,10 @@ grid.arrange(ga, gw, gs, gsu)
 
 
 # Or for the whole series
+library(xts)
+library(dygraphs)
+library(zoo)
+
 xtdataw <- xts(TXTN_cl_wint$TX, order.by = as.Date(TXTN_cl_wint$index), f = 12)
 dygraph(xtdataw) %>% dyRangeSelector()
 xtdatas <- xts(TXTN_cl_spring$TX, order.by = as.Date(TXTN_cl_spring$index), f = 12)
@@ -93,11 +108,11 @@ summary( gev_cool <- fevd(yearl_ext_cool$data, units = "deg C") )
 #####
 grid.arrange(gw, gc, nrow = 2)
 
+
 # Here, we remark with this method that assumption of stationarity is much more
-# fulfilled. However, we must think about the loss of information ....
-
-
+# fulfilled. However, we must also think about the loss of information ....
 mrl.plot(txtn_cl_warm$TX)
+
 
 
 ##############################################################################
@@ -108,23 +123,25 @@ mrl.plot(txtn_cl_warm$TX)
 
 ### GEV : Detect autocorrelation/dependence
 
-acfpacf_plot(max_years$data)  # See our source code for this function
+PissoortThesis::acfpacf_plot(max_years$data, mfrow = c(1, 2),
+                            main1 = "ACF for the Annual TX (block maxima)",
+                            main2 = "PACF for the Annual TX (block maxima)")
 # We can detect/suspect the seasonality with the ~harmonic oscillation
 # For block maxima,as expected, autocorrelation is weak (but present!)
 
 plot(max_years$data[1:length(max_years$data) - 1],
      max_years$data[2:length(max_years$data)])
-# Seems really independent. For GEV, it is "okay"
-acfpacf_plot(max_s$data)
+# Seems really independent. For GEV, it seems okay.
+# See it for summer months only :
+PissoortThesis::acfpacf_plot(max_s$data)
 
 
 ##### See POT in other code ---> clusters
-
-acfpacf_plot(above_32$TX)
+PissoortThesis::acfpacf_plot(above_25$TX)
 
 extremalindex(max_all, threshold = 32) # Method interval was from Segers !!!!!!
 clust <- extremalindex(max_all, threshold = 30)
-# obviously, it dependence increase (theta decreases) as threshold as more extremes
+# obviously, dependence increase (theta decreases) as threshold as more extremes
 
 
 # Controlling number of cluster max,
@@ -132,16 +149,18 @@ fpot(max_all, model= "pp",threshold = 32, cmax = T, r = 0,
       start = list(loc = 30, scale = 1, shape = 0), npp = 365.25 )
 
 
-# see extReme 2.0 pdf
-atdf(max_all,0.99) # O.95 is u in F^-1(u) ovver which we compute atdf
-# u close to 1 but high enough to incorporate enough data. (See latex)
+#( see extReme 2.0 pdf )
+atdf(max_all,0.99) # O.95 is u in F^-1(u) over which we compute atdf
+# u close to 1 but high enough to incorporate enough data.
 
 
 ## Clusters ?
-above_30 <- TXTN_closed[TXTN_closed$TX>30, ] #  ( change value of 25)
+above_30 <- TXTN_closed[TXTN_closed$TX>30, ] #  ( change value of 30)
 
-ggplot(above_30, aes(x = Date, y = TX)) + geom_point() + theme_bw() +
-  labs(title = "TX above 30°c") +
+ggplot(above_30, aes(x = Date, y = TX)) +
+  geom_point() + theme_bw() +
+  labs(title = "Occurences of TX above 30°c",
+       x = "Date (year)", y= "TX (°c)") +
   theme(plot.title = element_text(size = 22, hjust=0.5,
                                   colour = "#33666C", face="bold")) +
   theme(axis.title = element_text(face = "bold", size= 17,
@@ -153,6 +172,7 @@ ggplot(above_30, aes(x = Date, y = TX)) + geom_point() + theme_bw() +
              col = "red", size = 0.15)
 
 
+
 ############################################################
 ############## Dealing with Nonstationnarity ###############
 ############################################################
@@ -162,9 +182,7 @@ TXTN_closed$Date
 lmm <- lm(TXTN_closed$TX ~ TXTN_closed$Date * TXTN_closed$season)
 lm0 <- lm(TXTN_closed$TX ~ TXTN_closed$season )
 lm1 <- lm(TXTN_closed$TX ~ TXTN_closed$season + TXTN_closed$Date)
-summary(lmm)
-summary(lm0)
-summary(lm1)
+summary(lmm)   ;   summary(lm0)  ;     summary(lm1)
 
 df <- data.frame(obs = TXTN_closed$TX[1:1500], season = predict(lm0)[1:1500],
                  season_trend = predict(lm1)[1:1500], interac = predict(lmm)[1:1500],
@@ -183,8 +201,9 @@ ggplot(df) + geom_point(aes(x = Date, y = obs)) +
 #significatie here too (?!)
 
 ti <- matrix (ncol = 1, nrow = length(max_years$data))
+#ti[ ,1] <- rep(1, length(max_years$data))
 ti[ ,1] <- seq(1, length(max_years$data),1)
-gev_nonstatio <- gev.fit(max_years$data, ydat = ti , mul = 1)
+gev_nonstatio <- ismev::gev.fit(max_years$data, ydat = ti , mul = c(1))
 # Value of b_1 is ~~the same than this obtained with linea regression
 
 # Comparing it with likelihood of stationary model
@@ -195,56 +214,120 @@ qchisq(.05, df = 1, lower.tail = F)
 pchisq(khi.obs, df = 1, lower.tail = F)
 # Not exactly the same as with LR, but same result
 
-# More complex model ?
+## More complex model ?  Quadratic model
 ti2 <- matrix(ncol = 2, nrow = length(max_years$data))
+#ti2[ ,1] <- rep(1, length(max_years$data))
 ti2[ ,1] <- seq(1, length(max_years$data), 1)
 ti2[ ,2] <- (ti2[,1])^2
-
-gev_nonstatio2 <- gev.fit(max_years$data, ydat = ti2, mul = c(1, 2))
-
+gev_nonstatio2 <- ismev::gev.fit(max_years$data, ydat = ti2, mul = c(1, 2))
 pchisq(2 *( (-gev_nonstatio2$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1,
        lower.tail = F)
 # compared with the khi-2 as above, it is not statisticaly necessary
 
+## 'Cubic' model ?
+ti3 <- matrix(ncol = 3, nrow = length(max_years$data))
+ti3[ ,1] <- seq(1, length(max_years$data), 1)
+ti3[ ,2] <- (ti3[,1])^2
+ti3[ ,3] <- (ti3[,1])^3
+gev_nonstatio3 <- gev.fit(max_years$data/1000, ydat = ti3, mul = c(1, 2, 3))
+gev_nonstatio3 <- PissoortThesis::gev.fit2(max_years$data, ydat = ti3,
+                                           mul = c(1, 2, 3),
+                                           browser = T, solve.tol = 1e-25)
+# System is singular if we do not scale the data.  But if we scale, the are still
+#NaNs produced in the covariance matrix. We needed to change the tolerance of the
+#solve() function for the underlying hessian (covariance) matrix.
+
+pchisq(2 *( (-gev_nonstatio3$nllh[1]) - (-gev_nonstatio$nllh[1]) ),
+        df = 2, lower.tail = F)
+
+
+## Linear trend with varying scale parameter
+ti_sig <- ti
+gev_nonstatio_sig <- ismev::gev.fit(max_years$data, ydat = ti_sig,
+                                    mul = c(1), sigl = c(1))
+pchisq(2 *( (-gev_nonstatio_sig$nllh[1]) - (-gev_nonstatio$nllh[1]) ),
+       df = 1, lower.tail = F)
+
 
 
 ##### Diagnostics
-
+# ismev by default allows for nonstationary model in gev.diag()
 gev.diag(gev_nonstatio)
-# problem for high quantiles (as "usual")
+# problem for high quantiles in the qq-plot (as "usual")
+
+# Produce the diagnostic plots in ggplot2
+Empirical <- c()
+for(i in 1:length(max_order)){
+  Empirical[i] <- i/(length(max_years$data)+1)
+}
+gg_pp.trans <- ggplot(data = data.frame(Empirical,
+                                  Model = exp(-exp(-sort(gev_nonstatio$data)))),
+                aes(x = Empirical, y = Model)) +
+  geom_point(shape = 1, col = "#33666C") +
+  geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +
+  labs(y = "Estimated proportions", x = "Empirical proportions") +
+  ggtitle("Residual PP-plot")
+gg_qq.trans <- ggplot(data = data.frame(Model = sort(gev_nonstatio$data),
+                                  Empirical = -log(-log(Empirical))),
+                aes(x = Empirical, y = Model)) +
+  geom_point(shape = 1, col = "#33666C") +
+  geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +
+  labs(x = "Model quantile", y = "Empirical quantile") +
+  ggtitle("Residual QQ-Plot (Gumbel Scale)")
+gridExtra::grid.arrange(gg_pp.trans, gg_qq.trans, nrow = 1)
+
 
 
 
 #####   Return levels for model with linear trend. m = 10
        ##############
 
-rl_10_lin <- return.lvl.nstatio(max_years$df$Year,      # See  UsedFunc.R
-                                gev_nonstatio, t = 500, m = 10)
-# Own-built Func. Note the Increase of the return level with time (due to trend)
-# Avec le trend qu'on a pour l'instant, dans environ 300 ans on d?passera
+rl_10_lin <- PissoortThesis::return.lvl.nstatio(max_years$df$Year,
+                                               gev_nonstatio, t = 250, m = 25)
+gg_rlAll <- rl_10_lin$g +
+  geom_vline(xintercept = max(max_years$df$Year) + length(max_years$data),
+             linetype = 2, col = 2) +
+  labs(title = "Return levels with return period of 25 years") +
+  theme_piss(size_p = 12, size_c = 10) #+ coord_cartesian(ylim = c())
+gg_rlAll
+# Note the Increase of the return level with time (due to trend)
+# Avec le trend qu'on a pour l'instant, dans environ 300 ans on depassera
 # la valeur de 50degres maximum tout les 10ans en moyenne a uccle....
-
+rl_10_lin$rl
 #caution should be exercised in practice concerning whether or not it is believable
-#for the upward linear trend in minimum temperatures to continue to be valid
+#for the upward linear trend in maximum temperatures to continue to be valid.
+rl_10_lin$rl[116] ;  max(TXTN_closed$TX) # Very close to the maximum of the series
+
 
 # And if we start at years ~ 65 (donnes plus fiables, + debut du RC)
 ti_65 <- matrix (ncol = 1, nrow = 51)
 ti_65[ ,1] <- seq(66, 116, 1)
 gev_nstatio_65 <- gev.fit(max_years$data[66:116], ydat = ti_65 , mul = 1)
-rl_10_lin65 <- return.lvl.nstatio(max_years$df$Year[66:116],
-                                 gev_nstatio_65, t = 500, m = 10)
-rl_10_lin65
+rl_10_lin65 <- PissoortThesis::return.lvl.nstatio(max_years$df$Year[66:116],
+                                                 gev_nstatio_65, t = 250, m = 25)
+gg_rlSmall <- rl_10_lin65$g +
+  geom_vline(xintercept = 2016 + length(max_years$data), linetype = 2, col = 2) +
+  labs(title = "Return levels with return period of 25 years") +
+  theme_piss(size_p = 13)
 # We see that the trend is much heavier, and hence return lvls are too...
 
-#grid.arrange(rl_10_lin, rl_10_lin1)
+grid.arrange(gg_rlAll, gg_rlSmall, nrow = 1)
 
 
 
-##### Trend  and varying scale parameters
-
+### Nonstationary scale parameter ?
 ti_sig <- matrix(ncol = 1, nrow = length(max_years$data))
 ti_sig[,1] <- seq(1, length(max_years$data), 1)
-gev_nstatio3 <- gev.fit(max_years$data, ydat = ti , mul = 1,
+gev_nstatio_scale <- ismev::gev.fit(max_years$data, ydat = ti_sig,
+                                    sigl = 1, siglink = exp)
+pchisq(2 *( (-gev_nstatio_scale$nllh[1]) - (-gev_statio$nllh[1]) ), df = 1,
+       lower.tail = F)
+# This is not significant
+
+### Trend  and varying scale parameters
+gev_nstatio3 <- ismev::gev.fit(max_years$data, ydat = ti_sig , mul = 1,
                         sigl = 1, siglink = exp)
 pchisq(2 *( (-gev_nstatio3$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1,
        lower.tail = F)
@@ -252,12 +335,12 @@ pchisq(2 *( (-gev_nstatio3$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1,
 
 
 
+
+###########  POT ########################
+########################################
+
+
 ### Seasonal model ?
-
-ti_seas <- matrix(ncol = 2, nrow = length(max_years$data))
-ti_seas[ ,1] <- seq(1, length(max_years$data), 1)
-ti_seas[ ,2] <- rep(1:4, 10)
-
 
 t <- 1:length(TXTN_closed$TX)
 seas_effect <- sin(2 * pi * t / 365.25)
@@ -277,9 +360,6 @@ ggplot(cbind.data.frame(TXTN_closed[1:5000, ], pred = predict(nls.mod)[1:5000]))
   geom_point(aes(x = Date, y = TX), size = 0.4) + geom_line(aes(x = Date, y = pred), col = "red")
 
 
-
-###########  POT ########################
-########################################
 
 #### Varying the threshold !
 
@@ -348,9 +428,10 @@ ggplot(above_30,aes(x = Date, y = TX)) + geom_point() +
 # not really for the exceedances ....
 
 
+
 ##################  Point Process  ############################
 ###############################################################
-library(extRemes)
+
 
 gev_pp <- fevd(max_years$data, units = "deg C", threshold = 32,
                type = "PP", verbose = T)
@@ -369,9 +450,6 @@ gev_pp <- fevd(Max, max_years$df,  threshold = 32,
                type = "PP", verbose = T, threshold.fun = I(Year),
                location.fun = I(Year), time.units = "365/year")
 detach(TXTN_closed)
-
-data("Tphap", package = "extRemes")
-data("Fort", package = "extRemes")
 
 
 TXTN_closed$t <- t
@@ -393,11 +471,4 @@ excess_coles <- fpot (max_all, threshold = 32, npp = 365.25)
 
 
 
-
-
-
-
-
-
-save.image("data1.Rdata")
-
+#save.image("data1.Rdata")

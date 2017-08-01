@@ -17,6 +17,7 @@ sidebar <- dashboardSidebar(
   )
 )
 
+
 body <- dashboardBody(
   tabItems(
 
@@ -73,7 +74,6 @@ body <- dashboardBody(
                    numericInput("sim", "Howmuch Simulations M ? ",
                                 "50", min = "2", max = "1000" )
             ),  width = "100px",
-
             fluidRow(
               column(3, offset = 1,
                      numericInput("seed", "Set the seed ",
@@ -82,7 +82,6 @@ body <- dashboardBody(
                      numericInput("draws", "Howmuch simulations to draw ? (must be < M)",
                                   "50", min = "2", max = "1000"  )
               ),
-
               mainPanel(
                 plotOutput("plot3", height = '600px', width = "900px")
               )
@@ -170,7 +169,6 @@ server <- function(input, output) {
     # plot the normal distribution as reference
 
     GEVdf <- cbind(GEVdf, norm = dnorm(GEVdf$x, mean = input$mu, sd = input$sig))
-
 
     #GEVdf[GEVdf$density < 10^{-312}, ]$density <- NA
 
@@ -308,7 +306,6 @@ server <- function(input, output) {
                       uprS = fit + (crit * se.fit),
                       lwrS = fit - (crit * se.fit))
 
-
     sims <- rmvn(input$sim, mu = coef(gam3.0), sig = Vb)
     fits <- Cg %*% t(sims) # contains N draws from the posterior
 
@@ -316,7 +313,6 @@ server <- function(input, output) {
 
     stackFits <- stack(as.data.frame(fits[, rnd]))
     stackFits <- transform(stackFits, Year = rep(newd$Year, length(rnd)))
-
 
     # Shows Coverages
     fitsInPCI <- apply(fits, 2L, inCI, upr = pred$uprP, lwr = pred$lwrP)

@@ -1,11 +1,15 @@
-setwd('/home/piss/Documents/Extreme/R resources/IRM')
+#setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
+load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+
 library(evd)
 library(mvtnorm)
 library(KernSmooth)
 library(coda)
 library(pander)
 library(gridExtra)
-load("data1.Rdata")
+library(tidyverse)
+library(ggjoy)
+library(viridis)
 
 library(PissoortThesis)
 
@@ -125,7 +129,9 @@ ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
   scale_colour_brewer(name = "chain nr", palette = "Set1") +
   guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
-# Bayes Plots
+
+
+library("bayesplot")
 array.post <- array(unlist(gibbs.trend$out.ind), dim = c(4000/4+1, 4, 4 ),
                     dimnames = list(iterations = NULL,
                                     parameters = c("mu", "mu1", "logsig", "xi"),
@@ -203,10 +209,10 @@ row.names(frame) = c("$\\mu \\ $","$\\boxed{\\mu_1} \\quad$",
                      "$\\log\\sigma \\quad$", "$\\xi \\quad$", "$\\sigma$")
 knitr::kable(frame, align = 'l')
 
+
 ## Credible intervals (quantile-based) see above quantiles ! Densities are quite
 # symetric, so it is not a bad idea to use this method.
 
-library("bayesplot")
 color_scheme_set("blue")
 mcmc_areas(
   posterior,
@@ -215,6 +221,7 @@ mcmc_areas(
   prob_outer = 0.99, # 99%
   point_est = "mean"
 )
+
 mcmc_intervals(param.chain, pars = c("logsig", "xi"))
 
 
@@ -249,7 +256,6 @@ hpd_mu1 <- hdi(param.chain$mu1)
 
 
 
-
 ## Problem handling of mu_trend
 t_bayes <- round(( min(max_years$df$Year):max(max_years$df$Year) -
                      mean(max_years$df$Year) ) / length(max_years$data),4)
@@ -269,16 +275,8 @@ pander(t(matrix(c(mut[1:4], mut[(length(mut)-3):length(mut)],
 
 
 ## Posterior Predictive Distribution
-tt <- ( min(max_years$df$Year):(max(max_years$df$Year) ) -
-          mean(max_years$df$Year) ) / length(max_years$data)
+repl <- PissoortThesis::pred_post_samples()
 
-repl <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt))
-for(t in 1:nrow(repl)) {
-  mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt
-  repl[t,] <- evd::rgev(length(tt), loc = mu,
-                        scale = gibbs.trend$out.chain[t,3],
-                        shape = gibbs.trend$out.chain[t,4])
-}
 post.pred <- apply(repl, 2, function(x) quantile(x, probs = c(0.05,0.5,0.95)))
 
 
@@ -292,18 +290,8 @@ ggplot(df.postpred) + geom_point(aes(x = year, y = data)) +
 
 
 ## And for predictions ? 10 years here
-n_future <- 10 
+repl2 <- PissoortThesis::pred_post_samples(n_future = 10)
 
-tt2 <- ( min(max_years$df$Year):(max(max_years$df$Year) + n_future ) -
-           mean(max_years$df$Year) ) / length(max_years$data)
-
-repl2 <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt2))
-for(t in 1:nrow(repl2)) {
-  mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt2
-  repl2[t,] <- evd::rgev(length(tt2), loc = mu, scale = gibbs.trend$out.chain[t,3],
-                         #shape = unname(par_gibbs_trend["xi"]))
-                         shape = gibbs.trend$out.chain[t,4])
-}
 post.pred2 <- apply(repl2, 2, function(x) quantile(x, probs = c(0.05,0.5,0.95)))
 
 df.postpred2 <- data.frame(org.data = c(max_years$data,
@@ -322,13 +310,27 @@ hpd_pred <- hdi(repl2)
 
 # Densities associated with the PPD, with mean(red) and
 
-gg1 <- PissoortThesis::Pred_Dens_ggPlot(1901, repl2) 
-gg2 <- PissoortThesis::Pred_Dens_ggPlot(1950, repl2) 
-gg3 <- PissoortThesis::Pred_Dens_ggPlot(2016, repl2) 
-gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2) 
-
+gg1 <- PissoortThesis::Pred_Dens_ggPlot(1901, repl2)
+gg2 <- PissoortThesis::Pred_Dens_ggPlot(1950, repl2)
+gg3 <- PissoortThesis::Pred_Dens_ggPlot(2016, repl2)
+gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2)
 grid.arrange(gg1, gg2, gg3, gg4, nrow = 1)
 
+
+repl2_df <- data.frame(repl2)
+colnames(repl2_df) <- seq(1901,2026)
+
+repl2_df[,seq(1,126, by = 10)] %>% gather(year, value) %>%
+#df.postpred2 %>%
+  ggplot(aes(x = value, y = as.numeric(year) )) +   # %>%rev() insdive aes()
+  geom_joy(aes(fill = year)) +
+  scale_fill_viridis(discrete = T, option = "D", direction = -1,
+                     begin = .1, end = .9) +
+  labs(x = "TX", y = "Year",
+       title = "Posterior (predictive) densities evolution of the TX in Uccle from 1901 to 2026 "
+       ) + scale_y_continuous(breaks = seq(1901,2026, by=10) )  + coord_cartesian(xlim = c(27,35)) +
+  theme_piss(theme = theme_minimal(base_family =  "Roboto Condensed", base_size = 15)) +
+  theme(legend.position = "none")
 
 
 ## Predictive accuracy criterion

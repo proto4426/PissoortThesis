@@ -10,7 +10,8 @@ MH_mcmc.own(start, varmat.prop, data = max_years$data, iter = 2000)
 \item{start}{numeric vector of length 3 containing the starting values for the parameters theta=
 (location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE}
 
-\item{varmat.prop}{The proposal's variance : controlling the cceptance rate. To facilitate convergence, it
+\item{varmat.prop}{The proposal's variance : controlling the cceptance rate.
+To facilitate convergence, it
 is advised to target an acceptance rate of around 0.25 when all components of theta are updated
 simultaneously, and 0.40 when the components are updated one at a time.}
 

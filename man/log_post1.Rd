@@ -17,7 +17,8 @@ It is advised explore different ones, and typically take the MPLE.}
 
 \item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
 To facilitate convergence, it is advised to target an acceptance rate of around 0.25
-when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+when all components of theta are updated  simultaneously,
+and 0.40 when the components are updated one at a time.
 It must be wel chosen (e.g. Trial-and-error method)}
 
 \item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}

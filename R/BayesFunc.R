@@ -5,14 +5,13 @@
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
-#' Functions to compute the negative log-likelihood og a GEV
+#' Functions to compute the negative log-likelihood of a GEV
 #' distribution. Whereas this can be used for other purpose, this
 #' also allows in particular to compute the log-posterior with diffuse normal
 #' priors. Note that we could add parameters to control the informativness of
 #' the priors, but as we have no reliable information, we decide to arbitrarily
 #'  fix it to large values, to improve computation . (More parameters are
 #'  harmful for computation time)
-#'
 #'
 #' @param mu numeric representig the location parameter of the GEV
 #' @param sig or \code{logsig} are numeric representig the scale parameter
@@ -31,20 +30,7 @@
 #' opt <- nlm(fn, param, data = max_years$data,
 #'            hessian=T, iterlim = 1e5)
 #' start <- opt$estimate
-#' @rdname log_post0
-#' @export
-'log_post0' <- function(mu, logsig,xi, data) {
-  # Posterior Density Function
-  # Compute the log_posterior in a stationary context.
-  # Be careful to incorporate the fact that the distribution can have finite endpoints.
-  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
-                        xi = xi, data = data))
-  lprior <- dnorm(mu, sd = 50, log = TRUE)
-  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
-  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
-  lprior + llhd
-}
-
+#'
 #' @rdname log_post0
 #' @export
 'gev.nloglik' = function(mu, sig, xi, data){
@@ -59,6 +45,20 @@
   }
   ans
 }
+#' @rdname log_post0
+#' @export
+'log_post0' <- function(mu, logsig,xi, data) {
+  # Posterior Density Function
+  # Compute the log_posterior in a stationary context.
+  # Be careful to incorporate the fact that the distribution can have finite endpoints.
+  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
+                        xi = xi, data = data))
+  lprior <- dnorm(mu, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior + llhd
+}
+
 
 
 
@@ -150,7 +150,8 @@
 #'
 #' @param start numeric vector of length 3 containing the starting values for the parameters theta=
 #'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
-#' @param varmat.prop The proposal's variance : controlling the cceptance rate. To facilitate convergence, it
+#' @param varmat.prop The proposal's variance : controlling the cceptance rate.
+#' To facilitate convergence, it
 #' is advised to target an acceptance rate of around 0.25 when all components of theta are updated
 #' simultaneously, and 0.40 when the components are updated one at a time.
 #' @param data  numeric vector containing the GEV in block-maxima
@@ -212,8 +213,10 @@
 #'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
 #' @param proposd The proposal's standard deviations : controlling the cceptance rate.
 #' To facilitate convergence, it is advised to target an acceptance rate of around 0.25
-#' when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
-#' is as proposed by Coles (2001) but we should tune this value. (from package \code{ismev})
+#' when all components of theta are updated  simultaneously,
+#' and 0.40 when the components are updated one at a time.
+#' is as proposed by Coles (2001) but we should tune this value.
+#'  (from package \code{ismev})
 #' @param data  numeric vector containing the GEV in block-maxima
 #' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
 #'
@@ -306,7 +309,8 @@
 #' It is advised explore different ones, and typically take the MPLE.
 #' @param proposd The proposal's standard deviations : controlling the cceptance rate.
 #' To facilitate convergence, it is advised to target an acceptance rate of around 0.25
-#' when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
+#' when all components of theta are updated  simultaneously,
+#' and 0.40 when the components are updated one at a time.
 #' It must be wel chosen (e.g. Trial-and-error method)
 #' @param data  numeric vector containing the GEV in block-maxima
 #' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
@@ -879,7 +883,8 @@
 
 #' @rdname rlfuns
 #' @export
-"rl.pred_gg" <- function(post, qlim, npy, method = c("gev", "gpd"), period = 1, ...) {
+"rl.pred_gg" <- function(post, qlim, npy,
+                         method = c("gev", "gpd"), period = 1, ...) {
     if (method == "gev")  npy <- 1
 
     np <- length(period)
@@ -909,6 +914,30 @@
 
 
 
+# ===========================================================================
+#' @export pred_post_samples
+#' @title Predictive Posterior samples
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+#' @description
+#' Compute posterior predictive samples from the obtained model (gibbs.trend)
+"pred_post_samples" <- function (from = 1, until = nrow(max_years$df), n_future = 0) {
+
+  tt2 <- ( (max_years$df$Year[from]):(max_years$df$Year[until] + n_future ) -
+             mean(max_years$df$Year) )  /  until
+
+  repl2 <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt2))
+
+  for(t in 1:nrow(repl2)) {
+    mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt2
+    repl2[t,] <- evd::rgev(length(tt2),
+                           loc = mu,
+                           scale = gibbs.trend$out.chain[t,3],
+                           shape = gibbs.trend$out.chain[t,4])
+  }
+  return(repl2)
+}
+
+
 
 
 # ===============================================================
@@ -936,8 +965,8 @@
                                ylim = c(0.01,.55), xlim = c(27.5,36)) {
   index <- year - 1900 # Retrieve the index from our data series.
 
-  ggplot(data.frame(repl2)) +
-    stat_density(aes_string(x = paste0("X",index)), geom = "line") +
+  ggplot(data.frame(data_ppd)) +
+    stat_density(aes_string(x = paste0("X", index)), geom = "line") +
     labs(x = paste("TX for year", as.character(year))) +
     geom_vline(xintercept = mean(repl2[,index]), col = "blue") +
     geom_vline(xintercept = post.pred2["5%", index], col = "blue") +
@@ -947,3 +976,6 @@
     geom_vline(xintercept = hpd_pred['upper', index], col = "green") +
     theme_piss()
 }
+
+
+

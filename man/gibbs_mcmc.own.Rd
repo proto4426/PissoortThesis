@@ -17,8 +17,10 @@ gibbs_mcmc.own(start, propsd = c(0.4, 0.1, 0.1), iter = 2000,
 
 \item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
 To facilitate convergence, it is advised to target an acceptance rate of around 0.25
-when all components of theta are updated  simultaneously, and 0.40 when the components are updated one at a time.
-is as proposed by Coles (2001) but we should tune this value. (from package \code{ismev})}
+when all components of theta are updated  simultaneously,
+and 0.40 when the components are updated one at a time.
+is as proposed by Coles (2001) but we should tune this value.
+ (from package \code{ismev})}
 }
 \value{
 A named list containing

@@ -1,5 +1,4 @@
-setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
-load("data1.Rdata")
+load("/home/proto4426/Documents/Extreme/R resources/IRM/data1.Rdata")
 
 #load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.RData")
 
@@ -18,6 +17,7 @@ library(GEVcdn)
 ## 1) Define the hierarchy of models of increasing complexity
 
 models <- list()
+
 # Stationary model
 models[[1]] <- list(Th = gevcdn.identity,
                     fixed = c("location", "scale", "shape"))
@@ -37,20 +37,19 @@ models[[10]] <- list(n.hidden = 2, Th = gevcdn.logistic)
 
 
 
-
 x <- as.matrix(seq(1, length(max_years$data)))
 y <- as.matrix(max_years$data)
 ## 2) Fit the models and retrieve the weights
 
 weights.models <- list()
 for(i in seq_along(models)){
-  weights.models[[i]] <- gevcdn.fit(x = x, y = y, n.trials = 1,
-                                    n.hidden = models[[i]]$n.hidden,
-                                    Th = models[[i]]$Th,
-                                    fixed = models[[i]]$fixed)
+  weights.models[[i]] <- PissoortThesis::gevcdn.fit2(x = x, y = y, n.trials = 1,
+                                                    n.hidden = models[[i]]$n.hidden,
+                                                    Th = models[[i]]$Th,
+                                                    fixed = models[[i]]$fixed)
 }
-# Printed outputs correspond to the value of the optimized ?gevcdn.cost (see also ?optim())
-#for each model in this loop.
+# Printed outputs correspond to the value of the optimized
+#?gevcdn.cost (see also ?optim())   for each model in this loop.
 
 
 
@@ -83,7 +82,17 @@ q.best <- sapply(c(0.1, 0.5, 0.9), qgev,
                  shape = parms.best[,"shape"])
 
 
+matplot(x, cbind(y, q, q.best), type = c("b", rep("l", 6)),
+        lty = c(1, rep(c(1, 2, 1), 2)),
+        lwd = c(1, rep(c(3, 2, 3), 2)),
+        col = c("red", rep("orange", 3), rep("blue", 3)),
+        pch = 19, xlab = "x", ylab = "y", main = "gevcdn.fit")
+
+
+
 ############ Bagging ################
+#####################################
+
 
 n.boot <- 10 # Number of boostrapped iterations
 
@@ -132,3 +141,4 @@ matplot(cbind(y, q, rowMeans(q.10.on), rowMeans(q.50.on),
         col = c("red", rep("orange", 3), rep("blue", 3)),
         pch = 19, xlab = "x", ylab = "y",
         main = "gevcdn.bag (early stopping on)")
+

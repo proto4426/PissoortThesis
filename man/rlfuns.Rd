@@ -9,16 +9,16 @@
 \alias{rl.pred_gg}
 \title{Return Levels with ggplot2}
 \usage{
-gev.rl.gradient(a, p)
+gev.rl.gradient(est, p)
 
-rl_piss(a, mat, data, thm = theme_piss())
+rl_piss(est, mat, data, thm = theme_piss())
 
 rl.post_gg(post, npy, method = c("gev", "gpd"), ci = 0.9, ...)
 
 rl.pred_gg(post, qlim, npy, method = c("gev", "gpd"), period = 1, ...)
 }
 \arguments{
-\item{a}{numeric vector containing the GEV estimates of the 3 parameters.}
+\item{est}{numeric vector containing the GEV estimates of the 3 parameters.}
 
 \item{p}{the given probability of exceeding the threshold in a year. Only used
 through \code{gev.rl.gradient} function.}
