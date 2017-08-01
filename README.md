@@ -39,17 +39,17 @@ runExample('GEV_distributions')
 # Make sure to have grid, gridExtra, plotly and ggplot2 already installed
 ```
 Example of what this application does : 
-![gap_test](https://github.com/proto4426/Thesis/blob/master/gapminder2.gif)
+![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/gev_distrib.gif)
 
 
 ### 2. Models for the Trend
-Present the yearly analysis visualizaiton for Block-Maxima (see Section 6.2.2)
+Present the yearly analysis visualizaiton for yearly Maxima (see Section 5.2.2)
 ```coffee
 runExample('trend_models')  
 ```
 
 ### 3. Splines draws with GAM 
-Present the simulation study of the GAM model with splines (see Section 6.2.3)
+Present the simulation study of the GAM model with splines (see Section 5.2.3)
 ```coffee
 runExample('splines_draws') 
 ```
