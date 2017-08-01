@@ -38,7 +38,6 @@ Present the GEV distribution and the dependence with its parameters
 runExample('GEV_distributions') 
 # Make sure to have grid, gridExtra, plotly and ggplot2 already installed
 ```
-Example of what this application does : 
 ![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/gev_distrib.gif)
 
 
@@ -47,8 +46,6 @@ Present the yearly analysis visualizaiton for yearly Maxima (see Section 5.2.2)
 ```coffee
 runExample('trend_models')  
 ```
-
-Example of what this application does : 
 ![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/trend_models.gif)
 
 
@@ -57,8 +54,6 @@ Present the simulation study of the GAM model with splines (see Section 5.2.3)
 ```coffee
 runExample('splines_draws') 
 ```
-
-Example of what this application does : 
 ![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/splines.gif)
 
 
