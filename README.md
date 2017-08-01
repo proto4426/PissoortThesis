@@ -48,11 +48,27 @@ Present the yearly analysis visualizaiton for yearly Maxima (see Section 5.2.2)
 runExample('trend_models')  
 ```
 
+Example of what this application does : 
+![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/trend_models.gif)
+
+
 ### 3. Splines draws with GAM 
 Present the simulation study of the GAM model with splines (see Section 5.2.3)
 ```coffee
 runExample('splines_draws') 
 ```
+
+Example of what this application does : 
+![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/splines.gif)
+
+
+### 4. All together in a dashboard 
+All applications created above in a smooth dashboard. Allows to put quite more tools. 
+```coffee
+runExample('All_dashboard') 
+```
+
+
 
 
 # Where can you find the DATA ? 
