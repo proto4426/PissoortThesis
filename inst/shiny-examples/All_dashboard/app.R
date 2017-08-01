@@ -9,9 +9,9 @@ sidebar <- dashboardSidebar(
     menuItem("GEV distribution", tabName = "gev", icon = icon("dashboard"),
              badgeLabel = "chap.1", badgeColor = "green"),
     menuItem("Trend Models", icon = icon("thermometer-1"), tabName = "trend",
-             badgeLabel = "chap.6", badgeColor = "green"),
+             badgeLabel = "chap.5", badgeColor = "green"),
     menuItem("Splines GAM", icon = icon("coffee"), tabName = "splines",
-             badgeLabel = "chap.6", badgeColor = "red"),
+             badgeLabel = "chap.5", badgeColor = "red"),
     menuItem("Source code : Github", icon = icon("file-code-o"),
              href = "https://github.com/proto4426/PissoortThesis")
   )
@@ -59,8 +59,8 @@ body <- dashboardBody(
                                   "All 3 methods together" = 'all') ),
 
           mainPanel(
-            plotOutput("plot2", height = '600px', width = "900px")
-          )), h2("Refer to Section 6.2.2 of the text for more information")
+            plotOutput("plot2", height = '500px', width = "750px")
+          )), h2("Refer to Section 5.2.2 of the text for more information")
           ),
 
   # Third tab content
@@ -68,24 +68,24 @@ body <- dashboardBody(
           titlePanel(h2("Simulate GAM fit for the trend to visualize uncertainty")),
           fluidRow(
             column(3,
-                   numericInput("level", withMathJax(helpText("Which level $\alpha$ ? (in %) ")),
+                   numericInput("level", "Which level alpha? (in %) ",
                                 "5", min = "0", max = "100" ),
 
                    numericInput("sim", "Howmuch Simulations M ? ",
                                 "50", min = "2", max = "1000" )
-            ),  width = "100px",
+            ),  width = "50px",
             fluidRow(
               column(3, offset = 1,
                      numericInput("seed", "Set the seed ",
                                   "99", min = "1", max = "1000000000" ),
 
-                     numericInput("draws", "Howmuch simulations to draw ? (must be < M)",
+                     numericInput("draws", "Draw simulations ? ( < M)",
                                   "50", min = "2", max = "1000"  )
               ),
               mainPanel(
-                plotOutput("plot3", height = '600px', width = "900px")
+                plotOutput("plot3", height = '500px', width = "750px")
               )
-            )), h2("Refer to Section 6.2.3 of the text for more information")
+            )), h2("Refer to Section 5.2.3 of the text for more information")
       )
  )
 )

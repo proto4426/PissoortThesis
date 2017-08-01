@@ -21,12 +21,12 @@ shinyUI(fluidPage(
   numericInput("seed", "Set the seed ",
                "99", min = "1", max = "1000000000" ),
 
-  numericInput("draws", "Howmuch simulations to draw ? (must be < M)",
+  numericInput("draws", "Howmuch simulations to draw? ( < M)",
                "50", min = "2", max = "1000"  )
     ),
 
   mainPanel(
-    plotOutput("plot1", height = '600px', width = "900px")
+    plotOutput("plot1", height = '500px', width = "750px")
   )
 ))
 ))
