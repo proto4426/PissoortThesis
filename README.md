@@ -62,7 +62,7 @@ All applications created above in a smooth dashboard. Allows to put quite more t
 ```coffee
 runExample('All_dashboard') 
 ```
-can be directly accessed by clicking on this [https://proto4426.shinyapps.io/All_dashboard/](link)
+can be directly accessed by clicking on this (https://proto4426.shinyapps.io/All_dashboard/)[link]
 
 
 
