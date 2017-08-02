@@ -1,4 +1,4 @@
-## app.R ##
+library(shiny)
 library(shinydashboard)
 
 #header <- dashboardHeader(div(style="color:#0000FF", p(title ="Extreme Value Test")))
@@ -177,9 +177,15 @@ server <- function(input, output) {
 
 
     ggplot(GEVdf, aes(x = x, y = density, colour = xi )) +
-      geom_line() + pres +
-      geom_line(aes(x = x, y = norm, col = "normal"), col = "black", linetype = 3)+
-      theme_piss(20, 15, theme_classic() ) +
+      geom_line() + pres + theme_classic() +
+      geom_line(aes(x = x, y = norm, col = "normal"), col = "black", linetype = 3) +
+        theme(plot.title = element_text(size = 20, hjust=0.5,
+                                        colour = "#33666C", face="bold"),
+              axis.title = element_text(face = "bold", size= 15,
+                                        colour = "#33666C"),
+              axis.line = element_line(color="#33666C", size = .45),
+              legend.background = element_rect(colour = "black"),
+              legend.key = element_rect(fill = "white") ) +
       theme(legend.title = element_text(colour="#33666C",
                                         size=18, face="bold")) +
       theme(legend.key = element_rect(colour = "black")) +
@@ -196,7 +202,8 @@ server <- function(input, output) {
     x <- cbind.data.frame(max_years$df, Min = min_years$data)
 
 
-    g <- ggplot(x, aes_string(x = 'Year', y = input$max)) + theme_bw() + geom_line() + geom_point() +
+    g <- ggplot(x, aes_string(x = 'Year', y = input$max)) +
+      theme_bw() + geom_line() + geom_point() +
       theme(plot.title = element_text(size = 22, hjust=0.5,
                                       colour = "#33666C", face="bold"),
             axis.title = element_text(face = "bold", size= 18,
@@ -265,7 +272,8 @@ server <- function(input, output) {
 
 
 
-    if(input$max == "Min") g <- g + labs(title = "Complete Serie of Annual TN in Uccle")
+    if(input$max == "Min") g <- g +
+      labs(title = "Complete Serie of Annual TN in Uccle")
     else g <- g + labs(title = "Complete Serie of Annual TX in Uccle")
     g
   })
@@ -342,8 +350,19 @@ server <- function(input, output) {
                y = 33, col = "#33666C" , size = 6) +
       scale_fill_manual(name = "Interval", values = interval) +
       guides(colour = guide_legend(override.aes = list(size = 15))) +
-      theme_piss(size_p = 25, plot.subtitle = text(31, hjust = 0.5, colour = "#33666C"),
-                 legend.position = c(.888, .152))
+      theme_light() +
+      theme(plot.title = element_text(size = 22, hjust=0.5,
+                                      colour = "#33666C", face="bold"),
+            axis.title = element_text(face = "bold", size= 18,
+                                      colour = "#33666C"),
+            axis.line = element_line(color="#33666C", size = .45),
+            legend.position = c(.888, .152),
+            legend.background = element_rect(colour = "black"),
+            legend.key = element_rect(fill = "white"),
+            plot.subtitle = text(31, hjust = 0.5,
+                                 colour = "#33666C")
+            )
+
     # expression(paste(underline("Coverage"), " is ", pointw_cov,
     #                  " for pointwise and ", simult_cov,
     #                  " for simultaneous")),
