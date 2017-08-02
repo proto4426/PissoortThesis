@@ -38,8 +38,8 @@ Present the GEV distribution and the dependence with its parameters
 runExample('GEV_distributions') 
 # Make sure to have grid, gridExtra, plotly and ggplot2 already installed
 ```
-![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/gev_distrib.gif)
-*Visual "problems" with the EV Weibull upper end point (red) is due to a `ggplot2´ mispecification in y-scale*
+![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/gev_distrib.gif)
+*Visual "problems" with the EV Weibull upper end point (red) is due to a `ggplot2` mispecification in y-scale*
 
 
 ### 2. Models for the Trend
@@ -47,14 +47,14 @@ Present the yearly analysis visualizaiton for yearly Maxima (see Section 5.2.2)
 ```coffee
 runExample('trend_models')  
 ```
-![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/trend_models.gif)
+![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/trend_models.gif)
 
 ### 3. Splines draws with GAM 
 Present the simulation study of the GAM model with splines (see Section 5.2.3)
 ```coffee
 runExample('splines_draws') 
 ```
-![gap_test](https://github.com/proto4426/PissoortThesis/blob/master/gif/splines.gif)
+![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/splines.gif)
 
 
 ### 4. All together in a dashboard 
