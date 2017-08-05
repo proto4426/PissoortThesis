@@ -1,33 +1,35 @@
 ## app.R ##
 library(shinydashboard)
+library(shiny)
 
-ui <- dashboardPage(
-  dashboardHeader(title = "Basic dashboard"),
-  dashboardSidebar(
-    sidebarMenu(
-    menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-    menuItem("Widgets", tabName = "widgets", icon = icon("th"))
-  )),
-  dashboardBody(
-    tabItems(
-      # First tab content
-      tabItem(tabName = "dashboard",
-              fluidRow(
-                box(plotOutput("plot1", height = 250)),
 
-                box(
-                  title = "Controls",
-                  sliderInput("slider", "Number of observations:", 1, 100, 50)
-                )
-              )
+ui <- fluidPage(
+
+  titlePanel("EVT thesis: Simulating GAM fit for the trend to visualize uncertainty"),
+
+  fluidRow(
+    column(3,
+           numericInput("level", withMathJax(helpText("Which level $\alpha$ ? (in %) ")),
+                        "5", min = "0", max = "100" ),
+
+           numericInput("sim", "Howmuch Simulations M ? ",
+                        "50", min = "2", max = "1000" )
+    ),  width = "100px",
+
+
+    fluidRow(
+      column(3, offset = 1,
+             numericInput("seed", "Set the seed ",
+                          "99", min = "1", max = "1000000000" ),
+
+             numericInput("draws", "Howmuch simulations to draw? ( < M)",
+                          "50", min = "2", max = "1000"  )
       ),
 
-      # Second tab content
-      tabItem(tabName = "widgets",
-              h2("Widgets tab content")
+      mainPanel(
+        plotOutput("plot1", height = '500px', width = "750px")
       )
-    )
-  )
+    ))
 )
 
 server <- function(input, output) {

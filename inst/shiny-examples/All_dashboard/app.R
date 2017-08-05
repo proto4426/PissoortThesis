@@ -96,6 +96,7 @@ ui <- dashboardPage(header, sidebar, body)
 
 library(evd)
 library(ggplot2)
+devtools::install_github("proto4426/PissoortThesis", force = T)
 library(PissoortThesis)
 
 library(plotly)

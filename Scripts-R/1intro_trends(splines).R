@@ -1,19 +1,24 @@
 # load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 # source('/home/piss/PissoortRepo/PissoortThesis/Scripts-R/Funs_introSplines.R')
 
-load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.Rdata")
-source('C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\Scripts-R\\Funs_introSplines.R')
+load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+source('/home/proto4426/Documents/Thesis/PissoortThesis/Scripts-R/Funs_introSplines.R')
+# Functions used that we will source. These are not our property so we will not include
+# them in the package. These are mainly from Gavin Simpson (with some adjustments)
+
 
 # Apply the created theme to all ggplots without having to specify it
 theme_set(PissoortThesis::theme_piss())
 
-### Broken linear trend : Try to `smooth´ it, ie add constraint to make it continuous.
 
+library(tidyverse)
+library(gridExtra)
 library(PissoortThesis)
 library(ggplot2)
 library(mgcv)
+
+
 ## GAM(M) : Generalized Additive Models, Without any correlation structure from now.
-# We choose k=
 gam1 <- gamm(Max ~ s(Year, k = 10), data = max_years$df)
 # "this approach allows correlated errors to be dealt with via random effects or the
 #corr structures available in nlme (using corr structures beyond the strictly additive case
@@ -237,8 +242,8 @@ lines(unlist(gam3.dsig$decr) ~ Year, data = pdat, col = "red", lwd = 3)
 df <- transform(max_years$df, TX_centered = Max - mean(Max), p2 = pdat$p2,
                 upper = pdat$upper, lower = pdat$lower,
                 increasing = unlist(gam3.dsig$incr), decreasing = unlist(gam3.dsig$decr))
-
-ggplot(df, aes(x = Year)) + geom_point(aes(y = TX_centered), size = .9) +
+ggplot(df, aes(x = Year)) +
+  geom_point(aes(y = TX_centered), size = .9) +
   geom_line(aes(y = TX_centered), size = .55) +
   geom_line(aes(y = p2), size = 1, col = "green") +
   geom_line(aes(y = increasing), col = "darkgreen", size = 1.5) +
@@ -338,6 +343,7 @@ matlines(pdat$Year, fd[[1]]$simulations[, take], lty = "solid",  col = "grey")
 # => .95 pointwise c.i. with 20 of the samples surimposed.
 
 ## Beware that here, the c.i. were NOT simultaneous !! ==>
+
 
 
 

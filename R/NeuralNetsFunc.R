@@ -6,27 +6,26 @@
 #' @description
 #' this rebuilded version allows us to :
 #' 1. Better understand what is going on  and
-#' 2.
+#' 2. Speed-up function by e.g. reduce unuseful loops or remove printing methods
 #' @param x covariate matrix with number of rows equal to the number
 #' of samples and number of columns equal to the number of variables.
-#' @param y column matrix of target values with number of rows equal
-#' to the number of samples.
-#'
+#' @param y column matrix of target values with number of rows equal7
+#' to the # of samples
+#' @param sd.norm Weight penalty regularization : sd parameter
+#'  for normal distribution prior for the magnitude of input-hiddenlayer
+#'   weights; equivalent to weight penalty regularization.#'
 #' @return A personalized ggplot2 theme object to add to every builded plots.
 #' @details
-#' See function details in the GEVcdn package
+#' See other function's details in the GEVcdn package
 #' @references Cannon, A.J., 2010. A flexible nonlinear modelling framework for nonstationary generalized
 #' extreme value analysis in hydroclimatology. Hydrological Processes, 24: 673-685. DOI: 10.1002/hyp.7506
 'gevcdn.fit2' <- function (x, y, iter.max = 1000, n.hidden = 2, Th = gevcdn.logistic,
                            fixed = NULL, init.range = c(-0.25, 0.25),
                            scale.min = .Machine$double.eps,
                            beta.p = 3.3, beta.q = 2, sd.norm = Inf, n.trials = 5,
-                           method = c("BFGS", "Nelder-Mead"), max.fails = 100, ...)
-{
-  if (!is.matrix(x))
-    stop("\"x\" must be a matrix")
-  if (!is.matrix(y))
-    stop("\"y\" must be a matrix")
+                           method = c("BFGS", "Nelder-Mead"), max.fails = 100, ...) {
+  if (!is.matrix(x))  stop("\"x\" must be a matrix")
+  if (!is.matrix(y))  stop("\"y\" must be a matrix")
   method <- match.arg(method)
   if (identical(Th, gevcdn.identity))   n.hidden <- 3
   GML <- Inf
@@ -35,6 +34,7 @@
   y.min <- min(y) ;   y.max <- max(y)
   y <- (y - y.min)/(y.max - y.min)
   for (i in seq_len(n.trials)) {
+    cat(i,"")
     exception <- TRUE  ;    exception.count <- 0
     while (exception) {
       if (identical(names(init.range), c("W1", "W2"))) {
@@ -56,11 +56,13 @@
       }
     }
     GML.cur <- fit.cur$value
+    cat(GML.cur,"")
     if (GML.cur < GML) {
       GML <- GML.cur
       output.cdn <- fit.cur
     }
   }
+  cat("\n")
   weights <- output.cdn$par
   cost <- gevcdn.cost(weights, x, y, n.hidden, Th, fixed, scale.min,
                       beta.p, beta.q, sd.norm)
@@ -101,6 +103,7 @@
 
     if (!is.matrix(x)) stop("\"x\" must be a matrix")
     if (!is.matrix(y)) stop("\"y\" must be a matrix")
+
     method <- match.arg(method)
     if (identical(Th, gevcdn.identity)) n.hidden <- 3
     x.min <- apply(x, 2, min)

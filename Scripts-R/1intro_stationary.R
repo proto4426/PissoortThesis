@@ -73,8 +73,8 @@ sum(equals(diff_tx_closed, 0.0), na.rm = T) / length(diff_tx_closed)
 # closed shellter. Indeed, this could be problematic (...)
 # We go for the closed shellter's data as advised by the IRM.
 
-
 rm(diff_tx_open, diff_tx_closed, diff_tx_closed, diff_tx_open)
+
 
 
 ######################################################################
@@ -119,10 +119,10 @@ ggplot(data = TXTN_closed, aes(TX, colour = as.factor(month))) +
   theme_bw()
 # !! same smoothing factor for all densities
 
-summer <- TXTN_closed[TXTN_closed$season == "Summer",]
-spring <- TXTN_closed[TXTN_closed$season == "Spring",]
-winter <- TXTN_closed[TXTN_closed$season == "Winter",]
-autumn <- TXTN_closed[TXTN_closed$season == "Autumn",]
+summer <- TXTN_closed[TXTN_closed$season == "Summer", ]
+spring <- TXTN_closed[TXTN_closed$season == "Spring", ]
+winter <- TXTN_closed[TXTN_closed$season == "Winter", ]
+autumn <- TXTN_closed[TXTN_closed$season == "Autumn", ]
 
 m_summer <- mean(summer$TX)
 m_spring =  mean(spring$TX)
@@ -183,7 +183,7 @@ lm1_2 <- lm1$coefficients[2]
 Broken_lin1 <-  predict(lm(max_years$data[1:75] ~ max_years$df$Year[1:75]) )
 Broken_lin2 <-  predict(lm(max_years$data[77:116] ~ max_years$df$Year[77:116]) )
 
-g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) +
+gg_trends <- ggplot(data = max_years$df,aes(x=Year,y=Max)) +
   geom_line() + geom_point() +
   geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
   geom_line(data = max_years$df[max_years$df$Year %in% 1901:1975,],
@@ -199,23 +199,47 @@ g1 <- ggplot(data = max_years$df,aes(x=Year,y=Max)) +
   scale_colour_manual(name="Trend", values=c(Linear="blue",
                                              BrokenLinear="cyan",
                                              LOESS="red")) +
-  theme_piss(legend.position = c(.888, .152)) +
+  theme_piss(legend.position = c(.92, .12)) +
   guides(colour = guide_legend(override.aes = list(size = 2)))
-g1
+gg_trends
 # Red line is local polynomial regression fitting curve (loees)
 # The (optimal) default method is convenient. See ?loess
 
 # Check shaded grey area around linear trend is indeed 95% pointwise ci (in prediction)
 summary(lm1)
-x <- seq(1901, 2016, by = 1e-2)
-predict(lm1, x[sample(x, 116)])
-predict(lm1, max_years$df$Year)
+# x <- seq(1901, 2016, by = 1e-2)
+# predict(lm1, x[sample(x, 116)])
+# predict(lm1, max_years$df$Year)
 
-# Same conclusion here for the linear trend :
-ggplot(data = max_years$df, aes(x=Year, y=Max)) +
-  geom_point() +
-  geom_abline(intercept = lm1_1,slope = lm1_2, col = "red") +
-  theme_piss()
+conf_int <- predict(lm1, data.frame(max_years$df$Year),
+                    level = 0.95, interval="predict", se.fit = T,
+                    simultaneous = F)
+conf_int$fit
+EnvStats::pointwise(conf_int, coverage = 0.95, simultaneous = TRUE)
+
+# These are not the same intervals ! The interval from the shaded grey area are actually
+# + - 1.96 times standard errors. We check it :
+df_conf <- data.frame(conf_int$fit, Year = max_years$df$Year)
+gg_trends_conf <- gg_trends +
+  geom_line(aes(x = Year, y = lwr), data = df_conf,
+            linetype = 2 , col = "blue") +
+  geom_line(aes(x = Year, y = upr), data = df_conf,
+            linetype = 2 , col = "blue")
+df_conf_se <- data.frame(se = conf_int$se.fit, df_conf)
+gg_trends_conf +
+  geom_line(aes(x = Year, y = fit + 1.96*se), data = df_conf_se,
+            linetype = 2 , col = "orange") +
+  geom_line(aes(x = Year, y = fit - 1.96*se), data = df_conf_se,
+            linetype = 2 , col = "orange")
+# Indeed, our thoughts are verified.
+# pointwise ci at year 1920 :
+df_conf_se$fit[1920-1900] + c(-1.96 * df_conf_se$se[1920-1900],
+                              1.96 * df_conf_se$se[1920-1900] )
+#  year 2016 :
+df_conf_se$fit[2016-1900] + c(-1.96 * df_conf_se$se[2016-1900],
+                              1.96 * df_conf_se$se[2016-1900] )
+
+
 
 # Histogram and density plots of the annual maxima
 ggplot(data = max_years$df, aes(x=Max)) +
@@ -224,6 +248,8 @@ ggplot(data = max_years$df, aes(x=Max)) +
 ggplot(data = max_years$df, aes(x=Max)) +
   geom_density() +
   theme_bw()
+
+
 
 
 #### What for the minima ??
@@ -241,7 +267,7 @@ summary(lm_min <- lm(min_years$data ~ min_years$df$Year))
 
 
 ## Both maxima and minima on one plot to compare :
-grid.arrange(g1, g2, nrow = 2)
+grid.arrange(gg_trends, g2, nrow = 2)
 
 
 
@@ -619,21 +645,64 @@ x <- seq(min(max_years$data)-5, max(max_years$data)+5, length = length(max_years
 weib_fit_dens <- evd::dgev(x,loc = gev_tx$mle[1],
                            scale = gev_tx$mle[2], shape = gev_tx$mle[3])
 
+
 density <- c( "empirical" = "black", "fitted" = "green3")
-gg_ds <- ggplot(data.frame(x,weib_fit_dens)) +
-  stat_density(aes(x = max_years$data, col = "empirical"), geom = "line") +
+gg_ds <- ggplot(data.frame(x, weib_fit_dens, emp = max_years$data)) +
+  stat_density(aes(x = emp, col = "empirical"),
+               geom = "line", position = "identity") +
+  #geom_density(aes (x = emp, col = "empirical")) +
+  #geom_line(aes(x = x, y = emp, col = "empirical"))  +
   ggtitle("Empirical (black) vs fitted Weibull (green) density") +
   geom_line(aes(x = x, y = weib_fit_dens, col = "fitted"))  +
-  coord_cartesian(xlim = c(25, 38)) + labs(x = "TX") +
+  coord_cartesian(xlim = c(25, 39)) + labs(x = "TX") +
   geom_vline(xintercept = min(max_years$data), linetype = 2) +
-  geom_vline(xintercept = max(max_years$data), linetype = 2) + theme_piss(17) +
+  geom_vline(xintercept = max(max_years$data), linetype = 2) +
+  geom_vline(xintercept = upp_endpoint['loc'], linetype = 2, col = "green3") +
+  theme_piss(17) +
   scale_colour_manual(name = "Density", values = density) +
   theme(legend.position = c(.915, .915))  +
   guides(colour = guide_legend(override.aes = list(size = 2)))
-# Red is the fitted density while blue is the empirical one.
+gg_ds
+# Greeb is the fitted density while black is the empirical one.
 
 gridExtra::grid.arrange(gg_rl, gg_ds, nrow = 1)
 
+### TEST : Correct the visual 'problem' of the upper endpoints of kernel density
+#=========================================================================
+ggds_comp <- ggplot(max_years$df, aes (x = Max)) + geom_density() +
+  geom_vline(xintercept = min(max_years$data), linetype = 2) +
+  geom_vline(xintercept = max(max_years$data), linetype = 2)
+gridExtra::grid.arrange(ggds_comp, gg_ds)
+
+ggplot(max_years$df, aes (x = Max)) +
+  # stat_density(aes( col = "empirical"),
+  #              geom = "line", position = "identity") +
+  geom_density() +
+  #geom_line(aes(x = x, y = emp, col = "empirical"))  +
+  ggtitle("Empirical (black) vs fitted Weibull (green) density") +
+  geom_density(aes(x = weib_fit_obs, col = "fitted"),
+            data = data.frame(weib_fit_obs))  +
+  coord_cartesian(xlim = c(25, 39)) + labs(x = "TX") +
+  geom_vline(xintercept = min(max_years$data), linetype = 2) +
+  geom_vline(xintercept = max(max_years$data), linetype = 2) +
+  geom_vline(xintercept = upp_endpoint['loc'], linetype = 2, col = "green3") +
+  theme_piss(17) +
+  scale_colour_manual(name = "Density", values = density) +
+  theme(legend.position = c(.915, .915))  +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+weib_fit_obs <- evd::rgev(116*800,loc = gev_tx$mle[1],
+                          scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+df <- data.frame(obs =  rep(max_years$data, 800), fit = weib_fit_obs )
+df_melted <- melt(df)
+ggplot(df_melted, aes(x = value, fill = variable)) +
+  geom_density(position = "stack", alpha = 0.6) +
+  scale_y_continuous(name = "Density") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 14, family = "Tahoma", face = "bold"),
+        text = element_text(size = 12, family = "Tahoma")) +
+  scale_fill_brewer(palette="Accent")
+# ===============================================================================
 
 
 

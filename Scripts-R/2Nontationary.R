@@ -247,6 +247,16 @@ gev_nonstatio_sig <- ismev::gev.fit(max_years$data, ydat = ti_sig,
                                     mul = c(1), sigl = c(1))
 pchisq(2 *( (-gev_nonstatio_sig$nllh[1]) - (-gev_nonstatio$nllh[1]) ),
        df = 1, lower.tail = F)
+# No reason to vary scale with time
+
+### Nonstationary scale parameter ?
+ti_sig <- matrix(ncol = 1, nrow = length(max_years$data))
+ti_sig[,1] <- seq(1, length(max_years$data), 1)
+gev_nstatio_scale <- ismev::gev.fit(max_years$data, ydat = ti_sig,
+                                    sigl = 1, siglink = exp)
+pchisq(2 *( (-gev_nstatio_scale$nllh[1]) - (-gev_statio$nllh[1]) ), df = 1,
+       lower.tail = F)
+# This is not significant
 
 
 
@@ -285,12 +295,20 @@ gridExtra::grid.arrange(gg_pp.trans, gg_qq.trans, nrow = 1)
        ##############
 
 rl_10_lin <- PissoortThesis::return.lvl.nstatio(max_years$df$Year,
-                                               gev_nonstatio, t = 250, m = 25)
+                                               gev_nonstatio, t = 257, m = 25)
 gg_rlAll <- rl_10_lin$g +
-  geom_vline(xintercept = max(max_years$df$Year) + length(max_years$data),
+  geom_vline(xintercept = 2066, linetype = 2, col = 1, size = 0.15) +
+  geom_vline(xintercept = 2216, linetype = 2, col = 1, size = 0.15) +
+  geom_vline(xintercept = 2274, linetype = 2, col = 1, size = 0.15) +
+  geom_vline(xintercept = ( max(max_years$df$Year) + length(max_years$data) ),
              linetype = 2, col = 2) +
-  labs(title = "Return levels with return period of 25 years") +
-  theme_piss(size_p = 12, size_c = 10) #+ coord_cartesian(ylim = c())
+  labs(title = "Return levels with return period of 25 years",
+       y = "25-years Return Level",
+       x = "Year \n (prediction horizon)") +
+  theme_piss(size_p = 12, size_c = 10) +
+  scale_x_continuous(breaks = c(2016, 2066, 2132, 2216, 2016+length(rl_10_lin$rl) ),
+                labels = c("2016 \n (0)","2066 \n (50)", "2132 \n (116)" , "2216 \n (200)",
+                           paste(as.character(2016+length(rl_10_lin$rl)), "\n (257)") ))#+ coord_cartesian(ylim = c())
 gg_rlAll
 # Note the Increase of the return level with time (due to trend)
 # Avec le trend qu'on a pour l'instant, dans environ 300 ans on depassera
@@ -314,24 +332,6 @@ gg_rlSmall <- rl_10_lin65$g +
 # We see that the trend is much heavier, and hence return lvls are too...
 
 grid.arrange(gg_rlAll, gg_rlSmall, nrow = 1)
-
-
-
-### Nonstationary scale parameter ?
-ti_sig <- matrix(ncol = 1, nrow = length(max_years$data))
-ti_sig[,1] <- seq(1, length(max_years$data), 1)
-gev_nstatio_scale <- ismev::gev.fit(max_years$data, ydat = ti_sig,
-                                    sigl = 1, siglink = exp)
-pchisq(2 *( (-gev_nstatio_scale$nllh[1]) - (-gev_statio$nllh[1]) ), df = 1,
-       lower.tail = F)
-# This is not significant
-
-### Trend  and varying scale parameters
-gev_nstatio3 <- ismev::gev.fit(max_years$data, ydat = ti_sig , mul = 1,
-                        sigl = 1, siglink = exp)
-pchisq(2 *( (-gev_nstatio3$nllh[1]) - (-gev_nonstatio$nllh[1]) ), df = 1,
-       lower.tail = F)
-# No reasons to vary scale param with time
 
 
 
