@@ -606,10 +606,11 @@ gev.prof(gev_tx, 1e5, xlow = min(max_years$data)+5, xup = max(max_years$data)+10
 rl_df <- PissoortThesis::rl_piss(gev_tx$mle, gev_tx$cov, gev_tx$data)
 
 gg_rl1 <- ggplot(rl_df) + coord_cartesian(xlim = c(0.1, 1000)) +
-  scale_x_log10(breaks = c(0, 1,2, 5, 10,100, 1000),labels = c(0, 1, 2, 5, 10,100, 1000)) +
+  scale_x_log10(breaks = c(0, 1,2, 5, 10,100, 1000), labels = c(0, 1, 2, 5, 10,100, 1000)) +
   labs(title = " Return Level plot", x = "Year (log scale)", y = "Quantile") +
   geom_point(aes(x = point, y = pdat), col = "#33666C", shape = 1) +
-  geom_hline(yintercept = upp_endpoint, linetype = 2) +
+  geom_hline(yintercept = upp_endpoint, linetype = 2, col = "green3") +
+  geom_hline(yintercept = max(max_years$data), linetype = 2, size = 0.25) +
   theme_piss()
 
 intervals <- c( "Normal" = "red", "Prof.Likelihood" = "blue")
@@ -634,10 +635,13 @@ gg_rl <- gg_rl1 +
                           linetype = c("solid", "blank"),
                           shape = c(NA, 16),
                           size = c(1.4, 3)) ) ) +
-  theme(legend.position = c(.89, .08))
+  theme(legend.position = c(.89, .088)) +
+  scale_y_continuous(breaks = c(30, 35, max(max_years$data), upp_endpoint, 40),
+                     label = c("30", "35", as.character(round(max(max_years$data),1)),
+                               as.character(round(upp_endpoint, 1) ), "40") )
   # geom_line(ymin = rl_proflik10[1], ymax = rl_proflik1000[1], xmin = 10, xmax = 100)
   # geom_area(aes(ymin = ))
-
+gg_rl
 
 
 ## Density plots
@@ -654,34 +658,49 @@ gg_ds <- ggplot(data.frame(x, weib_fit_dens, emp = max_years$data)) +
   #geom_line(aes(x = x, y = emp, col = "empirical"))  +
   ggtitle("Empirical (black) vs fitted Weibull (green) density") +
   geom_line(aes(x = x, y = weib_fit_dens, col = "fitted"))  +
-  coord_cartesian(xlim = c(25, 39)) + labs(x = "TX") +
+  coord_cartesian(xlim = c(25, 39)) +
   geom_vline(xintercept = min(max_years$data), linetype = 2) +
   geom_vline(xintercept = max(max_years$data), linetype = 2) +
   geom_vline(xintercept = upp_endpoint['loc'], linetype = 2, col = "green3") +
-  theme_piss(17) +
+  theme_piss(17) + labs(x = "TX") +
   scale_colour_manual(name = "Density", values = density) +
-  theme(legend.position = c(.915, .915))  +
-  guides(colour = guide_legend(override.aes = list(size = 2)))
+  theme(legend.position = c(.915, .9))  +
+  guides(colour = guide_legend(override.aes = list(size = 2))) +
+  scale_x_continuous(breaks = c( 25, min(max_years$data), 30, 35,
+                                max(max_years$data), upp_endpoint),
+                     label = c(25, as.character(round(min(max_years$data), 1)),
+                               "30", "35",
+                               as.character(round(max(max_years$data),1)),
+                               as.character(round(upp_endpoint, 1) )) )
 gg_ds
 # Greeb is the fitted density while black is the empirical one.
 
 gridExtra::grid.arrange(gg_rl, gg_ds, nrow = 1)
 
 ### TEST : Correct the visual 'problem' of the upper endpoints of kernel density
-#=========================================================================
+#===================================================================================
 ggds_comp <- ggplot(max_years$df, aes (x = Max)) + geom_density() +
   geom_vline(xintercept = min(max_years$data), linetype = 2) +
-  geom_vline(xintercept = max(max_years$data), linetype = 2)
+  geom_vline(xintercept = max(max_years$data), linetype = 2) +
+  coord_cartesian(xlim = c(25, 39))
+
 gridExtra::grid.arrange(ggds_comp, gg_ds)
 
-ggplot(max_years$df, aes (x = Max)) +
+
+weib_fit_obs <- evd::rgev(116*800,loc = gev_tx$mle[1],
+                          scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+
+dens <- density(max_years$df$Max, n = 2^7)
+plot(dens)
+
+ggplot() +  geom_line(aes(x = x, y = weib_fit_dens, col = "empirical"),
+                      data = data.frame(x, weib_fit_dens))  +
   # stat_density(aes( col = "empirical"),
   #              geom = "line", position = "identity") +
-  geom_density() +
-  #geom_line(aes(x = x, y = emp, col = "empirical"))  +
+  geom_density(data = max_years$df, aes (x = Max)) +
   ggtitle("Empirical (black) vs fitted Weibull (green) density") +
-  geom_density(aes(x = weib_fit_obs, col = "fitted"),
-            data = data.frame(weib_fit_obs))  +
+  # geom_density(aes(x = weib_fit_obs, col = "fitted"),
+  #           data = data.frame(weib_fit_obs))  +
   coord_cartesian(xlim = c(25, 39)) + labs(x = "TX") +
   geom_vline(xintercept = min(max_years$data), linetype = 2) +
   geom_vline(xintercept = max(max_years$data), linetype = 2) +
@@ -691,10 +710,9 @@ ggplot(max_years$df, aes (x = Max)) +
   theme(legend.position = c(.915, .915))  +
   guides(colour = guide_legend(override.aes = list(size = 2)))
 
-weib_fit_obs <- evd::rgev(116*800,loc = gev_tx$mle[1],
-                          scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+
 df <- data.frame(obs =  rep(max_years$data, 800), fit = weib_fit_obs )
-df_melted <- melt(df)
+df_melted <- reshape2::melt(df)
 ggplot(df_melted, aes(x = value, fill = variable)) +
   geom_density(position = "stack", alpha = 0.6) +
   scale_y_continuous(name = "Density") +
@@ -1067,4 +1085,4 @@ plot(above_thres_s[1:length(above_thres_s)-1],
 
 
 
-save.image("data1.Rdata") #  To load in the other scripts
+#save.image("data1.Rdata") #  To load in the other scripts

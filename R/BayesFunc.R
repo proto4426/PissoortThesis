@@ -123,15 +123,15 @@
                              title = "TracePlots of the generated Chains " ){
   grid.arrange(
     ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme_classic()) +
+      geom_line() + theme_piss(18,16, theme = theme_classic()) +
       scale_colour_brewer(name = "chain nr", palette = "Set1") +
       guides(colour = guide_legend(override.aes = list(size= 1.2))),
     ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme_classic()) +
+      geom_line() + theme_piss(18,16, theme = theme_classic()) +
       scale_colour_brewer(name = "chain nr", palette = "Set1") +
       guides(colour = guide_legend(override.aes = list(size= 1.2))),
     ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme_classic()) +
+      geom_line() + theme_piss(18,16, theme = theme_classic()) +
       scale_colour_brewer(name = "chain nr", palette = "Set1") +
       guides(colour = guide_legend(override.aes = list(size= 1.2))),
     ncol = 1, top = textGrob(title,
@@ -780,6 +780,9 @@
 }
 
 
+
+
+
 # ===============================================================
 #' @name predic_accuracy
 #' @title Return Levels with nonstationarity
@@ -813,6 +816,8 @@
   sum(2*vec1 - 4*vec2, na.rm = TRUE)
 }
 
+
+
 # ===============================================================
 #' @export crossval.bayes
 #' @title Return Levels with nonstationarity
@@ -834,6 +839,8 @@
 "crossval.bayes" <- function(){
 
 }
+
+
 
 
 
@@ -864,7 +871,7 @@
 
   rps <- c(1/npy + 0.001, 10^(seq(0,4,len=20))[-1])
   p.upper <- 1 - 1/(npy * rps)
-  mat <- mc.quant(post = post, p = p.upper, lh = lh)
+  mat <- evdbayes::mc.quant(post = post, p = p.upper, lh = lh)
   mat <- t(apply(mat, 2, quantile, probs = c((1-ci)/2, 0.5, (1+ci)/2)))
   print(mat)
   df <- data.frame('return period' = rps, "TX" = mat  )

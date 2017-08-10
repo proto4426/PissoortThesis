@@ -294,9 +294,10 @@ gridExtra::grid.arrange(gg_pp.trans, gg_qq.trans, nrow = 1)
 #####   Return levels for model with linear trend. m = 10
        ##############
 
-rl_10_lin <- PissoortThesis::return.lvl.nstatio(max_years$df$Year,
-                                               gev_nonstatio, t = 257, m = 25)
-gg_rlAll <- rl_10_lin$g +
+rl_25_lin <- PissoortThesis::return.lvl.nstatio(max_years$df$Year,
+                                                gev_nonstatio, t = 257, m = 25)
+## From 2016 to 2016+t
+gg_rlAll_predict <- rl_25_lin$g +
   geom_vline(xintercept = 2066, linetype = 2, col = 1, size = 0.15) +
   geom_vline(xintercept = 2216, linetype = 2, col = 1, size = 0.15) +
   geom_vline(xintercept = 2274, linetype = 2, col = 1, size = 0.15) +
@@ -309,7 +310,32 @@ gg_rlAll <- rl_10_lin$g +
   scale_x_continuous(breaks = c(2016, 2066, 2132, 2216, 2016+length(rl_10_lin$rl) ),
                 labels = c("2016 \n (0)","2066 \n (50)", "2132 \n (116)" , "2216 \n (200)",
                            paste(as.character(2016+length(rl_10_lin$rl)), "\n (257)") ))#+ coord_cartesian(ylim = c())
-gg_rlAll
+gg_rlAll_predict
+
+
+## For the period of the observed data (1901-2016)
+rl_25_lin_data <- PissoortThesis::return.lvl.nstatio(max_years$df$Year, start = 1980,
+                                                     gev_nonstatio,
+                                                     t = 218, m = 10, colour = "blue2")
+
+gg_rlAll_data <- rl_25_lin_data$g +
+  geom_line(aes(x = Year, y = Max),
+            data = max_years$df[(1980-1900):(2016-1900),], col = "black", size = 0.3) +
+  geom_vline(xintercept = 2016, linetype = 2, col = 1, size = 0.15) +
+  geom_vline(xintercept = 2066, linetype = 2, col = 1, size = 0.15) +
+  geom_vline(xintercept = ( max(max_years$df$Year) + length(max_years$data) ),
+             linetype = 2, col = 2) +
+  geom_vline(xintercept = 1980+218, linetype = 2, col = 1, size = 0.15) +
+  labs(title = "Return levels with return period of 10 years",
+       y = "10-years Return Level",
+       x = "Year \n (prediction horizon)") +
+  theme_piss(size_p = 12, size_c = 10) +
+  scale_x_continuous(breaks = c(1980, 2016, 2066, 2132, 1980+218),
+                     labels = c("1980 \n (-36)", "2016 \n (0)",
+                                "2066 \n (50)", "2132 \n (116)" ,
+                                paste(as.character(1980+length(rl_25_lin_data$rl)), "\n (183)") ))
+gg_rlAll_data + coord_cartesian(ylim = c(30, 40))
+
 # Note the Increase of the return level with time (due to trend)
 # Avec le trend qu'on a pour l'instant, dans environ 300 ans on depassera
 # la valeur de 50degres maximum tout les 10ans en moyenne a uccle....
@@ -317,6 +343,7 @@ rl_10_lin$rl
 #caution should be exercised in practice concerning whether or not it is believable
 #for the upward linear trend in maximum temperatures to continue to be valid.
 rl_10_lin$rl[116] ;  max(TXTN_closed$TX) # Very close to the maximum of the series
+rl_25_lin_data$rl[116 + (2016-1980)]  # return level after n=116 years of data
 
 
 # And if we start at years ~ 65 (donnes plus fiables, + debut du RC)
@@ -380,7 +407,8 @@ above_u$exceed_red <-  above_u$TX - predict(nls.mod1)
 above_ured <- above_u[above_u$exceed_red > 0, ]
 
 ggplot(cbind.data.frame(TXTN_closed[1:5000, ], pred = predict(nls.mod1)[1:5000])) +
-  geom_point(aes(x = Date, y = TX), size = 0.4) + geom_line(aes(x = Date, y = pred), col = "red")
+  geom_point(aes(x = Date, y = TX), size = 0.4) +
+  geom_line(aes(x = Date, y = pred), col = "red")
 ggplot(above_ured, aes(x = Date, y = TX)) + geom_point() +
   geom_smooth(method = "lm",formula = y~x)
 table(above_ured$year)   # More values in the end, but more strong excess in the start

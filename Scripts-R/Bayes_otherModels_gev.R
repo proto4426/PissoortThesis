@@ -178,6 +178,5 @@ waic( ic_vals[[4]] )
 
 library(loo)
 
-
 extract_log_lik()
 

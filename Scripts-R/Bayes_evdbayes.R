@@ -1,14 +1,13 @@
 setwd('/home/piss/Documents/Extreme/R resources/IRM')
-source("1Code_local.R")
 load("data1.Rdata")
 
 library(PissoortThesis)
+library(coda)
 
 library(evdbayes)
 # This package uses the Metropolis algorithm for MCMC
 
-# see for example extRemes 2.0 pdf p.13 ...  !!!!!!!!!!!!!!
-
+# see for example extRemes 2.0 pdf p.13 ...  !!!
 
 
 mat <- diag(c(10000, 10000, 100))
@@ -19,7 +18,7 @@ n <- 1000 ;   t0 <- c(31, 1 ,0) ;   s <- c(.02,.1,.1)
 # s contains sd for proposal distributions
 max.mc <- posterior(n, t0, prior = pn, lh = "gev", data = max_years$data, psd = s)
 
-library(coda)
+
 mcmc.max <- mcmc (max.mc, start = 0, end = 1000)
 plot(mcmc.max, den = F, sm = F)
 
@@ -87,7 +86,7 @@ pn.t <- prior.norm(mean = c(0,0,0), cov = mat, trendsd = 500)
 rn.post.t <- posterior(50000, c(maxpst$par,1), pn.t, data = max_all, "pp", thresh = 32,
                      noy = 116, psd = c(s,.25), burn = b)
 summary(rn.post.t)
-plot(mc.post.t <- mcmc(rn.post.t, start = 0, end = 8000))
+plot( mc.post.t <- mcmc(rn.post.t, start = 0, end = 8000) )
 plot(rn.post.t)
 
 # library(mvtnorm)
@@ -197,17 +196,14 @@ text(300,.006, paste("p =", pv))
 # change values
 shape <- c(38.9,7.1,47) ; scale <- c(1.5,6.3,2.6)
 pr.quant <- prior.quant(shape = shape, scale = scale, trendsd = 5)
-n <- 10000 ; t0 <- c(32, 1.5,0,0) ; s <- c(2,.35,.07,25) ; b <- 2000
+n <- 10000 ;   t0 <- c(32, 1.5,0,0) ;   s <- c(2,.35,.07,25) ;  b <- 2000
 rn.prior2 <- posterior(n, t0, pr.quant, lh = "none", psd = s, burn = b)
-t0 <- c(35,2,0,1) ; s <- c(2,.2,.07,4) ; tt <- (1:20820 - 6576)/14610
+t0 <- c(35,2,0,1) ;   s <- c(2,.2,.07,4) ; tt <- (1:20820 - 6576)/14610
 rn.post2 <- posterior(n, t0, pr.quant, lh = "pp", data = max_all, thresh = 32,
                       noy = 54, trend = tt, psd = s, burn = b)
 
 
-
 # Vary the threshold : introduce varying threshold
-
-
 
 rl.pred()
 
@@ -226,27 +222,3 @@ vignette("revdbayes-vignette", package = "revdbayes")
 # the generalised ratio-of-uniforms method (Wakefield, Gelfand, and Smith 1991),
 # implemented using the rust package (Northrop 2016).
 # https://cran.r-project.org/web/packages/rstan/vignettes/rstan.html
-
-
-
-
-
-library(rstan)
-# rstan_options(auto_write = TRUE)
-# options(mc.cores = parallel::detectCores())
-
-
-schools_dat <- list(J = 8,
-                    y = c(28,  8, -3,  7, -1,  1, 18, 12),
-                    sigma = c(15, 10, 16, 11,  9, 11, 10, 18))
-
-fit <- stan(file = 'ex.stan', data = schools_dat,
-            iter = 1000, chains = 4, cores = 4, refresh = 500)
-plot(fit)
-print(fit, pars=c("theta", "mu", "tau", "lp__"), probs=c(.1,.5,.9))
-traceplot(fit, pars = c("mu", "tau"), inc_warmup = TRUE, nrow = 2)
-print(fit, pars = c("mu", "tau"))
-
-
-
-data_list <- list( )

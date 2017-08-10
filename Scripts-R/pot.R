@@ -4,6 +4,8 @@ library(tidyverse)
 library(PissoortThesis)
 library(grid)
 
+##### Draw the plot of the beggining of Chapter 2
+
 
 p <- ggplot(TXTN_closed) + geom_density(aes(x = TX), fill = "grey", alpha = .5) +
   labs(title = "Distribution of maximum daily temperatures",

@@ -503,25 +503,27 @@
 #' @param m Return period
 #' @param plot returns a ggplot of the return levels
 #' @param out outputs the return levels (TRUE)
+#' @param ...  other parmaters to be passed to geom_point() of \code{ggplot}
 #' @return  a ggplot in the \code{g} object
 #'  and  The return levels for the considered time period (t) in \code{rl}.
 #' @examples
 #' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
 #'                                 gev_nonstatio, t = 500, m = 10)
-'return.lvl.nstatio' <- function(data, gev_nstatio, t = 100, m = 10,
-                                 plot = T, out = F ){
+'return.lvl.nstatio' <- function( data, gev_nstatio,  start = max(data),
+                                  t = 100, m = 10,
+                                 plot = T, out = F, ... ){
     y_m <- -(1 / log(1 - 1/m))
 
-    t <- seq(max(data), max(data) + t, 1)
+    t <- seq(start, start + t, 1)
 
     rl_m <- (gev_nstatio$mle[1] + gev_nstatio$mle[2] *
-               (t-max(data))) +
+               ( t-min(data) )) +
       (gev_nstatio$mle[3] / gev_nstatio$mle[4]) *
       (y_m^gev_nstatio$mle[4] - 1)
 
     if(plot){
      g <-  ggplot(data.frame(Return.Levels = rl_m, Years = t)) +
-        geom_point(aes(x = Years, y = Return.Levels))
+        geom_point(aes(x = Years, y = Return.Levels), ...)
     }
           #scale_x_log10(breaks = c(1,10,100),labels = c(1,10,100))
 

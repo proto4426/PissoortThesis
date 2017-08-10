@@ -1,5 +1,6 @@
 #setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
-load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+#load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+#load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1_bayes.Rdata")
 
 library(evd)
 library(mvtnorm)
@@ -13,8 +14,9 @@ library(viridis)
 
 library(PissoortThesis)
 
-############   MEtropolis-Hastlings    ###############
-#####################################################
+
+############   MEtropolis-Hastlings  (stationary)  ###############
+##################################################################
 
 
 # Optimize Posterior Density Function to find starting values
@@ -30,23 +32,24 @@ ev <- eigen( (2.4/sqrt(2))^2 * Sig)
 varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
 
 set.seed(100)
-mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
+mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
 mh.mcmc1$mean.acc_rates
 
-chains.plotOwn(mh.mcmc1$out.chain)
+PissoortThesis::chains.plotOwn(mh.mcmc1$out.chain)
 
 
 
 
 
-##########  GIBBS sampler  #####################
-###############################################
+##########  GIBBS sampler  (stationary)  #####################
+##############################################################
+
 
 #prop_var <- sqrt( (2.4/sqrt(1))^2 * solve(opt$hessian) )
 
 set.seed(100)
 iter <- 2000
-gibb1 <- gibbs_mcmc.own(start, iter = iter) # Same starting point as MH
+gibb1 <- PissoortThesis::gibbs_mcmc.own(start, iter = iter) # Same starting point as MH
 gibb1$mean.acc_rates
 
 # Do not forget Burn in period (We will make it inside function in  following)
@@ -55,7 +58,7 @@ burn <- iter/4  # Tune value
 gibb1$out.chain <- gibb1$out.chain[-(1:burn),]
 
 
-chains.plotOwn(gibb1$out.chain)
+PissoortThesis::chains.plotOwn(gibb1$out.chain)
 
 
 param_gibbs <- apply(gibb1$out.chain[,1:3], 2, mean)
@@ -68,13 +71,14 @@ knitr::kable(frame, align = 'l')
 
 
 #####################################################################
-################### Gibbs Sampler with Nonstationarity ##############
+###########  Gibbs Sampler dealing with Nonstationarity  ############
+#####################################################################
 
 data <- max_years$data
 
 
 fn <- function(par, data) -log_post1(par[1], par[2], par[3],
-                                        par[4], data)
+                                     par[4], data)
 param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
 opt <- optim(param, fn, data = max_years$data,
              method = "BFGS", hessian = T)
@@ -105,8 +109,9 @@ knitr::kable(matrix(unlist(start), ncol = 4, byrow = T,
 
 # k chains with k different starting values
 set.seed(100)
-gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
-                               iter = 1000)
+gibbs.trend <- PissoortThesis::gibbs.trend.own(start,
+                                               propsd = c(.5, 1.9, .15, .12),
+                                               iter = 1000)
 colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
 
 
@@ -115,7 +120,7 @@ param.chain <- gibbs.trend$out.chain[ ,1:4]
 
 
 ### Plot of the chains
-chains.plotOwn(gibbs.trend$out.chain )
+PissoortThesis::chains.plotOwn(gibbs.trend$out.chain )
 ggplot(gibbs.trend$out.chain) + geom_line(aes(x = iter, y = mu1)) +
   theme_piss(16,14) + labs(ylab = "mu1", xlab = "iter" )
 
@@ -123,9 +128,10 @@ ggplot(gibbs.trend$out.chain) + geom_line(aes(x = iter, y = mu1)) +
 ## TracePlots
 chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
                               iter.chain = rep(1:500, 4))
-mixchains.Own(chain.mix)
+PissoortThesis::mixchains.Own(chain.mix)
 ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
-  geom_line() + theme_piss(18,16, theme_classic()) +
+  geom_line() +
+  theme_piss(18,16, theme = theme_classic()) +
   scale_colour_brewer(name = "chain nr", palette = "Set1") +
   guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
@@ -271,9 +277,6 @@ pander(t(matrix(c(mut[1:4], mut[(length(mut)-3):length(mut)],
                                           c("Frequentist",  "Bayesian")))))
 
 
-# http://www.biostat.umn.edu/~ph7440/
-
-
 ## Posterior Predictive Distribution
 repl <- PissoortThesis::pred_post_samples()
 
@@ -317,20 +320,64 @@ gg4 <- PissoortThesis::Pred_Dens_ggPlot(2026, repl2)
 grid.arrange(gg1, gg2, gg3, gg4, nrow = 1)
 
 
-repl2_df <- data.frame(repl2)
-colnames(repl2_df) <- seq(1901,2026)
+## Provide better plot with geom_joy(). (To include in package !!!!)
+## Definition of parameters is straightfoward : it defines time at which we predict
+# An by = is the number of densities we want to draw !
+'posterior_pred_ggplot' <- function(from = 1, until = nrow(max_years$df),
+                                    n_future = 0, by = 10, x_coord = c(27,35)) {
 
-repl2_df[,seq(1,126, by = 10)] %>% gather(year, value) %>%
-#df.postpred2 %>%
-  ggplot(aes(x = value, y = as.numeric(year) )) +   # %>%rev() insdive aes()
-  geom_joy(aes(fill = year)) +
-  scale_fill_viridis(discrete = T, option = "D", direction = -1,
-                     begin = .1, end = .9) +
-  labs(x = "TX", y = "Year",
-       title = "Posterior (predictive) densities evolution of the TX in Uccle from 1901 to 2026 "
-       ) + scale_y_continuous(breaks = seq(1901,2026, by=10) )  + coord_cartesian(xlim = c(27,35)) +
-  theme_piss(theme = theme_minimal(base_family =  "Roboto Condensed", base_size = 15)) +
-  theme(legend.position = "none")
+  repl2 <- PissoortThesis::pred_post_samples(from = from, until = until,
+                                             n_future = n_future)
+
+  repl2_df <- data.frame(repl2)
+  colnames(repl2_df) <- seq(from + 1900, length = ncol(repl2))
+  ## Compute some quantiles to later draw on the plot
+  quantiles_repl2 <- apply(repl2_df, 2,
+                           function(x) quantile(x , probs = c(0.05, 0.5, 0.95)) )
+  quantiles_repl2 <- as.data.frame(t(quantiles_repl2))
+  quantiles_repl2$year <- colnames(repl2_df)
+
+  repl2_df_gg <- repl2_df[, seq(1, (until + n_future) - from, by = by)] %>%
+    gather(year, value)
+
+  col.quantiles <- c("5%-95%" = "cyan", "50%" = "red")
+  titl <- "Posterior (predictive) densities evolution of the TX  in [1901-2021] "
+  subtitl <- "Last density in 2021 is extrapolation "
+  cap <- "We clearly see the linear trend from the temporal evolution of the quantiles..."
+  g <- ggplot(repl2_df_gg, aes(x = value, y = as.numeric(year) )) +   # %>%rev() inside aes()
+    geom_joy(aes(fill = year)) +
+    geom_point(aes(x = `5%`, y = as.numeric(year), col = "5%-95%"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_point(aes(x = `50%`, y = as.numeric(year), col = "50%"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_point(aes(x = `95%`, y = as.numeric(year), col = "5%-95%"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_hline(yintercept = 2016, linetype = "dashed", size = 0.3, col  = 2) +
+    scale_fill_viridis(discrete = T, option = "D", direction = -1, begin = .1, end = .9) +
+    scale_y_continuous(breaks = c(  seq(1901, 2016, by = by),
+      seq(2016, colnames(repl2_df)[ncol(repl2_df)], by = by) ) )  +
+    coord_cartesian(xlim = x_coord) +
+    theme_piss(theme = theme_minimal()) +
+    labs(x = "TX", y = "Year", title = titl, subtitle = subtitl, caption = cap) +
+    scale_colour_manual(name = "Quantiles", values = col.quantiles) +
+    guides(colour = guide_legend(override.aes = list(size=4))) +
+    theme(legend.position = c(.947, .35),
+          plot.subtitle = element_text(hjust = 0.5,face = "italic"),
+          plot.caption = element_text(hjust = 0.1,face = "italic"))
+  g
+}
+
+# Plot for the already observed data :
+posterior_pred_ggplot(by = 8)
+
+# Plot for future data (extrapolation) :
+posterior_pred_ggplot(from = nrow(max_years$df), x_coord = c(30, 38),
+                      n_future = nrow(max_years$df), by = 8)
+
+## All
+posterior_pred_ggplot(from = 1, x_coord = c(27, 38),
+                      n_future = nrow(max_years$df), by = 12)
+
 
 
 ## Predictive accuracy criterion
@@ -352,8 +399,8 @@ dic( mc.listDiag(gibbs.trend$out.ind)[[4]], ic_vals[[4]] )
 
 # WAIC Values
 waic( ic_vals[[1]] )
-waic( ic_vals[[2]])
-waic( ic_vals[[3]])
+waic( ic_vals[[2]] )
+waic( ic_vals[[3]] )
 waic( ic_vals[[4]] )
 
 
@@ -380,13 +427,11 @@ rl.pred(rl.data, qlim = c(30, 40))
 rl_bayes_trend <- function(data_year, params, t = 10, m = 10 ){
     y_m <- -(1 / log(1 - 1/m))
     t <- seq(max(data_year), max(data_year) + t, 1)
-    rl_m <- (params[1] + params[2] *
-               (t-max(max_years$df$Year))) +
-      (params[3] / params[4]) *
-      (y_m^params[4] - 1)
+    rl_m <- (params[1] + params[2] * (t-max(max_years$df$Year))) +
+       (params[3] / params[4]) *  (y_m^params[4] - 1)
     g <- ggplot(data.frame(r.lvels = rl_m, years = t)) +
-      geom_point(aes(x = years, y = r.lvels))
-     # print(g)
+       geom_point(aes(x = years, y = r.lvels))
+     g
     return(rl_m)
 }
 par_gibbs_trend[3] <- exp(par_gibbs_trend["logsig"])
@@ -396,5 +441,6 @@ rl_bayes_trend(max_years$data,
 
 
 
+#save.image("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1_bayes.Rdata")
 
 #### See end of bayesian01 for predictive dist, quantiles, and other...
