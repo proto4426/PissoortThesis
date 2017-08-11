@@ -14,8 +14,12 @@ gevcdn.fit2(x, y, iter.max = 1000, n.hidden = 2, Th = gevcdn.logistic,
 \item{x}{covariate matrix with number of rows equal to the number
 of samples and number of columns equal to the number of variables.}
 
-\item{y}{column matrix of target values with number of rows equal
-to the number of samples.}
+\item{y}{column matrix of target values with number of rows equal7
+to the # of samples}
+
+\item{sd.norm}{Weight penalty regularization : sd parameter
+for normal distribution prior for the magnitude of input-hiddenlayer
+ weights; equivalent to weight penalty regularization.#'}
 }
 \value{
 A personalized ggplot2 theme object to add to every builded plots.
@@ -23,10 +27,10 @@ A personalized ggplot2 theme object to add to every builded plots.
 \description{
 this rebuilded version allows us to :
 1. Better understand what is going on  and
-2.
+2. Speed-up function by e.g. reduce unuseful loops or remove printing methods
 }
 \details{
-See function details in the GEVcdn package
+See other function's details in the GEVcdn package
 }
 \references{
 Cannon, A.J., 2010. A flexible nonlinear modelling framework for nonstationary generalized

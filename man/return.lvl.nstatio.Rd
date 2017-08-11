@@ -4,7 +4,8 @@
 \alias{return.lvl.nstatio}
 \title{Return Levels with nonstationarity}
 \usage{
-return.lvl.nstatio(data, gev_nstatio, t = 100, m = 10)
+return.lvl.nstatio(data, gev_nstatio, start = max(data), t = 100, m = 10,
+  plot = T, out = F, ...)
 }
 \arguments{
 \item{data}{numeric vector containing the GEV block-maxima}
@@ -15,9 +16,16 @@ return.lvl.nstatio(data, gev_nstatio, t = 100, m = 10)
 \item{t}{Maximum time period for which the return levels are considered}
 
 \item{m}{Return period}
+
+\item{plot}{returns a ggplot of the return levels}
+
+\item{out}{outputs the return levels (TRUE)}
+
+\item{...}{other parmaters to be passed to geom_point() of \code{ggplot}}
 }
 \value{
-The return levels for the considered time period (t)
+a ggplot in the \code{g} object
+ and  The return levels for the considered time period (t) in \code{rl}.
 }
 \description{
 Compute return levels plot of nonstationary model with the data (in years)

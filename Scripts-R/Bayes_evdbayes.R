@@ -1,13 +1,14 @@
 setwd('/home/piss/Documents/Extreme/R resources/IRM')
 load("data1.Rdata")
 
-library(PissoortThesis)
-library(coda)
-
+# Bayesian Analysis constrcuted with functions in package evdbayes
+##################################################################
 library(evdbayes)
 # This package uses the Metropolis algorithm for MCMC
 
-# see for example extRemes 2.0 pdf p.13 ...  !!!
+library(PissoortThesis)
+library(coda)
+
 
 
 mat <- diag(c(10000, 10000, 100))

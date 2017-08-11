@@ -22,6 +22,8 @@ and 0.40 when the components are updated one at a time.
 It must be wel chosen (e.g. Trial-and-error method)}
 
 \item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
+
+\item{burnin}{Determines value for burn-in}
 }
 \value{
 A named list containing

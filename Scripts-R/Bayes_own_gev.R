@@ -2,6 +2,8 @@
 #load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
 #load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1_bayes.Rdata")
 
+# Bayesian Analysis constrcuted with functions in package PissoortThesis
+#######################################################################
 library(evd)
 library(mvtnorm)
 library(KernSmooth)
@@ -11,11 +13,12 @@ library(gridExtra)
 library(tidyverse)
 library(ggjoy)
 library(viridis)
+library(grid)
 
 library(PissoortThesis)
 
 
-############   MEtropolis-Hastlings  (stationary)  ###############
+############   MEtropolis-Hastlings for the stationary GEV model #####
 ##################################################################
 
 
@@ -32,16 +35,23 @@ ev <- eigen( (2.4/sqrt(2))^2 * Sig)
 varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
 
 set.seed(100)
-mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
+iter <- 5e3
+mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.1,.3,.4),
+                                        iter = iter)
 mh.mcmc1$mean.acc_rates
 
 PissoortThesis::chains.plotOwn(mh.mcmc1$out.chain)
 
+## Burn in 1/4 of values  :
+mh.mcmc.out <- mh.mcmc1$out.chain[-(1:iter/4), ]
+
+# Effective sample sizes :
+effectiveSize(mcmc(mh.mcmc.out[,1:3]))
 
 
 
 
-##########  GIBBS sampler  (stationary)  #####################
+##########  GIBBS sampler for the stationary GEV model  #######
 ##############################################################
 
 
@@ -49,30 +59,58 @@ PissoortThesis::chains.plotOwn(mh.mcmc1$out.chain)
 
 set.seed(100)
 iter <- 2000
-gibb1 <- PissoortThesis::gibbs_mcmc.own(start, iter = iter) # Same starting point as MH
-gibb1$mean.acc_rates
-
-# Do not forget Burn in period (We will make it inside function in  following)
-burn <- iter/4  # Tune value
-
-gibb1$out.chain <- gibb1$out.chain[-(1:burn),]
+gibbs_statio <- PissoortThesis::gibbs_mcmc.own(start, iter = iter,  # Same starting point as MH
+                                               burnin = iter/4)
+gibbs_statio$mean_acc.rates
 
 
-PissoortThesis::chains.plotOwn(gibb1$out.chain)
+PissoortThesis::chains.plotOwn(gibbs_statio$out.chain)
 
 
-param_gibbs <- apply(gibb1$out.chain[,1:3], 2, mean)
+param_gibbs <- apply(gibbs_statio$out.chain[,1:3], 2, mean)
 param_gibbs["logsig"] <- exp(param_gibbs["logsig"] )
 
 frame <- data.frame(Bayesian = param_gibbs, 'Frequentist(mle)' = gev_fit$mle)
 row.names(frame) = c("$\\mu \\ $", "$\\sigma \\quad$", "$\\xi \\quad$")
 knitr::kable(frame, align = 'l')
 
+# Effective sample sizes :
+effectiveSize(mcmc(gibbs_statio$out.chain[,1:3]))
+
+
+
+# Function to create mcmc.lists, useful for diagnostics on chains.
+'mc.listDiag3' <- function (list, subset = c("mu", "logsig", "xi")) {
+  mcmc.list(mcmc(list[[1]][, subset]),
+            mcmc(list[[2]][, subset]),
+            mcmc(list[[3]][, subset])
+  )
+}
+
+## Predictive accuracy criterion
+ic_vals <- gibbs_statio$dic.vals
+
+# DIC Values
+mc.listDiag3(gibbs_statio$out.ind)[[1]] %>%
+  PissoortThesis::dic_3p(vals = ic_vals[[1]])
+
+mc.listDiag3(gibbs_statio$out.ind)[[2]] %>%
+  PissoortThesis::dic_3p(vals = ic_vals[[2]])
+
+mc.listDiag3(gibbs_statio$out.ind)[[3]] %>%
+  PissoortThesis::dic_3p(vals = ic_vals[[3]])
+
+# WAIC Values
+PissoortThesis::waic( ic_vals[[1]] )
+PissoortThesis::waic( ic_vals[[2]] )
+PissoortThesis::waic( ic_vals[[3]] )
+
 
 
 #####################################################################
 ###########  Gibbs Sampler dealing with Nonstationarity  ############
 #####################################################################
+
 
 data <- max_years$data
 
@@ -108,7 +146,7 @@ knitr::kable(matrix(unlist(start), ncol = 4, byrow = T,
 
 
 # k chains with k different starting values
-set.seed(100)
+set.seed(101)
 gibbs.trend <- PissoortThesis::gibbs.trend.own(start,
                                                propsd = c(.5, 1.9, .15, .12),
                                                iter = 1000)
@@ -117,6 +155,8 @@ colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
 
 param.chain <- gibbs.trend$out.chain[ ,1:4]
 
+# Effective sample sizes :
+effectiveSize(mcmc(param.chain))
 
 
 ### Plot of the chains
@@ -128,12 +168,9 @@ ggplot(gibbs.trend$out.chain) + geom_line(aes(x = iter, y = mu1)) +
 ## TracePlots
 chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
                               iter.chain = rep(1:500, 4))
+mixchains.Own(chain.mix)
 PissoortThesis::mixchains.Own(chain.mix)
-ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
-  geom_line() +
-  theme_piss(18,16, theme = theme_classic()) +
-  scale_colour_brewer(name = "chain nr", palette = "Set1") +
-  guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
 
 
 
@@ -151,14 +188,7 @@ mcmc_trace(array.post, pars = c("mu", "mu1"),
 mcmc_trace_highlight(array.post, pars = "mu", highlight = 3)
 
 
-# Function to create mcmc.lists, useful for diagnostics on chains.
-mc.listDiag <- function (list, subset = c("mu", "mu1", "logsig", "xi")) {
-  mcmc.list(mcmc(list[[1]][, subset]),
-            mcmc(list[[2]][, subset]),
-            mcmc(list[[3]][, subset]),
-            mcmc(list[[4]][, subset])
-            )
-}
+
 ## Gelman Coda Diagnostics
 gelman.diag(mc.listDiag(gibbs.trend$out.ind), autoburnin=F)
 gelman.plot(mc.listDiag(gibbs.trend$out.ind), autoburnin=F)
@@ -262,7 +292,7 @@ hpd_mu1 <- hdi(param.chain$mu1)
 
 
 
-## Problem handling of mu_trend
+## Handling of the slope parameter mu_trend
 t_bayes <- round(( min(max_years$df$Year):max(max_years$df$Year) -
                      mean(max_years$df$Year) ) / length(max_years$data),4)
 t_freq <- seq(1, length(max_years$data),1)
@@ -379,29 +409,35 @@ posterior_pred_ggplot(from = 1, x_coord = c(27, 38),
                       n_future = nrow(max_years$df), by = 12)
 
 
+'mc.listDiag4' <- function (list, subset = c("mu", "mu1", "logsig", "xi")) {
+  mcmc.list(mcmc(list[[1]][, subset]),
+            mcmc(list[[2]][, subset]),
+            mcmc(list[[3]][, subset]),
+            mcmc(list[[4]][, subset])
+  )
+}
 
 ## Predictive accuracy criterion
+ic_vals.trend <- gibbs.trend$dic.vals
 
-ic_vals <- gibbs.trend$dic.vals
 # DIC Values
-dic( mc.listDiag(gibbs.trend$out.ind)[[1]], ic_vals[[1]] )
-dic( mc.listDiag(gibbs.trend$out.ind)[[2]], ic_vals[[2]] )
-dic( mc.listDiag(gibbs.trend$out.ind)[[3]], ic_vals[[3]] )
-dic( mc.listDiag(gibbs.trend$out.ind)[[4]], ic_vals[[4]] )
-#handles uncertainty in inferences within each model, and it does
-#not depend on aspects of the models that don’t affect inferences
-#within each model. take a lot of simulations to calculate it precisely.
-# despite the lack of a clear theoretical foundation.
-# DIC is shown to be an approximation to a penalized loss function based
-# on the deviance, with a penalty derived from a cross-validation argument.
-# This approximation is valid only when the effective number of parameters
-# in the model is much smaller than the number of independent observations
+mc.listDiag4(gibbs.trend$out.ind)[[1]] %>%
+  PissoortThesis::dic_4p(vals = ic_vals.trend[[1]])
+
+mc.listDiag4(gibbs.trend$out.ind)[[2]] %>%
+  PissoortThesis::dic_4p(vals = ic_vals.trend[[2]])
+
+mc.listDiag4(gibbs.trend$out.ind)[[3]] %>%
+  PissoortThesis::dic_4p(vals = ic_vals.trend[[3]])
+
+mc.listDiag4(gibbs.trend$out.ind)[[4]] %>%
+  PissoortThesis::dic_4p(vals = ic_vals.trend[[4]])
 
 # WAIC Values
-waic( ic_vals[[1]] )
-waic( ic_vals[[2]] )
-waic( ic_vals[[3]] )
-waic( ic_vals[[4]] )
+PissoortThesis::waic( ic_vals.trend[[1]] )
+PissoortThesis::waic( ic_vals.trend[[2]] )
+PissoortThesis::waic( ic_vals.trend[[3]] )
+PissoortThesis::waic( ic_vals.trend[[4]] )
 
 
 ## Cross-validation
@@ -424,7 +460,7 @@ gibbs.trend$out.chain[,"sigma"] <- exp(gibbs.trend$out.chain[,"logsig"])
 rl.data <-gibbs.trend$out.chain[, c("mu", "mu1", "sigma", "xi")]
 rl.pred(rl.data, qlim = c(30, 40))
 
-rl_bayes_trend <- function(data_year, params, t = 10, m = 10 ){
+"rl_bayes_trend" <- function(data_year, params, t = 10, m = 10 ){
     y_m <- -(1 / log(1 - 1/m))
     t <- seq(max(data_year), max(data_year) + t, 1)
     rl_m <- (params[1] + params[2] * (t-max(max_years$df$Year))) +
@@ -432,12 +468,231 @@ rl_bayes_trend <- function(data_year, params, t = 10, m = 10 ){
     g <- ggplot(data.frame(r.lvels = rl_m, years = t)) +
        geom_point(aes(x = years, y = r.lvels))
      g
-    return(rl_m)
+  return(rl_m)
 }
 par_gibbs_trend[3] <- exp(par_gibbs_trend["logsig"])
 rl_bayes_trend(max_years$data,
                unname(par_gibbs_trend[c("mu", "mu1", "sigma", "xi")]))
 
+evdbayes::rl.pst(lh = "gev")
+
+
+
+
+
+## Make the time component in squared ? ie mu = mu_0 + mu_1 * t + mu_2 * t^2
+##############################################################################
+
+
+fn2 <- function(par, data) -log_post2(par[1], par[2], par[3],
+                                      par[4], par[5], data )
+param2 <- c( mu0 = mean(max_years$df$Max), mu1 = 0, mu2 = 0,
+             logsig = log(sd(max_years$df$Max)), xi =  -0.1 )
+opt2 <- optim(param2, fn2, data = max_years$data,
+              method = "BFGS", hessian = T)
+opt2
+
+# Starting Values
+set.seed(100)
+start <- list() ;   k <- 1
+while(k < 6) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
+  sv <- as.numeric(rmvnorm(1, opt2$par, solve(opt2$hessian)))
+  svlp <- log_post2(sv[1], sv[2], sv[3], sv[4], sv[5], max_years$data)
+  print(svlp)
+  if(is.finite(svlp)) {
+    start[[k]] <- sv
+    k <- k + 1
+  }
+}
+# k chains with k different starting values
+set.seed(101)
+gibbs.trend2 <- gibbs.trend2.own(start, propsd = c(.5, 1.4, 3.5, .2, .15),
+                                 iter = 1000)
+colMeans(do.call(rbind, gibbs.trend2$mean_acc.rates))
+
+param.chain2 <- gibbs.trend2$out.chain[ ,1:5]
+
+
+### Plot of the chains
+chains.plotOwn(gibbs.trend2$out.chain)
+grid.arrange(
+  ggplot(gibbs.trend2$out.chain) + geom_line(aes(x = iter, y = mu1)) +
+    theme_piss(16,14) + labs(ylab = "mu1", xlab = "iter"),
+  ggplot(gibbs.trend2$out.chain) + geom_line(aes(x = iter, y = mu2)) +
+    theme_piss(16,14) + labs(ylab = "mu2", xlab = "iter")    )
+
+
+## TracePlots
+chain.mix <- cbind.data.frame(gibbs.trend2$out.chain,
+                              iter.chain = rep(1:500, 4))
+mixchains.Own(chain.mix)
+ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+  geom_line() + theme_piss(18,16, theme_classic()) +
+  scale_colour_brewer(name = "chain nr", palette = "Set1") +
+  guides(colour = guide_legend(override.aes = list(size= 1.2)))
+ggplot(chain.mix, aes(x = iter.chain, y = mu2, col = as.factor(chain.nbr))) +
+  geom_line() + theme_piss(18,16, theme_classic()) +
+  scale_colour_brewer(name = "chain nr", palette = "Set1") +
+  guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+
+
+'mc.listDiag5' <- function (list, subset = c("mu", "mu1", "mu2",
+                                             "logsig", "xi")) {
+  mcmc.list(mcmc(list[[1]][, subset]),
+            mcmc(list[[2]][, subset]),
+            mcmc(list[[3]][, subset]),
+            mcmc(list[[4]][, subset]),
+            mcmc(list[[5]][, subset])
+  )
+}
+## Predictive accuracy criterion
+
+ic_vals.trend2 <- gibbs.trend2$dic.vals
+
+# DIC Values. "1:5" takes the 5 parameters of the model, see function
+mc.listDiag5(gibbs.trend2$out.ind)[[1]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend2[[1]])
+
+mc.listDiag5(gibbs.trend2$out.ind)[[2]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend2[[2]])
+
+mc.listDiag5(gibbs.trend2$out.ind)[[3]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend2[[3]])
+
+mc.listDiag5(gibbs.trend2$out.ind)[[4]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend2[[4]])
+
+mc.listDiag5(gibbs.trend2$out.ind)[[5]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend2[[5]])
+
+
+# WAIC Values
+PissoortThesis::waic( ic_vals.trend2[[1]] )
+PissoortThesis::waic( ic_vals.trend2[[2]] )
+PissoortThesis::waic( ic_vals.trend2[[3]] )
+PissoortThesis::waic( ic_vals.trend2[[4]] )
+PissoortThesis::waic( ic_vals.trend2[[5]] )
+## Interestingly here, all the criterion are lower than for simple trend
+# and this models should be preferred... different result from frequentist !!
+
+
+## Cross-validation
+
+
+
+
+######## Model with inear trend + varying scale parameter (exp link)  ####
+########   mu = mu0 + mu1 * t,     logsig = sig0 + sig1 * tt     #########
+##########################################################################
+
+
+fn3 <- function(par, data) -log_post3(par[1], par[2], par[3],
+                                      par[4], par[5], data )
+param3 <- c( mu0 = mean(max_years$df$Max), mu1 = 0,
+             sig0 = log(sd(max_years$df$Max)), sig1 = 0,  xi =  -0.1 )
+opt3 <- optim(param3, fn3, data = max_years$data,
+              method = "BFGS", hessian = T)
+opt3
+
+# Starting Values
+set.seed(100)
+start <- list() ; k <- 1
+while(k < 6) { # starting value is randomly selected from a distribution
+  # that is overdispersed relative to the target
+  sv <- as.numeric(rmvnorm(1, opt3$par, solve(opt3$hessian)))
+  svlp <- log_post1(sv[1], sv[2], sv[3], sv[4], sv[5], max_years$data)
+  print(svlp)
+  if(is.finite(svlp)) {
+    start[[k]] <- sv
+    k <- k + 1
+  }
+}
+# k chains with k different starting values
+set.seed(101)
+gibbs.trend.sig3 <- gibbs.trend.sig3own(start,
+                                        propsd = c(.45, 1.3, .2, .5, .1),
+                                        iter = 1e3)
+colMeans(do.call(rbind, gibbs.trend.sig3$mean_acc.rates))
+
+param.chain3 <- gibbs.trend.sig3$out.chain[, 1:5]
+
+
+### Plot of the chains
+grid.arrange(
+  ggplot(gibbs.trend.sig3$out.chain) + geom_line(aes(x = iter, y = mu)) +
+    theme_piss(16,14) + labs(ylab = "mu", xlab = "iter"),
+  ggplot(gibbs.trend.sig3$out.chain) + geom_line(aes(x = iter, y = mu1)) +
+    theme_piss(16,14) + labs(ylab = "mu1", xlab = "iter"),
+  ggplot(gibbs.trend.sig3$out.chain) + geom_line(aes(x = iter, y = sig0)) +
+    theme_piss(16,14) + labs(ylab = "sig0", xlab = "iter"),
+  ggplot(gibbs.trend.sig3$out.chain) + geom_line(aes(x = iter, y = sig1)) +
+    theme_piss(16,14) + labs(ylab = "sig1", xlab = "iter"),
+  ggplot(gibbs.trend.sig3$out.chain) + geom_line(aes(x = iter, y = xi)) +
+    theme_piss(16,14) + labs(ylab = "xi", xlab = "iter")    )
+
+
+## TracePlots
+chain.mix <- cbind.data.frame(gibbs.trend2$out.chain,
+                              iter.chain = rep(1:500, 4))
+mixchains.Own(chain.mix)
+ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+  geom_line() + theme_piss(18,16, theme_classic()) +
+  scale_colour_brewer(name = "chain nr", palette = "Set1") +
+  guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+
+
+
+## Predictive accuracy criterion
+
+ic_vals.trend.sc <- gibbs.trend.sig3$dic.vals
+
+# DIC Values. "1:5" takes the 5 parameters of the model, see function
+
+mc.listDiag5(gibbs.trend.sig3$out.ind, 1:5)[[1]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[1]])
+
+mc.listDiag5(gibbs.trend.sig3$out.ind, 1:5)[[2]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[2]])
+
+mc.listDiag5(gibbs.trend.sig3$out.ind, 1:5)[[3]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[3]])
+
+mc.listDiag5(gibbs.trend.sig3$out.ind, 1:5)[[4]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[4]])
+
+mc.listDiag5(gibbs.trend.sig3$out.ind, 1:5)[[5]] %>%
+  PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[5]])
+
+# WAIC Values
+waic( ic_vals.trend.sc[[1]] )
+waic( ic_vals.trend.sc[[2]] )
+waic( ic_vals.trend.sc[[3]] )
+waic( ic_vals.trend.sc[[4]] )
+waic( ic_vals.trend.sc[[5]] )
+
+
+# Comparing These values with the ones obtained with simple linear trend, all are
+# again for the complex model .....
+
+
+
+##################### Comparisons  ##########################################
+#############################################################################
+library(bbefkr)  # Compute the marginal likelihood using Chib's (1995) method
+# To be able to compute the Bayes factor.
+logdensity_admkr()
+
+
+
+
+## Cross-validation
+
+library(loo)
+
+extract_log_lik()
 
 
 

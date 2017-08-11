@@ -14,7 +14,7 @@ and the shape parameter respectively}
 the negative profile ikelihood
 }
 \description{
-# computes the negative profile log-likelihood
+Computes the negative profile log-likelihood
 (credits to E. Gilleland and ismev package)
 }
 \examples{

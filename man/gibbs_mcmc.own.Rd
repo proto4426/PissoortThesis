@@ -5,13 +5,15 @@
 \title{Gibbs Sampler for GEV (MCMC)}
 \usage{
 gibbs_mcmc.own(start, propsd = c(0.4, 0.1, 0.1), iter = 2000,
-  data = max_years$data)
+  burnin = ceiling(iter/2 + 1), data = max_years$data)
 }
 \arguments{
 \item{start}{numeric vector of length 3 containing the starting values for the parameters theta=
 (location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE}
 
 \item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
+
+\item{burnin}{Determines value for burn-in}
 
 \item{data}{numeric vector containing the GEV in block-maxima}
 
@@ -25,8 +27,12 @@ is as proposed by Coles (2001) but we should tune this value.
 \value{
 A named list containing
 \describe{
+\item{\code{n.chains} : The number of chains generated melted in a data.frame}
 \item{\code{mean.acc_rates} : the meanS of the acceptance rates}
 \item{\code{out.chain} : The generated chainS}
+\item{\code{dic.vals} : contains the DIC values (for further diagnostics on
+predictive accuracy, see ?dic)}
+\item{\code{out.ind} : The generated individual chainS (in a list)}
 }
 }
 \description{

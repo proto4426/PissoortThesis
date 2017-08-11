@@ -47,7 +47,7 @@
 }
 #' @rdname log_post0
 #' @export
-'log_post0' <- function(mu, logsig,xi, data) {
+'log_post0' <- function(mu, logsig, xi, data) {
   # Posterior Density Function
   # Compute the log_posterior in a stationary context.
   # Be careful to incorporate the fact that the distribution can have finite endpoints.
@@ -121,23 +121,35 @@
 #' @export
 'mixchains.Own' <- function(data, moreplot = F,
                              title = "TracePlots of the generated Chains " ){
-  grid.arrange(
-    ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme = theme_classic()) +
-      scale_colour_brewer(name = "chain nr", palette = "Set1") +
-      guides(colour = guide_legend(override.aes = list(size= 1.2))),
-    ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme = theme_classic()) +
-      scale_colour_brewer(name = "chain nr", palette = "Set1") +
-      guides(colour = guide_legend(override.aes = list(size= 1.2))),
-    ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
-      geom_line() + theme_piss(18,16, theme = theme_classic()) +
-      scale_colour_brewer(name = "chain nr", palette = "Set1") +
-      guides(colour = guide_legend(override.aes = list(size= 1.2))),
-    ncol = 1, top = textGrob(title,
-                   gp = gpar(col ="darkolivegreen4",
-                             fontsize = 25, font = 4))
-  )
+  g_mu <- ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+  g_mutrend <- ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    labs(y = "mu_trend") +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+  g_logsig <- ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+  g_xi <- ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+
+    grid_arrange_legend(g_logsig, g_xi, ncol = 2,
+                        top = grid::textGrob(title,
+                                     gp = grid::gpar(col ="darkolivegreen4",
+                                                     fontsize = 25, font = 4)) )
+    grid_arrange_legend(g_mu, g_mutrend,ncol = 2,
+                        top = grid::textGrob(title,
+                                             gp = grid::gpar(col ="darkolivegreen4",
+                                                             fontsize = 25, font = 4)) )
 }
 
 # ===============================================================
@@ -219,11 +231,15 @@
 #'  (from package \code{ismev})
 #' @param data  numeric vector containing the GEV in block-maxima
 #' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
-#'
+#' @param burnin Determines value for burn-in
 #' @return A named list containing
 #' \describe{
+#' \item{\code{n.chains} : The number of chains generated melted in a data.frame}
 #' \item{\code{mean.acc_rates} : the meanS of the acceptance rates}
 #' \item{\code{out.chain} : The generated chainS}
+#' \item{\code{dic.vals} : contains the DIC values (for further diagnostics on
+#' predictive accuracy, see ?dic)}
+#' \item{\code{out.ind} : The generated individual chainS (in a list)}
 #' }
 #' @examples
 #' data("max_years")
@@ -243,55 +259,97 @@
 #' gibb1 <- gibbs_mcmc.own(start, iter = iter)
 #' @export
 "gibbs_mcmc.own" <- function (start , propsd = c(.4, .1, .1),
-                              iter = 2000, data = max_years$data ) {
+                              iter = 2000,  burnin = ceiling(iter/2 + 1),
+                              data = max_years$data ) {
+ # Store values
+ acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
- out <- data.frame(mu = rep(NA, iter+1),
-                  logsig = rep(NA, iter+1),
-                  xi = rep(NA, iter+1))
 
- out[1,] <- start
- out <- cbind.data.frame(out, iter = 1:(iter+1))
- lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
- if(!is.finite(lpost_old))
-   stop("starting values give non-finite log_post")
- acc_rates <- matrix(NA, nrow = iter, ncol = 3)
+ out.fin <- data.frame(mu = numeric(0),
+                       logsig = numeric(0),
+                       xi = numeric(0),
+                       chain.nbr = character(0))
 
- data <- max_years$data
- for (t in 1:iter) {
-   prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
-   # so that it removes in the ratio.
+ nr.chain <- length(start)   ;    time <- proc.time()
 
-   lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
-   r <- exp(lpost_prop - lpost_old)
-   if(r > runif(1)) {
-     out[t+1,1] <- prop1
-     lpost_old <- lpost_prop
+ k <- 1
+ while (k <= nr.chain) {
+   out <- data.frame(mu = rep(NA, iter+1),
+                     logsig = rep(NA, iter+1),
+                     xi = rep(NA, iter+1))
+
+   # For DIC computation
+   ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+   ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                            data)
+
+   out[1,] <- start
+   out <- cbind.data.frame(out, iter = 1:(iter+1))
+   lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+   if(!is.finite(lpost_old))
+     stop("starting values give non-finite log_post")
+   acc_rates <- matrix(NA, nrow = iter, ncol = 3)
+
+   data <- max_years$data
+   for (t in 1:iter) {
+     prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
+     # so that it removes in the ratio.
+
+     lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,1] <- prop1
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,1] <- out[t,1]
+     acc_rates[t,1] <- min(r, 1)
+
+     prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+     lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,2] <- prop2
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,2] <- out[t,2]
+     acc_rates[t,2] <- min(r, 1)
+
+     prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+     lpost_prop <- log_post0(out[t+1,1],out[t+1,2], prop3, data)
+     r <- exp(lpost_prop - lpost_old)
+     if(r > runif(1)) {
+       out[t+1,3] <- prop3
+       lpost_old <- lpost_prop
+     }
+     else out[t+1,3] <- out[t,3]
+     acc_rates[t,3] <- min(r, 1)
+
+     # For DIC
+     ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                                data)
    }
-   else out[t+1,1] <- out[t,1]
-   acc_rates[t,1] <- min(r, 1)
+   acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+   ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
+   out.ind[[k]] <- out
 
-   prop2 <- rnorm(1, mean = out[t,2], propsd[2])
-   lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
-   r <- exp(lpost_prop - lpost_old)
-   if(r > runif(1)) {
-     out[t+1,2] <- prop2
-     lpost_old <- lpost_prop
-   }
-   else out[t+1,2] <- out[t,2]
-   acc_rates[t,2] <- min(r, 1)
+   # Combine Chains And Remove Burn-In Period
+   out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
+   # out.fin <- cbind.data.frame(out.fin)
+   # chain.nmbr = rep(k, nrow(out.fin)))
 
-   prop3 <- rnorm(1, mean = out[t,3], propsd[3])
-   lpost_prop <- log_post0(out[t+1,1],out[t+1,2], prop3, data)
-   r <- exp(lpost_prop - lpost_old)
-   if(r > runif(1)) {
-     out[t+1,3] <- prop3
-     lpost_old <- lpost_prop
-   }
-   else out[t+1,3] <- out[t,3]
-   acc_rates[t,3] <- min(r, 1)
+   print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+
+   k <- k + 1
  }
- return(list(mean.acc_rates = apply(acc_rates, 2, mean),
-             out.chain = out))
+
+ out <- cbind.data.frame(out.fin,
+                         iter = (1:nrow(out.fin)))
+
+ return(list(n.chains = length(start),
+             mean_acc.rates = acc_rate.list,
+             out.chain = out,
+             dic.vals = ic_val.list,
+             out.ind = out.ind))
 }
 
 
@@ -314,7 +372,7 @@
 #' It must be wel chosen (e.g. Trial-and-error method)
 #' @param data  numeric vector containing the GEV in block-maxima
 #' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
-#'
+#' @param burnin Determines value for burn-in
 #' @return A named list containing
 #' \describe{
 #' \item{\code{n.chains} : The number of chains generated melted in a data.frame}
@@ -323,7 +381,6 @@
 #' \item{\code{dic.vals} : contains the DIC values (for further diagnostics on
 #' predictive accuracy, see ?dic)}
 #' \item{\code{out.ind} : The generated individual chainS (in a list)}
-
 #' }
 #' @examples
 #' data("max_years")
@@ -785,31 +842,38 @@
 
 # ===============================================================
 #' @name predic_accuracy
-#' @title Return Levels with nonstationarity
+#' @aliases dic_3p
+#' @aliases dic_4p
+#' @aliases waic
+#' @title PRedictive accuracy criterion
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
-#' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
-#' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
-#'
-# DIC Function
-#' @rdname predaccur
+#' @rdname pred_bay_accur
 #' @export
-'dic' <- function(out, vals) {
+'dic_3p' <- function(out, vals) {
+  pm <- colMeans(out) ;   pmv <- log_post0(pm[1], pm[2], pm[3], data)
+  pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
+  2*pmv - 4*mean(vec1)
+}
+
+#' @rdname pred_bay_accur
+#' @export
+'dic_4p' <- function(out, vals) {
   pm <- colMeans(out) ;   pmv <- log_post1(pm[1], pm[2], pm[3], pm[4], data)
   pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
   2*pmv - 4*mean(vec1)
 }
-#' @rdname predaccur
+
+#' @rdname pred_bay_accur
+#' @export
+'dic_5p' <- function(out, vals) {
+  pm <- colMeans(out)
+  pmv <- log_post2(pm[1], pm[2], pm[3], pm[4], pm[5], data)
+  pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
+  2*pmv - 4*mean(vec1)
+}
+
+#' @rdname pred_bay_accur
 #' @export
 'waic' <- function(vals) {
   vec1 <- log(colMeans(exp(vals))) ;    vec2 <- colMeans(vals)
@@ -820,21 +884,7 @@
 
 # ===============================================================
 #' @export crossval.bayes
-#' @title Return Levels with nonstationarity
-#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
-#' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
-#' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
 #'
 "crossval.bayes" <- function(){
 
@@ -864,10 +914,10 @@
 #'
 # POSTERIOR return level plot. Post is the MC generated
 # npy is the Number of obs Per Year.
-#' @rdname rlfuns
+#' @rdname rlfuns_bay
 #' @export
 "rl.post_gg" <-  function(post, npy, method = c("gev", "gpd"), ci = 0.9, ...) {
-  if (method == "gev") npy <- 1
+  if (method == "gev")   npy <- 1
 
   rps <- c(1/npy + 0.001, 10^(seq(0,4,len=20))[-1])
   p.upper <- 1 - 1/(npy * rps)
@@ -888,7 +938,7 @@
 }
 
 
-#' @rdname rlfuns
+#' @rdname rlfuns_bay
 #' @export
 "rl.pred_gg" <- function(post, qlim, npy,
                          method = c("gev", "gpd"), period = 1, ...) {

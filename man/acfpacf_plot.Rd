@@ -4,12 +4,17 @@
 \alias{acfpacf_plot}
 \title{(P)ACF plots}
 \usage{
-acfpacf_plot(data, lagmax = length(data), mfrow = c(2, 1), ...)
+acfpacf_plot(data, lagmax = length(data), mfrow = c(2, 1), main1 = "ACF",
+  main2 = "PACF")
 }
 \arguments{
 \item{data}{numeric ector containing}
 
 \item{laxgmax}{numeric value containing the maximum number of lags to display}
+
+\item{dotsACF}{more arguments to pass to the ACF function}
+
+\item{dotsACF}{more arguments to pass to the ACF function}
 }
 \value{
 Page of both ACF and PACF until lagmax
