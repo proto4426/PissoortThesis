@@ -1,6 +1,7 @@
 #setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
 #load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
-#load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1_bayes.Rdata")
+load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1_bayes.Rdata")
+
 
 # Bayesian Analysis constrcuted with functions in package PissoortThesis
 #######################################################################
@@ -18,8 +19,36 @@ library(grid)
 library(PissoortThesis)
 
 
-############   MEtropolis-Hastlings for the stationary GEV model #####
-##################################################################
+
+## As we aim at building models sequentially,  we will begin by the Gumbel model
+## It is models the lowest number of degrees of freedom.
+
+
+
+## MEtropolis-Hastlings for the stionary Gumbel model ###
+#########################################################
+
+
+# Optimize Posterior Density Function to find starting values
+fn <- function(par, data) -log_post_gumb(par[1], par[2], data)
+param <- c(mean(max_years$df$Max), log(sd(max_years$df$Max)))
+opt <- nlm(fn, param, data = max_years$data,
+           hessian=T, iterlim = 1e5)
+start <- opt$estimate  ;     names(start) <- c("mu", "logsig")
+Sig <- solve(opt$hessian)
+ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+
+set.seed(101)
+iter <- 2e3
+mh.mcmc_gumb <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.9, 1.1),
+                                           iter = iter, burnin = iter/4)
+mh.mcmc_gumb$mean.acc_rates
+
+
+
+#########   MEtropolis-Hastlings for the stationary GEV model #######
+#####################################################################
 
 
 # Optimize Posterior Density Function to find starting values
@@ -29,18 +58,20 @@ param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
 #              method="BFGS", hessian = TRUE)
 opt <- nlm(fn, param, data = max_years$data,
            hessian=T, iterlim = 1e5)
-start <- opt$estimate
+start <- opt$estimate  ;     names(start) <- c("mu", "logsig", "xi")
 Sig <- solve(opt$hessian)
 ev <- eigen( (2.4/sqrt(2))^2 * Sig)
 varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
 
-set.seed(100)
-iter <- 5e3
-mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.1,.3,.4),
-                                        iter = iter)
+set.seed(101)
+iter <- 2e3
+mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.5,.6,.85),
+                                        iter = iter, burnin = iter/4)
 mh.mcmc1$mean.acc_rates
 
-PissoortThesis::chains.plotOwn(mh.mcmc1$out.chain)
+param_mean_mh <- apply(mh.mcmc1$out.chain[,1:3], 2, mean)
+chainsPlot_mh <- chains.plotOwn(mh.mcmc1$out.chain, post.mean.green = param_mean_mh,
+                                title = "Using Metropolis-Hastings Algorithm")
 
 ## Burn in 1/4 of values  :
 mh.mcmc.out <- mh.mcmc1$out.chain[-(1:iter/4), ]
@@ -54,17 +85,25 @@ effectiveSize(mcmc(mh.mcmc.out[,1:3]))
 ##########  GIBBS sampler for the stationary GEV model  #######
 ##############################################################
 
-
 #prop_var <- sqrt( (2.4/sqrt(1))^2 * solve(opt$hessian) )
 
 set.seed(100)
-iter <- 2000
-gibbs_statio <- PissoortThesis::gibbs_mcmc.own(start, iter = iter,  # Same starting point as MH
+iter <- 2e3
+# Same starting point as for MH. We also keep only one chain
+# i.e. no different starting values so far.
+gibbs_statio <- PissoortThesis::gibbs_mcmc.own(start, iter = iter, nbr.chain = 1,
+                                               propsd = c(.42, .12, .12),
                                                burnin = iter/4)
 gibbs_statio$mean_acc.rates
 
 
-PissoortThesis::chains.plotOwn(gibbs_statio$out.chain)
+chainsPlot_gibb <- chains.plotOwn(gibbs_statio$out.chain,
+                                  title = "Using Gibbs Sampler")
+## Compare chains of Gibbs sampler with MH
+grid.arrange(chainsPlot_mh, chainsPlot_gibb, ncol = 2,
+             top = textGrob("TracePlots of the generated Chains for the stationary Model",
+                            gp = gpar(col ="#33666C",
+                                      fontsize = 28, font = 2)))
 
 
 param_gibbs <- apply(gibbs_statio$out.chain[,1:3], 2, mean)
@@ -200,7 +239,7 @@ autocorr(mcmc(param.chain ))
 autocorr.diag(mcmc(param.chain ))
 autocorr.plot(mcmc(param.chain ))
 
-crosscorr(mcmc(param.chain))
+crosscorr(mcmc(param.chain ))
 crosscorr.plot(mcmc(param.chain ))
 
 

@@ -106,3 +106,49 @@
   out <- list(root.star.tb, ci.2tboot) ; names(out) <- c("root2t","cit2t")
   return(out)
 }
+
+#' @rdname bootfuns
+#' @export
+## This first function aims at computing the coverage probabilities
+#for a vector of different sample sizes contained in n.vec., for simple ci
+## M= is the number of MC replications and assumes = B is reasonable
+"cov.ci1.vec" <- function (n.vec = n.vec1, M, level = .05) {
+  cov <- list(length(n.vec))   ;  covcat <- c()
+  ci1b <- matrix(NA,M,6)  # matrix with 2 cols to store length of ci
+  t <- proc.time()   ;  timevec <- c()
+  for (i in seq_along(n.vec)){
+    n <- n.vec[i]    ; nb <- 0
+    for (m in 1:M) {
+      x.new <- rgpd(n, shape = ksi.chap, scale = sigma, loc = mu)
+      ksi.chap <- mle.ksiFun(x.new)
+      sd.ksi.chap <- sdmle.ksiFun(x.new)
+      # We compute the MC loop and the bootstrap ci replicates  M times both
+      ci.eval <<- ciBootFunc(x = x.new, B = M, level = level, print = F)
+
+      x.fevd <- fevd(x.new, type = "GP", threshold = 0)
+      ci.prof <- ci.fevd(x.fevd, type = "parameter", which.par = 2,
+                         method = "proflik")  #; print(ci.prof)
+      nb <- nb + c(indici(ci.eval$bootbasic),
+                   indici(ci.eval$boott), indici(ci.eval$bootp),
+                   ifelse(ksi >= ci.prof[[1]] & ksi <= ci.prof[[3]], 1, 0))
+      # storing for the length of the intervals
+      ci1b[m,1] <- ci.eval$bootbasic[2] - ci.eval$bootbasic[1]
+      ci1b[m,2] <- ci.eval$bootp[2] - ci.eval$bootp[1]
+      ci1b[m,3] <- ci.eval$boott[2] - ci.eval$boott[1]
+      ci1b[m,4] <- ci.prof[[3]] - ci.prof[[1]]
+    }
+    cov[[i]] <- nb/M  ; names(cov[[i]]) <- c("boot","t-boot","p-boot","proflik")
+    covcat <- cov[[i]]
+    cat("For n=", n.vec[i], "and M=", M, "we have coverages: ","\n")
+    print(covcat, max = length(covcat))
+    cat("And time", " \n")
+    time <- (proc.time() - t)[3]
+    print(paste(c(time, "sec")))
+    timevec[i] <- time
+  }
+  # Investigate and compare results with the length of the ci.
+  out <- list(cov, timevec, ci1b)
+  names(out) <- c("cover", "time", "length")
+  return(out)
+}
+

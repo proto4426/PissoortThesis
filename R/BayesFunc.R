@@ -1,5 +1,131 @@
 
 # ===============================================================
+#' @title Plots to assess the mixing of the Chains
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+
+#' @description
+#' Compute the ggplots for each parameter of interest in a single page.
+#'
+#' @param data numeric vector containing the GEV block-maxima
+#' @param vline.red draws a dashed red line in red representing the starting of the iterations
+#' , thus removing the burn-in period.
+#' @param post.mean.green draws a green dashed line representing the posterior mean
+#'  of the parameter's chain
+#' @param ... Other parameters from \code{gridExtra::grid.arrange()}
+#' @param title Global title for the plot
+#' @return a grid.arrange() of ggplots.
+#' @examples
+#' data("max_years")
+#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
+#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
+#' # opt <- optim(param, fn, data = max_years$data,
+#' #              method="BFGS", hessian = TRUE)
+#' opt <- nlm(fn, param, data = max_years$data,
+#'            hessian=T, iterlim = 1e5)
+#' start <- opt$estimate
+#' Sig <- solve(opt$hessian)
+#' ev <- eigen( (2.4/sqrt(2))^2 * Sig)
+#' varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
+#' # (MH)
+#' set.seed(100)
+#' mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
+#' mh.mcmc1$mean.acc_rates
+#'
+#' chains.plotOwn(mh.mcmc1$out.chain)
+#'
+#' # (GIBBS)
+#' # k chains with k different starting values
+#' set.seed(100)
+#' gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
+#'                               iter = 1000)
+#'## TracePlots
+#' chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
+#'                              iter.chain = rep(1:500, 4))
+#' mixchains.Own(chain.mix)
+#' @import ggplot2  gridExtra grid
+#' @rdname ggplotbayesfuns
+#' @export
+'chains.plotOwn' <- function(data, vline.red = min(data$iter),
+                             post.mean.green = apply(data, 2, mean), ... ,
+                             title = "TracePlots of the generated Chains " ){
+  col <- c("Posterior mean" = "green")
+
+  legend <-  list(scale_colour_manual(name = "", values = col),
+                  theme_piss(18,16, legend.position = c(.7, .92)),
+                  theme(legend.background = element_rect(colour = "transparent",size = 0.5),
+                        legend.key = element_rect(fill = "white", size = 0.5),
+                        legend.margin = margin(1, 1, 1, 1)),
+                  guides(color = guide_legend(override.aes=list(fill=NA))),
+                  labs(y = paste(expression(log), expression(sigma))),
+                  labs(x = "iterations")
+  )
+
+  grid.arrange(
+    ggplot(data) +
+      geom_line(aes(x = iter, y = mu)) +
+      geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
+      geom_hline(aes(yintercept = post.mean.green[1], col = "Posterior mean"),
+                 linetype = "dashed", size = .7) +
+      legend,
+    ggplot(data) +
+      geom_line(aes(x = iter, y = logsig)) +
+      geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
+      geom_hline(aes(yintercept = post.mean.green[2], col = "Posterior mean"),
+                 linetype = "dashed", size = .7) +
+      legend ,
+    ggplot(data) +
+      geom_line(aes(x = iter, y = xi)) +
+      geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
+      geom_hline(aes(yintercept = post.mean.green[3], col = "Posterior mean"),
+                 linetype = "dashed", size = .7) +
+      legend, ... ,
+    ncol = 1,
+    top = textGrob(title,
+                   gp = gpar(col ="darkolivegreen4",
+                             fontsize = 25, font = 4))
+  )
+}
+
+#' @rdname ggplotbayesfuns
+#' @export
+'mixchains.Own' <- function(data, moreplot = F,
+                            title = "TracePlots of the generated Chains " ){
+  g_mu <- ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    labs(x = "iterations by chain") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+  g_mutrend <- ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    labs(y = "mu_trend", x = "iterations by chain") +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+  g_logsig <- ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    labs(x = "iterations by chain") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+  g_xi <- ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
+    geom_line() + theme_piss(18,16, theme = theme_classic()) +
+    scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    labs(x = "iterations by chain") +
+    guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
+
+  grid_arrange_legend(g_logsig, g_xi, ncol = 2,
+                      top = grid::textGrob(title,
+                                           gp = grid::gpar(col = "darkolivegreen4",
+                                                           fontsize = 25, font = 4)) )
+  grid_arrange_legend(g_mu, g_mutrend,ncol = 2,
+                      top = grid::textGrob(title,
+                                           gp = grid::gpar(col = "darkolivegreen4",
+                                                           fontsize = 25, font = 4)) )
+}
+
+
+# ===============================================================
 #' @title Negative GEV log-likelihood and Log-Posterior with
 #' uninformative normal priors.
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
@@ -45,6 +171,16 @@
   }
   ans
 }
+
+#' @rdname log_post0
+#' @export
+"log_post_gumb" <- function(mu, logsig, data) {
+  llhd <- sum(dgumbel(data, loc = mu, scale = exp(logsig), log = TRUE))
+  lprior <- dnorm(mu, sd = 50, log = TRUE)
+  lprior <- lprior + dnorm(logsig, sd = 10, log = TRUE)
+  lprior + llhd
+}
+
 #' @rdname log_post0
 #' @export
 'log_post0' <- function(mu, logsig, xi, data) {
@@ -62,95 +198,6 @@
 
 
 
-# ===============================================================
-#' @title Plots to assess the mixing of the Chains
-#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
-
-#' @description
-#' Compute the ggplots for each parameter of interest in a single page.
-#'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param ... Other parameters from \code{gridExtra::grid.arrange()}
-#' @param title Global title for the plot
-#' @return a grid.arrange() of ggplots.
-#' @examples
-#' data("max_years")
-#' fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
-#' param <- c(mean(max_years$df$Max),log(sd(max_years$df$Max)), 0.1 )
-#' # opt <- optim(param, fn, data = max_years$data,
-#' #              method="BFGS", hessian = TRUE)
-#' opt <- nlm(fn, param, data = max_years$data,
-#'            hessian=T, iterlim = 1e5)
-#' start <- opt$estimate
-#' Sig <- solve(opt$hessian)
-#' ev <- eigen( (2.4/sqrt(2))^2 * Sig)
-#' varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
-#' # (MH)
-#' set.seed(100)
-#' mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
-#' mh.mcmc1$mean.acc_rates
-#'
-#' chains.plotOwn(mh.mcmc1$out.chain)
-#'
-#' # (GIBBS)
-#' # k chains with k different starting values
-#' set.seed(100)
-#' gibbs.trend <- gibbs.trend.own(start, propsd = c(.5, 1.9, .15, .12),
-#'                               iter = 1000)
-#'## TracePlots
-#' chain.mix <- cbind.data.frame(gibbs.trend$out.chain,
-#'                              iter.chain = rep(1:500, 4))
-#' mixchains.Own(chain.mix)
-#' @import ggplot2  gridExtra grid
-#' @rdname ggplotbayesfuns
-#' @export
-'chains.plotOwn' <- function(data, ...,
-                             title = "TracePlots of the generated Chains " ){
-  grid.arrange(
-    ggplot(data) + geom_line(aes(x = iter, y = mu)) + theme_piss(18,16) +
-      labs(ylab = expression(mu)),
-    ggplot(data) + geom_line(aes(x = iter, y = logsig)) + theme_piss(18,16),
-    ggplot(data) + geom_line(aes(x = iter, y = xi)) + theme_piss(18,16), ... ,
-    ncol = 1,
-    top = textGrob(title,
-                   gp = gpar(col ="darkolivegreen4",
-                             fontsize = 25, font = 4))
-  )
-}
-#' @rdname ggplotbayesfuns
-#' @export
-'mixchains.Own' <- function(data, moreplot = F,
-                             title = "TracePlots of the generated Chains " ){
-  g_mu <- ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
-    geom_line() + theme_piss(18,16, theme = theme_classic()) +
-    scale_colour_brewer(name = "chain nr", palette = "Set1") +
-    guides(colour = guide_legend(override.aes = list(size= 1.2)))
-  g_mutrend <- ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
-    geom_line() + theme_piss(18,16, theme = theme_classic()) +
-    labs(y = "mu_trend") +
-    scale_colour_brewer(name = "chain nr", palette = "Set1") +
-    guides(colour = guide_legend(override.aes = list(size= 1.2)))
-
-  g_logsig <- ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
-    geom_line() + theme_piss(18,16, theme = theme_classic()) +
-    scale_colour_brewer(name = "chain nr", palette = "Set1") +
-    guides(colour = guide_legend(override.aes = list(size= 1.2)))
-
-  g_xi <- ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
-    geom_line() + theme_piss(18,16, theme = theme_classic()) +
-    scale_colour_brewer(name = "chain nr", palette = "Set1") +
-    guides(colour = guide_legend(override.aes = list(size= 1.2)))
-
-
-    grid_arrange_legend(g_logsig, g_xi, ncol = 2,
-                        top = grid::textGrob(title,
-                                     gp = grid::gpar(col ="darkolivegreen4",
-                                                     fontsize = 25, font = 4)) )
-    grid_arrange_legend(g_mu, g_mutrend,ncol = 2,
-                        top = grid::textGrob(title,
-                                             gp = grid::gpar(col ="darkolivegreen4",
-                                                             fontsize = 25, font = 4)) )
-}
 
 # ===============================================================
 #' @export MH_mcmc.own
@@ -158,8 +205,8 @@
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
+#' When the parameter \code{start} is of length 2, the computations are automaically
+#' made for a Gumbel model.
 #' @param start numeric vector of length 3 containing the starting values for the parameters theta=
 #'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
 #' @param varmat.prop The proposal's variance : controlling the cceptance rate.
@@ -190,19 +237,31 @@
 #' set.seed(100)
 #' mh.mcmc1 <- MH_mcmc.own(start, varmat %*% c(.1,.3,.4))
 'MH_mcmc.own' <- function(start, varmat.prop,
-                          data = max_years$data, iter = 2000){
+                          data = max_years$data,
+                          iter = 2000, burnin = ceiling(iter/2 + 1)){
 
-  out <- matrix(NA, nrow = iter+1, ncol = 3)
-  dimnames(out) <- list(1:(iter+1), c("mu", "logsig", "xi"))
+  out <- matrix(NA, nrow = iter+1, ncol = length(start))
+  dimnames(out) <- list(1:(iter+1), names(start) )
+
   out[1,] <- start
-  lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
-  if(!is.finite(lpost_old))
-    stop("starting values give non-finite log_post")
+
+  ## Handles the Gumbel case
+  if(length(start) == 2)  lpost_old <- log_post_gumb(out[1,1], out[1,2],  data)
+   else  lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+
+  if(!is.finite(lpost_old))  stop("starting values give non-finite log_post")
+
   acc_rates <- numeric(iter)
+
   for(t in 1:iter) {
-    prop <- rnorm(3) %*% varmat.prop + out[t,]  # add tuning parameter delta ?
-    lpost_prop <- log_post0(prop[1], prop[2], prop[3], data)
+
+    prop <- rnorm(length(start)) %*% varmat.prop + out[t, ]  # add tuning parameter delta ?
+
+    if(length(start) == 2)  lpost_prop <- log_post_gumb(prop[1], prop[2],  data)
+     else  lpost_prop <- log_post0(prop[1], prop[2], prop[3], data)
+
     r <- exp(lpost_prop - lpost_old) # as the prop is symmetric
+
     if(r > runif(1)) {
       out[t+1,] <- prop
       lpost_old <- lpost_prop
@@ -211,7 +270,8 @@
     acc_rates[t] <- min(r, 1)
   }
   return(list(mean.acc_rates = mean(acc_rates),
-              out.chain = data.frame(out, iter = 1:(iter+1))))
+              out.chain = data.frame(out[burnin:(iter+1),],
+                                     iter = burnin:(iter+1))))
 }
 
 
@@ -258,7 +318,8 @@
 #' iter <- 2000
 #' gibb1 <- gibbs_mcmc.own(start, iter = iter)
 #' @export
-"gibbs_mcmc.own" <- function (start , propsd = c(.4, .1, .1),
+"gibbs_mcmc.own" <- function (start,  nbr.chain = length(start),
+                              propsd = c(.4, .1, .1),
                               iter = 2000,  burnin = ceiling(iter/2 + 1),
                               data = max_years$data ) {
  # Store values
@@ -270,10 +331,10 @@
                        xi = numeric(0),
                        chain.nbr = character(0))
 
- nr.chain <- length(start)   ;    time <- proc.time()
+  time <- proc.time()
 
  k <- 1
- while (k <= nr.chain) {
+ while (k <= nbr.chain) {
    out <- data.frame(mu = rep(NA, iter+1),
                      logsig = rep(NA, iter+1),
                      xi = rep(NA, iter+1))
@@ -286,8 +347,7 @@
    out[1,] <- start
    out <- cbind.data.frame(out, iter = 1:(iter+1))
    lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
-   if(!is.finite(lpost_old))
-     stop("starting values give non-finite log_post")
+   if(!is.finite(lpost_old))   stop("starting values give non-finite log_post")
    acc_rates <- matrix(NA, nrow = iter, ncol = 3)
 
    data <- max_years$data
@@ -535,21 +595,8 @@
 
 # ===============================================================
 #' @name gibbs_trend2
-#' @title Return Levels with nonstationarity
+#' @title Gibbs sampler for a quadratic nonstationary model
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
-
-#' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
-#' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
 #' @rdname gibbs2
 #' @export
 'log_post2' <- function(mu0, mu1, mu2, logsig, xi, data,
@@ -579,7 +626,9 @@
                         logsig = numeric(0),
                         xi = numeric(0),
                         chain.nbr = character(0))
+
   nr.chain <- length(start)   ;    time <- proc.time() ;  k = 1
+
   while(k <= nr.chain) {
     out <- data.frame(mu = rep(NA, iter+1),
                       mu1 = rep(NA, iter+1),
@@ -597,14 +646,16 @@
     ic_vals[1,] <- log_post2(out[1,1], out[1, 2], out[1,3], out[1,4],  out[1,5],
                              data)
 
-    if(!is.finite(lpost_old))
-      stop("starting values give non-finite log_post")
+    if(!is.finite(lpost_old))  stop("starting values give non-finite log_post")
+
     acc_rates <- matrix(NA, nrow = iter, ncol = 5)
 
     for(t in 1:iter) {
+
       prop1 <- rnorm(1, mean = out[t,1], propsd[1])
       lpost_prop <- log_post2(prop1, out[t,2], out[t,3], out[t,4],  out[t,5], data)
       r <- exp(lpost_prop - lpost_old)
+
       if(r > runif(1)) {
         out[t+1,1] <- prop1
         lpost_old <- lpost_prop
@@ -668,8 +719,8 @@
     # out.fin <- cbind.data.frame(out.fin)
     # chain.nmbr = rep(k, nrow(out.fin)))
 
-    print(paste("time is ",round((proc.time() - time)[3], 5), " sec"))
-    k = k +1
+    print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+    k = k + 1
   }
 
   out <- cbind.data.frame(out.fin,
@@ -844,8 +895,9 @@
 #' @name predic_accuracy
 #' @aliases dic_3p
 #' @aliases dic_4p
+#' @aliases dic_5p
 #' @aliases waic
-#' @title PRedictive accuracy criterion
+#' @title Predictive accuracy criterion
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @rdname pred_bay_accur
@@ -894,20 +946,19 @@
 
 
 
+
+
 # ===============================================================
 #' @name return_levels_gg
+#' @aliases rl.post_gg
+#' @aliases rl.pred_gg
 #' @title Return Levels with nonstationarity
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 
 #' @description
 #' Compute return levels plot of nonstationary model with the data (in years)
 #'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
+#' @param npy for GEV, npy is 1
 #' @return The return levels for the considered time period (t)
 #' @examples
 #' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
@@ -916,8 +967,7 @@
 # npy is the Number of obs Per Year.
 #' @rdname rlfuns_bay
 #' @export
-"rl.post_gg" <-  function(post, npy, method = c("gev", "gpd"), ci = 0.9, ...) {
-  if (method == "gev")   npy <- 1
+"rl.post_gg" <-  function(post, npy = 1, ci = 0.9, ...) {
 
   rps <- c(1/npy + 0.001, 10^(seq(0,4,len=20))[-1])
   p.upper <- 1 - 1/(npy * rps)
