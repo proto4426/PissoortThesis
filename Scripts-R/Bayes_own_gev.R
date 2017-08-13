@@ -18,6 +18,7 @@ library(grid)
 library(reshape2)
 
 library(PissoortThesis)
+data("max_years")
 
 
 
@@ -174,7 +175,6 @@ PissoortThesis::waic( ic_vals[[1]] )
 ##### Linear model on the location :  mu(t) = mu0 + mu1 * t  ########
 #####################################################################
 
-
 data <- max_years$data
 
 
@@ -186,7 +186,6 @@ opt <- optim(param, fn, data = max_years$data,
 # opt <- nlm(fn, param, data = max_years$data,
 #     hessian=T, iterlim = 1e5)
 opt
-
 
 # Starting Values
 set.seed(104)
@@ -215,12 +214,13 @@ iter.by.chain <- 1000
 gibbs.trend <- PissoortThesis::gibbs.trend.own(start,
                                                propsd = c(.5, 1.9, .15, .12),
                                                iter = iter.by.chain,
-                                               burnin = ceiling(iter.by.chain/2 + 1))
+                                               burnin = ceiling(iter.by.chain/2 + 1),
+                                               keep.same.seed = 123)
 gibbs.trend$mean_acc.rates
 colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
 
 
-param.chain <- gibbs.trend$out.chain[ ,1:4]
+head( param.chain <- gibbs.trend$out.chain[ ,1:4] )
 
 # Effective sample sizes :
 effectiveSize(mcmc(param.chain))
@@ -266,7 +266,7 @@ mcmc_trace_highlight(array.post, highlight = 3)
 }
 
 ## Gelman Coda Diagnostics
-gelman.diag(mc.listDiag4(gibbs.trend$out.ind), autoburnin=F)
+Rhat <- gelman.diag(mc.listDiag4(gibbs.trend$out.ind), autoburnin=F)
 gelman.plot(mc.listDiag4(gibbs.trend$out.ind), autoburnin=F, auto.layout = T)
 # In ggplot : Put all on the same y-scales
 gp.dat <- gelman.plot(mc.listDiag4(gibbs.trend$out.ind), autoburnin=F)
@@ -340,97 +340,27 @@ stargazer::stargazer(raf_tot$resmatrix, summary = F)
 
 
 
-## Recompute the chain by increasing the number of iterations
+## Recompute the chain by decreasing the Burn-in period
 set.seed(102)
-iter.by.chain2 <- 2500
-gibbs.trend_more <- PissoortThesis::gibbs.trend.own(start,
+# keep.same.seed  sets a seed at each iterations that is the integer you specify
+# times the iteration number.
+gibbs.trend <- PissoortThesis::gibbs.trend.own(start,
                                                propsd = c(.5, 1.9, .15, .12),
-                                               iter = iter.by.chain2,
-                                               burnin = ceiling(iter.by.chain2/4 + 1))
-gibbs.trend_more$mean_acc.rates
-colMeans(do.call(rbind, gibbs.trend_more$mean_acc.rates))
-
-
-param.chain_more <- gibbs.trend_more$out.chain[ ,1:4]
-
+                                               iter = iter.by.chain,
+                                               burnin = ceiling(iter.by.chain2/4 + 1),
+                                               keep.same.seed = 123)
+gibbs.trend$mean_acc.rates
+colMeans(do.call(rbind, gibbs.trend$mean_acc.rates))
+head(param.chain <- gibbs.trend$out.chain[ ,1:4])
 # Effective sample sizes :
-effectiveSize(mcmc(param.chain_more))
+effectiveSize(mcmc(param.chain))
 
 
 
+##### Inference  ########
 
-# Summary And Parameter Table
-tab_quantiles <- as.data.frame(summary(mcmc(param.chain))$quantiles)
-# colnames(tab_quantiles) <- c("$\\boldsymbol{q_{0.025}}$","$\\boldsymbol{q_{0.25}}$",
-#                     "Median","$\\boldsymbol{q_{0.75}}$",
-#                     "$\\boldsymbol{q_{0.975}}$")
-# rownames(tab_quantiles) <- c("$\\mu \\ $","$\\mu_1 \\quad$", "$\\log\\sigma \\quad$",
-#                     "$\\xi \\quad$", "$\\sigma$")
-
-pander(tab_quantiles,split.table = Inf)
-
-
-mean.post <- apply(param.chain, 2, mean)
-
-
-
-## Comparisons with Frequentist's results (GEV)
 par_gibbs_trend <- apply(gibbs.trend$out.chain[,c("mu0", "mu1", "logsig", "xi")],
-                         2, mean) # Average over the (3) generated chains
-par_gibbs_trend["sigma"] <- exp(par_gibbs_trend["logsig"] )
-names(par_gibbs_trend["logsig"]) <- "sigma"
-frame <- data.frame(Bayesian = par_gibbs_trend,
-                    'Frequentist(mle)' = gev_nonstatio$mle)
-row.names(frame) = c("$\\mu_0 \\ $","$\\boxed{\\mu_1} \\quad$",
-                     "$\\log\\sigma \\quad$", "$\\xi \\quad$", "$\\sigma$")
-knitr::kable(frame, align = 'l')
-
-
-## Credible intervals (quantile-based) see above quantiles ! Densities are quite
-# symetric, so it is not a bad idea to use this method.
-
-color_scheme_set("blue")
-mcmc_areas(
-  posterior,
-  pars = c("cyl", "drat", "am", "sigma"),
-  prob = 0.8, # 80% intervals
-  prob_outer = 0.99, # 99%
-  point_est = "mean"
-)
-
-mcmc_intervals(param.chain, pars = c("logsig", "xi"))
-
-
-## Densities of the parameters with their quantile-based 0.95 intervals
-color_scheme_set("brightblue")
-g1 <- mcmc_dens(param.chain, pars = c("mu0")) +
-  geom_vline(xintercept = tab_quantiles['mu0', "2.5%"], col = "red") +
-  geom_vline(xintercept = tab_quantiles['mu0', "97.5%"], col = "red")
-g2 <- mcmc_dens(param.chain, pars = c("sigma")) +
-  geom_vline(xintercept = tab_quantiles['sigma', "2.5%"], col = "red") +
-  geom_vline(xintercept = tab_quantiles['sigma', "97.5%"], col = "red")
-g3 <- mcmc_dens(param.chain, pars = c("xi"))+
-  geom_vline(xintercept = tab_quantiles['xi', '2.5%'], col = "red") +
-  geom_vline(xintercept = tab_quantiles['xi', "97.5%"], col = "red")
-g4 <- mcmc_dens(param.chain, pars = c("mu1")) +
-  geom_vline(xintercept = tab_quantiles['mu1', '2.5%'], col = "red") +
-  geom_vline(xintercept = tab_quantiles['mu1', "97.5%"], col = "red")
-grid.arrange( g1, g2, g3, g4, nrow = 2 )
-
-
-## HPD intervals
-library(HDInterval)
-hpd_mu <- hdi(param.chain$mu)
-hpd_sigma <- hdi(param.chain$sigma)
-hpd_xi <- hdi(param.chain$xi)
-hpd_mu1 <- hdi(param.chain$mu1)
-
-### Comparisons of all the ci :
-
-
-
-
-
+                         2, mean) # Average over the (4) generated chains
 
 ## Handling of the slope parameter mu_trend
 t_bayes <- round(( min(max_years$df$Year):max(max_years$df$Year) -
@@ -439,12 +369,207 @@ t_freq <- seq(1, length(max_years$data),1)
 
 mut <- par_gibbs_trend["mu0"] + par_gibbs_trend["mu1"] * t_bayes
 mu_freq <- gev_nonstatio$mle[1] + gev_nonstatio$mle[2] * t_freq
-
+# See the values of mu(t) in Bayesian and in frequentist
 pander(t(matrix(c(mut[1:4], mut[(length(mut)-3):length(mut)],
                   mu_freq[1:4], mu_freq[(length(mu_freq)-3):length(mu_freq)]),
                 ncol = 2, dimnames = list(c(rep("First values", 4),
                                             rep("Last values", 4)),
                                           c("Frequentist",  "Bayesian")))))
+( mu_freq[length(mu_freq)] - mu_freq[1] ) / length(mu_freq)
+( mut[length(mut)] - mut[1] ) / length(mut)
+
+mut_chains <- gibbs.trend$out.chain$mu0 + gibbs.trend$out.chain$mu1 * t_bayes
+( gibbs.trend$out.chain$mu1 - mean(max_years$df$Year) ) / length(max_years$data)
+#for(i in 1:length(mut))  ( mut[i] - mut[1] ) / length(mut)
+
+
+## Summary And Parameter Table
+tab_quantiles <- as.data.frame(summary(mcmc(param.chain))$quantiles)
+
+stargazer::stargazer(tab_quantiles, summary = F)
+
+mean.post <- apply(param.chain, 2, mean)
+
+# Transform back mu_1
+mut <- tab_quantiles$`2.5%`[1] + tab_quantiles$`2.5%`[2] * t_bayes
+cat("q.2.5% is ", q2.5_mu1Trans <- ( mut[length(mut)] - mut[1] )  / length(mut) )
+mut <- tab_quantiles$`25%`[1] + tab_quantiles$`25%`[2] * t_bayes
+cat("q.25% is ", q25_mu1Trans <- ( mut[length(mut)] - mut[1] )  / length(mut) )
+mut <- tab_quantiles$`50%`[1] + tab_quantiles$`50%`[2] * t_bayes
+cat("q.50% is ", q50_mu1Trans <- ( mut[length(mut)] - mut[1] )  / length(mut) )
+mut <- tab_quantiles$`75%`[1] + tab_quantiles$`75%`[2] * t_bayes
+cat("q.75% is ", q75_mu1Trans <- ( mut[length(mut)] - mut[1] )  / length(mut) )
+mut <- tab_quantiles$`97.5%`[1] + tab_quantiles$`97.5%`[2] * t_bayes
+cat("q.97.5% is ", q975_mu1Trans <- ( mut[length(mut)] - mut[1] )  / length(mut) )
+
+
+## Transform all the Markov chain mu_1
+mut.all <- param.chain$mu0 + param.chain$mu1 * t_bayes
+( mut[length(mut)] - mut[1] )  / length(mut)
+param.chain$mu1.trans <-
+
+## Comparisons with Frequentist's results (GEV)
+par_gibbs_trend["sigma"] <- exp(par_gibbs_trend["logsig"] )
+names(par_gibbs_trend["logsig"]) <- "sigma"
+frame <- data.frame(Bayesian = par_gibbs_trend[c("mu0", "mu1", "sigma", "xi")],
+                    'Frequentist(mle)' = gev_nonstatio$mle)
+knitr::kable(frame, align = 'l')
+
+
+## Credible intervals (quantile-based) see above quantiles ! Densities are quite
+# symetric, so it is not a bad idea to use this method.
+
+## HPD intervals
+library(HDInterval)
+hpd_mu0 <- hdi(param.chain$mu0)
+hpd_mu1 <- hdi(param.chain$mu1)
+hpd_logsigma <- hdi(param.chain$logsig)
+hpd_xi <- hdi(param.chain$xi)
+hpd_sigma <- hdi(param.chain$sigma)
+hpd95 <- data.frame(mu0 = c(hpd_mu0), mu1 = c(hpd_mu1),
+                    logsig = c(hpd_logsigma), xi = c(hpd_xi), sig = c(hpd_sigma))
+
+hpd_mu0.75 <- hdi(param.chain$mu0,credMass = 0.5)
+hpd_logsigma.75 <- hdi(param.chain$logsig, credMass = 0.5)
+hpd_sigma.75 <- hdi(param.chain$sigma, credMass = 0.5)
+hpd_xi.75 <- hdi(param.chain$xi, credMass = 0.5)
+hpd_mu1.75 <- hdi(param.chain$mu1, credMass = 0.5)
+hpd75 <- data.frame(mu0 = c(hpd_mu0.75), mu1 = c(hpd_mu1.75),
+                    logsig = c(hpd_logsigma.75),
+                    xi = c(hpd_xi.75), sig = c(hpd_sigma.75))
+### Comparisons of all the ci :
+
+## Densities of the parameters with their quantile-based and  HPD 0.95 intervals
+color_scheme_set("brightblue")
+col.intervals <- c("Quantile" = "red", "HPD" = "green")
+
+'legend.things'  <-
+  list(scale_color_manual(name = "Intervals", values = col.intervals),
+    theme_piss(legend.position = c(0.92, 0.5)),
+    theme(legend.background = element_rect(colour = "transparent",size = 0.5))
+   )
+
+g1 <- mcmc_dens(param.chain, pars = c("mu0")) +
+  geom_vline(aes(xintercept = tab_quantiles['mu0', "2.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = tab_quantiles['mu0', "97.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_mu0[[1]],
+             col = "HPD"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_mu0[[2]],
+             col = "HPD"), linetype = "dashed") +
+  legend.things
+g2 <- mcmc_dens(param.chain, pars = c("logsig")) +
+  geom_vline(aes(xintercept = tab_quantiles['logsig', "2.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = tab_quantiles['logsig', "97.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_logsigma[[1]],
+             col = "HPD"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_logsigma[[2]],
+             col = "HPD"), linetype = "dashed") +
+  legend.things
+g3 <- mcmc_dens(param.chain, pars = c("xi"))+
+  geom_vline(aes(xintercept = tab_quantiles['xi', '2.5%'],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = tab_quantiles['xi', "97.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_xi[[1]],
+             col = "HPD"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_xi[[2]],
+             col = "HPD"), linetype = "dashed")+
+  legend.things
+g4 <- mcmc_dens(param.chain, pars = c("mu1")) +
+  geom_vline(aes(xintercept = tab_quantiles['mu1', '2.5%'],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = tab_quantiles['mu1', "97.5%"],
+             col = "Quantile"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_mu1[[1]],
+             col = "HPD"), linetype = "dashed") +
+  geom_vline(aes(xintercept = hpd_mu1[[2]],
+             col = "HPD"), linetype = "dashed") +
+  legend.things
+
+title <- "Posterior densities of the parameters and Bayesian intervals"
+grid.arrange( g1, g4, g2, g3, nrow = 2,
+              top = grid::textGrob(title,
+                                   gp = grid::gpar(col = "#33666C",
+                                                   fontsize = 25,
+                                                   font = 4), vjust = 0.4))
+
+
+## Compare the frequentists with the Bayesian intervals
+
+gev_freq_mu0_prof75 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                          type = "parameter", which.par = 1, nint = 1000, alpha = 0.25)
+gev_freq_mu1_prof75 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                          type = "parameter", which.par = 2, nint = 1000, alpha = 0.25)
+gev_freq_sig_prof75 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                          type = "parameter", which.par = 3, nint = 1000, alpha = 0.25)
+gev_freq_xi_prof75 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                         type = "parameter", which.par = 4, nint = 1000, alpha = 0.25)
+
+# Function to compute the intervals from porfile likelihood and from bayesian quantiles
+'intervals_compareByParam' <- function(proflik.ci95 = gev_freq_xi_prof95,
+                                      proflik.ci75 = gev_freq_xi_prof75,
+                                      which = 4){
+  int_freq <- data.frame(ll = proflik.ci95[[1]],
+                            l = proflik.ci75[[1]], m = gev_nonstatio$mle[which],
+                            h = proflik.ci75[[3]],
+                            hh = proflik.ci95[[3]] )
+
+  # hanle the transformation of sigma
+  if(which == 3) which <- which + 2   #
+
+  ## The  If condition to handle the rescaling problem of mu_1
+  if(which == 2 )  int_bayes_quant <- data.frame(ll = q2.5_mu1Trans,
+                                           l = q25_mu1Trans,
+                                           m = q50_mu1Trans,
+                                           h = q75_mu1Trans,
+                                           hh = q975_mu1Trans)
+  else  int_bayes_quant <- data.frame(ll = tab_quantiles$`2.5%`[which],
+                             l = tab_quantiles$`25%`[which],
+                             m = tab_quantiles$`50%`[which],
+                             h = tab_quantiles$`75%`[which],
+                             hh = tab_quantiles$`97.5%`[which])
+
+  int_bayes_hpd <- data.frame(ll = hpd95[1,which],
+                                l = hpd75[1, which],
+                                m = tab_quantiles$`50%`[which],
+                                h = hpd75[2, which],
+                                hh = hpd95[2, which])
+
+  df <- cbind.data.frame("Frequentist" =  t(int_freq),
+                         "Bayesian.Q" = t(int_bayes_quant),
+                         "Bayesian.HPD" = t(int_bayes_hpd))
+
+  mcmc_intervals(df, show_density = T) #, rhat = c(1, Rhat[[1]][,2][which]) )
+  # Rhat colour by the Rhat (Gelman-Rubin diag) computed above
+}
+
+# mu_0
+int1 <- intervals_compareByParam(gev_freq_mu0_prof95,
+                         gev_freq_mu0_prof75, which = 1) +
+  labs(x = "mu0") + theme_piss()
+# mu_1
+int2 <-intervals_compareByParam(gev_freq_mu1_prof95,
+                         gev_freq_mu1_prof75, which = 2) +
+  labs(x = "mu1") + theme_piss()
+# sigma
+int3 <-intervals_compareByParam(gev_freq_sig_prof95,
+                         gev_freq_sig_prof75, which = 3) +
+  labs(x = "sigma") + theme_piss()
+# Xi
+int4 <- intervals_compareByParam() +
+  labs(x = "xi") + theme_piss(theme_classic())
+
+## All-in-one Sheet
+title <- "Confidence intervals comparisons"
+grid.arrange(int1, int2, int3, int4, ncol = 2,
+             top = grid::textGrob(title,
+                                  gp = grid::gpar(col = "#33666C",
+                                                  fontsize = 25,
+                                                  font = 4), vjust = 0.4))
 
 
 ## Posterior Predictive Distribution

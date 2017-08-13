@@ -289,6 +289,22 @@ gg_qq.trans <- ggplot(data = data.frame(Model = sort(gev_nonstatio$data),
 gridExtra::grid.arrange(gg_pp.trans, gg_qq.trans, nrow = 1)
 
 
+## Profile likelihood intervals  (To use later in Bayes_own_gev.R for comparisons)
+gev_nonstatio_prof <- fevd(max_years$data, location.fun = ~ c(ti) )
+
+gev_freq_mu0_prof95 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                        type = "parameter", which.par = 1, nint = 1000, alpha = 0.05)
+gev_freq_mu1_prof95 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                        type = "parameter", which.par = 2, nint = 1000, alpha = 0.05)
+gev_freq_sig_95 <- ci(gev_nonstatio_prof, verbose=T,
+                        type = "parameter", which.par = 3, nint = 5000, alpha = 0.05)
+gev_freq_xi_prof95 <- ci(gev_nonstatio_prof, method="proflik",verbose=T,
+                        type = "parameter", which.par = 4, nint = 1000, alpha = 0.05)
+## Normal intervals
+gev_freq_norm95 <- ci(gev_nonstatio_prof, method = "normal", type = "parameter")
+gev_freq_norm75 <- ci(gev_nonstatio_prof, method = "normal", type = "parameter", 0.25)
+
+
 
 
 #####   Return levels for model with linear trend. m = 10

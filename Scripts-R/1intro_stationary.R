@@ -388,6 +388,10 @@ gev.profxi(gev_tx,xlow=0,xup=2)
 par(mfrow=(c(1,3)))
 plot(profile(gev_tx1), ci=c(0.95,0.99))
 
+ci(gev_tx2,method="proflik",xrange=c(28, 32),verbose=T, type = "parameter",
+   which.par = 1, nint = 1000)
+
+
 ###############
 library(stargazer)
 tab <- rbind.data.frame(gev_tx2$results$par, unname(gev_tx1$std.err) )

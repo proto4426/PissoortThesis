@@ -127,7 +127,6 @@
     g_xi <- g_xi + theme(legend.position="none")
     }
 
-#
 #   g1 <- grid_arrange_legend(g_logsig, g_xi, ncol = 2,
 #                       top = grid::textGrob(title,
 #                                            gp = grid::gpar(col = "darkolivegreen4",
@@ -568,6 +567,8 @@
 #' @param data  numeric vector containing the GEV in block-maxima
 #' @param iter The number of iterations of the algorithm. Must e high enough to ensure convergence
 #' @param burnin Determines value for burn-in
+#' @param keep.same.seed  sets a seed at each iterations that is the integer you specify
+#' times the iteration number.
 #' @return A named list containing
 #' \describe{
 #' \item{\code{n.chains} : The number of chains generated melted in a data.frame}
@@ -614,10 +615,15 @@
 #' @export
 'log_post1' <- function(mu0, mu1, logsig, xi, data,
                         model.mu = mu0 + mu1 * tt,
-                        mnpr = c(30,0,0,0), sdpr = c(40,40,10,10)) {
+                        mnpr = c(30,0,0,0), sdpr = c(40,40,10,10),
+                        rescale.time = T ) {
   theta <- c(mu0, mu1, logsig, xi)
-  tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
-             mean(max_years$df$Year) ) / length(max_years$data)
+
+  if(rescale.time)  tt <-
+           ( min(max_years$df$Year):max(max_years$df$Year) -
+                    mean(max_years$df$Year) ) / length(max_years$data)
+  else tt <- seq(1, length(max_years$data),1)
+
   mu <-  model.mu
   llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi,
                          log = TRUE))
@@ -627,7 +633,9 @@
 #' @export
 'gibbs.trend.own' <- function (start, propsd = c(.5, 2.5, .08, .08),
                                iter = 1000, burnin = ceiling(iter/2 + 1),
-                               data = max_years$data) {
+                               data = max_years$data,
+                               keep.same.seed = NULL,
+                               rescale.time = T ) {
   # To store values inside
   acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
@@ -649,21 +657,28 @@
 
    out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
 
-   lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4], data)
+   lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4],
+                          rescale.time = rescale.time, data)
 
    # For DIC computation
    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
    ic_vals[1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                            data)
+                            rescale.time = rescale.time, data)
 
    if(!is.finite(lpost_old))
      stop("starting values give non-finite log_post")
     acc_rates <- matrix(NA, nrow = iter, ncol = 4)
 
    for(t in 1:iter) {
+
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 1)
      prop1 <- rnorm(1, mean = out[t,1], propsd[1])
-     lpost_prop <- log_post1(prop1, out[t,2], out[t,3], out[t,4], data)
+
+     lpost_prop <- log_post1(prop1, out[t,2], out[t,3], out[t,4],
+                             rescale.time = rescale.time, data)
      r <- exp(lpost_prop - lpost_old)
+
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
      if(r > runif(1)) {
        out[t+1,1] <- prop1
        lpost_old <- lpost_prop
@@ -671,9 +686,14 @@
      else out[t+1,1] <- out[t,1]
      acc_rates[t,1] <- min(r, 1)
 
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 2)
      prop2 <- rnorm(1, mean = out[t,2], propsd[2])
-     lpost_prop <- log_post1(out[t+1,1], prop2, out[t,3], out[t,4], data)
+
+     lpost_prop <- log_post1(out[t+1,1], prop2, out[t,3], out[t,4],
+                             rescale.time = rescale.time, data)
      r <- exp(lpost_prop - lpost_old)
+
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
      if(r > runif(1)) {
        out[t+1,2] <- prop2
        lpost_old <- lpost_prop
@@ -681,9 +701,14 @@
      else out[t+1,2] <- out[t,2]
      acc_rates[t,2] <- min(r, 1)
 
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 3)
      prop3 <- rnorm(1, mean = out[t,3], propsd[3])
-     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], prop3, out[t,4], data)
+
+     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], prop3, out[t,4],
+                             rescale.time = rescale.time, data)
      r <- exp(lpost_prop - lpost_old)
+
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
      if(r > runif(1)) {
        out[t+1,3] <- prop3
        lpost_old <- lpost_prop
@@ -691,9 +716,14 @@
      else out[t+1,3] <- out[t,3]
      acc_rates[t,3] <- min(r, 1)
 
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
      prop4 <- rnorm(1, mean = out[t,4], propsd[4])
-     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], out[t+1,3], prop4, data)
+
+     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], out[t+1,3], prop4,
+                             rescale.time = rescale.time, data)
      r <- exp(lpost_prop - lpost_old)
+
+     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
      if(r > runif(1)) {
        out[t+1,4] <- prop4
        lpost_old <- lpost_prop
@@ -703,7 +733,7 @@
 
      # For DIC
      ic_vals[t+1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                                data)
+                                rescale.time = rescale.time, data)
    }
    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
    ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
