@@ -68,6 +68,6 @@ can be directly accessed by clicking on this [link](https://proto4426.shinyapps.
 
 # Where can you find the DATA ? 
 
-The project's data used for this thesis are confidential and have been distributed by the Institut Royal de Météorologie from Uccle. Hence, I cannot put it as public and you must ask me if you would like to handle the data. 
+The project's data used for this thesis are confidential and have been provided by the Institut Royal de Météorologie from Uccle. Hence, I cannot put it as public and you must ask me if you want to obtain the data. 
 
 The `data` folder only contains the yearly data to allow use into the Shiny application. 
