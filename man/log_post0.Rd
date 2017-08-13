@@ -2,11 +2,14 @@
 % Please edit documentation in R/BayesFunc.R
 \name{gev.nloglik}
 \alias{gev.nloglik}
+\alias{log_post_gumb}
 \alias{log_post0}
 \title{Negative GEV log-likelihood and Log-Posterior with
 uninformative normal priors.}
 \usage{
 gev.nloglik(mu, sig, xi, data)
+
+log_post_gumb(mu, logsig, data)
 
 log_post0(mu, logsig, xi, data)
 }

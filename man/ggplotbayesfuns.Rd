@@ -5,13 +5,21 @@
 \alias{mixchains.Own}
 \title{Plots to assess the mixing of the Chains}
 \usage{
-chains.plotOwn(data, ..., title = "TracePlots of the generated Chains ")
+chains.plotOwn(data, vline.red = min(data$iter),
+  post.mean.green = apply(data, 2, mean), ...,
+  title = "TracePlots of the generated Chains ")
 
 mixchains.Own(data, moreplot = F,
   title = "TracePlots of the generated Chains ")
 }
 \arguments{
 \item{data}{numeric vector containing the GEV block-maxima}
+
+\item{vline.red}{draws a dashed red line in red representing the starting of the iterations
+, thus removing the burn-in period.}
+
+\item{post.mean.green}{draws a green dashed line representing the posterior mean
+of the parameter's chain}
 
 \item{...}{Other parameters from \code{gridExtra::grid.arrange()}}
 

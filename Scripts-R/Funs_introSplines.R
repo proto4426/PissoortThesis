@@ -20,7 +20,7 @@
   acf(resi, main = "ACF of Residuals")
 }
 
-  # Or see this above (delete this one ?)
+  # Or see this above
 # 'Deriv' <- function(mod, n = 200, eps = 1e-7, newdata) {
 #   m.terms <- attr(terms(mod), "term.labels")
 #   if(missing(newdata)) {
@@ -62,17 +62,17 @@
     RNGstate <- structure(seed, kind = as.list(RNGkind()))
     on.exit(assign(".Random.seed", R.seed, envir = .GlobalEnv))
   }
-  
+
   if (missing(newdata)) {
     newdata <- object$gam$model
   }
-  
+
   rmvn <- function(n, mu, sig) { ## MVN random deviates
     L <- mroot(sig)
     m <- ncol(L)
     t(mu + L %*% matrix(rnorm(m * n), m, n))
   }
-  
+
   Rbeta <- rmvn(n = nsim,
                 mu = coef(object$gam),
                 sig = vcov(object$gam, freq = freq,
@@ -171,7 +171,7 @@
   ## list to hold the derivatives
   lD <- vector(mode = "list", length = nt)
   names(lD) <- t.labs
-  
+
   # Loop :Have to work separately with columns of the lpmatrix that relate to each spline
   for(i in seq_len(nt)) {
     Xi <- Xp * 0   # Just to create the matrix of same shape
@@ -223,8 +223,8 @@
   incr[!want | miss] <- NA
   want <- d < eval
   decr[!want | miss] <- NA
-  # Returns list with two components incr and decr which contain the 
-  #locations where the estimated derivative is positive or negative, 
+  # Returns list with two components incr and decr which contain the
+  #locations where the estimated derivative is positive or negative,
   #respectively, and zero is not contained in the confidence interval.
   list(incr = incr, decr = decr)
 }

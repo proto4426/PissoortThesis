@@ -4,7 +4,8 @@
 \alias{MH_mcmc.own}
 \title{Metropolis-Hastings algorithm for GEV}
 \usage{
-MH_mcmc.own(start, varmat.prop, data = max_years$data, iter = 2000)
+MH_mcmc.own(start, varmat.prop, data = max_years$data, iter = 2000,
+  burnin = ceiling(iter/2 + 1))
 }
 \arguments{
 \item{start}{numeric vector of length 3 containing the starting values for the parameters theta=
@@ -27,7 +28,8 @@ A named list containing
 }
 }
 \description{
-Compute return levels plot of nonstationary model with the data (in years)
+When the parameter \code{start} is of length 2, the computations are automaically
+made for a Gumbel model.
 }
 \examples{
 data("max_years")

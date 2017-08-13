@@ -6,19 +6,12 @@
 \alias{rl.pred_gg}
 \title{Return Levels with nonstationarity}
 \usage{
-rl.post_gg(post, npy, method = c("gev", "gpd"), ci = 0.9, ...)
+rl.post_gg(post, npy = 1, ci = 0.9, ...)
 
 rl.pred_gg(post, qlim, npy, method = c("gev", "gpd"), period = 1, ...)
 }
 \arguments{
-\item{data}{numeric vector containing the GEV block-maxima}
-
-\item{gev_nstatio}{Nonstationary GEV fitted model of class \code{gev.fit}
-(from package \code{ismev})}
-
-\item{t}{Maximum time period for which the return levels are considered}
-
-\item{m}{Return period}
+\item{npy}{for GEV, npy is 1}
 }
 \value{
 The return levels for the considered time period (t)

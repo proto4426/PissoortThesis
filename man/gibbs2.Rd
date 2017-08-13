@@ -4,32 +4,13 @@
 \alias{gibbs_trend2}
 \alias{log_post2}
 \alias{gibbs.trend2.own}
-\title{Return Levels with nonstationarity}
+\title{Gibbs sampler for a quadratic nonstationary model}
 \usage{
 log_post2(mu0, mu1, mu2, logsig, xi, data, model.mu = mu0 + mu1 * tt + mu2 *
   tt^2, mnpr = c(30, 0, 0, 0, 0), sdpr = c(40, 40, 10, 10, 10))
 
 gibbs.trend2.own(start, propsd = c(0.5, 2.5, 2, 0.08, 0.08), iter = 1000,
   data = max_years$data)
-}
-\arguments{
-\item{data}{numeric vector containing the GEV block-maxima}
-
-\item{gev_nstatio}{Nonstationary GEV fitted model of class \code{gev.fit}
-(from package \code{ismev})}
-
-\item{t}{Maximum time period for which the return levels are considered}
-
-\item{m}{Return period}
-}
-\value{
-The return levels for the considered time period (t)
-}
-\description{
-Compute return levels plot of nonstationary model with the data (in years)
-}
-\examples{
-rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
 }
 \author{
 Antoine Pissoort, \email{antoine.pissoort@student.uclouvain.be}

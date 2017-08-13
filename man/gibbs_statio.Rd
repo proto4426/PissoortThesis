@@ -2,10 +2,16 @@
 % Please edit documentation in R/BayesFunc.R
 \name{gibbs_mcmc.own}
 \alias{gibbs_mcmc.own}
+\alias{gibbs_mcmc.own_WithoutGumbel}
 \title{Gibbs Sampler for GEV (MCMC)}
 \usage{
-gibbs_mcmc.own(start, propsd = c(0.4, 0.1, 0.1), iter = 2000,
-  burnin = ceiling(iter/2 + 1), data = max_years$data)
+gibbs_mcmc.own(start, nbr.chain = length(start), propsd = c(0.4, 0.1, 0.1),
+  Gumbel = F, iter = 2000, burnin = ceiling(iter/2 + 1),
+  data = max_years$data)
+
+gibbs_mcmc.own_WithoutGumbel(start, nbr.chain = length(start),
+  propsd = c(0.4, 0.1, 0.1), iter = 2000, burnin = ceiling(iter/2 + 1),
+  data = max_years$data)
 }
 \arguments{
 \item{start}{numeric vector of length 3 containing the starting values for the parameters theta=
@@ -36,7 +42,7 @@ predictive accuracy, see ?dic)}
 }
 }
 \description{
-Compute return levels plot of nonstationary model with the data (in years)
+#'
 }
 \examples{
 data("max_years")

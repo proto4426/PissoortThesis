@@ -6,6 +6,7 @@
 \alias{sdmle.ksiFun}
 \alias{ciBootFunc}
 \alias{ci2Boot.tFunc}
+\alias{cov.ci1.vec}
 \title{MLE's GPD estimator for \eqn{\xi}
 and boostrap evaluations}
 \usage{
@@ -16,6 +17,8 @@ sdmle.ksiFun(x)
 ciBootFunc(x, B, level = 0.05, print = T)
 
 ci2Boot.tFunc(x, B1, B2, level = 0.05, print = T)
+
+cov.ci1.vec(n.vec = n.vec1, M, level = 0.05)
 }
 \arguments{
 \item{x}{A numeric vector of data to be fitted.}

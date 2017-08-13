@@ -55,7 +55,7 @@
 #' Values of other parameters such as colours could be changed inside the function.
 #' @examples
 'grid_arrange_legend' <- function(..., ncol = length(list(...)), nrow = 1,
-                                  position = c("bottom", "right")) {
+                                  position = c("bottom", "right"), top = "") {
   plots <- list(...)
   position <- match.arg(position)
   g <- ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
@@ -69,10 +69,13 @@
                      "bottom" = arrangeGrob(do.call(arrangeGrob, gl),
                                             legend,
                                             ncol = 1,
-                                            heights = unit.c(unit(1, "npc") - lheight, lheight)),
+                                            top = top,
+                                            heights = unit.c(unit(0.95, "npc") - lheight, lheight)
+                                            ),
                      "right" = arrangeGrob(do.call(arrangeGrob, gl),
                                            legend,
                                            ncol = 2,
+                                           top = top,
                                            widths = unit.c(unit(1, "npc") - lwidth, lwidth)))
   grid.newpage()
   grid.draw(combined)

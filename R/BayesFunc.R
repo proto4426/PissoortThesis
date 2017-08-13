@@ -56,7 +56,6 @@
                         legend.key = element_rect(fill = "white", size = 0.5),
                         legend.margin = margin(1, 1, 1, 1)),
                   guides(color = guide_legend(override.aes=list(fill=NA))),
-                  labs(y = paste(expression(log), expression(sigma))),
                   labs(x = "iterations")
   )
 
@@ -66,18 +65,21 @@
       geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
       geom_hline(aes(yintercept = post.mean.green[1], col = "Posterior mean"),
                  linetype = "dashed", size = .7) +
+      labs(y = "mu") +
       legend,
     ggplot(data) +
       geom_line(aes(x = iter, y = logsig)) +
       geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
       geom_hline(aes(yintercept = post.mean.green[2], col = "Posterior mean"),
                  linetype = "dashed", size = .7) +
-      legend ,
+      labs(y = paste(expression(log), expression(sigma))) +
+      legend,
     ggplot(data) +
       geom_line(aes(x = iter, y = xi)) +
       geom_vline(xintercept = vline.red, col = "red", linetype = "dashed", size = 0.6) +
       geom_hline(aes(yintercept = post.mean.green[3], col = "Posterior mean"),
                  linetype = "dashed", size = .7) +
+      labs(y = "xi") +
       legend, ... ,
     ncol = 1,
     top = textGrob(title,
@@ -88,40 +90,54 @@
 
 #' @rdname ggplotbayesfuns
 #' @export
-'mixchains.Own' <- function(data, moreplot = F,
+'mixchains.Own' <- function(data, moreplot = F, burnin.redline = 0,
+                            legend2 = F,
                             title = "TracePlots of the generated Chains " ){
-  g_mu <- ggplot(data, aes(x = iter.chain, y = mu, col = as.factor(chain.nbr))) +
+
+  g_mu <- ggplot(data, aes(x = iter.chain, y = mu0, col = as.factor(chain.nbr))) +
     geom_line() + theme_piss(18,16, theme = theme_classic()) +
     scale_colour_brewer(name = "chain nr", palette = "Set1") +
-    labs(x = "iterations by chain") +
+    labs(x = "iterations by chain", y = "mu_0") +
+    geom_vline(xintercept = burnin.redline, col = "red", linetype = "dashed", size = 0.6) +
     guides(colour = guide_legend(override.aes = list(size= 1.2)))
+
   g_mutrend <- ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
     geom_line() + theme_piss(18,16, theme = theme_classic()) +
-    labs(y = "mu_trend", x = "iterations by chain") +
+    labs(y = "mu_1", x = "iterations by chain") +
     scale_colour_brewer(name = "chain nr", palette = "Set1") +
+    geom_vline(xintercept = burnin.redline, col = "red", linetype = "dashed", size = 0.6) +
     guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
   g_logsig <- ggplot(data, aes(x = iter.chain, y = logsig, col = as.factor(chain.nbr))) +
     geom_line() + theme_piss(18,16, theme = theme_classic()) +
     scale_colour_brewer(name = "chain nr", palette = "Set1") +
     labs(x = "iterations by chain") +
+    geom_vline(xintercept = burnin.redline, col = "red", linetype = "dashed", size = 0.6) +
     guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
   g_xi <- ggplot(data, aes(x = iter.chain, y = xi, col = as.factor(chain.nbr))) +
     geom_line() + theme_piss(18,16, theme = theme_classic()) +
     scale_colour_brewer(name = "chain nr", palette = "Set1") +
     labs(x = "iterations by chain") +
+    geom_vline(xintercept = burnin.redline, col = "red", linetype = "dashed", size = 0.6) +
     guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
+  if(legend2 == F) {
+    g_logsig <- g_logsig + theme(legend.position="none")
+    g_xi <- g_xi + theme(legend.position="none")
+    }
 
-  grid_arrange_legend(g_logsig, g_xi, ncol = 2,
-                      top = grid::textGrob(title,
-                                           gp = grid::gpar(col = "darkolivegreen4",
-                                                           fontsize = 25, font = 4)) )
-  grid_arrange_legend(g_mu, g_mutrend,ncol = 2,
-                      top = grid::textGrob(title,
-                                           gp = grid::gpar(col = "darkolivegreen4",
-                                                           fontsize = 25, font = 4)) )
+#
+#   g1 <- grid_arrange_legend(g_logsig, g_xi, ncol = 2,
+#                       top = grid::textGrob(title,
+#                                            gp = grid::gpar(col = "darkolivegreen4",
+#                                                            fontsize = 25, font = 4)) )
+#   g2 <- grid_arrange_legend(g_mu, g_mutrend, ncol = 2,
+#                       top = grid::textGrob(title,
+#                                            gp = grid::gpar(col = "darkolivegreen4",
+#                                                            fontsize = 25, font = 4)) )
+ return(list(gmu = g_mu, gmutrend = g_mutrend,
+             glogsig = g_logsig, gxi = g_xi))
 }
 
 
@@ -160,7 +176,7 @@
 #' @rdname log_post0
 #' @export
 'gev.nloglik' = function(mu, sig, xi, data){
-  y = 1 + (xi * (data - mu))/sig
+  y = 1 + (xi * (data - mu)) / sig
   if((sig < 0) || (min(y) < 0) || (is.na(y))) {
     ans = 1e+06
   } else {
@@ -175,7 +191,9 @@
 #' @rdname log_post0
 #' @export
 "log_post_gumb" <- function(mu, logsig, data) {
-  llhd <- sum(dgumbel(data, loc = mu, scale = exp(logsig), log = TRUE))
+  #llhd <- sum(dgumbel(data, loc = mu, scale = exp(logsig), log = TRUE))
+  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
+                        xi = 0, data = data))
   lprior <- dnorm(mu, sd = 50, log = TRUE)
   lprior <- lprior + dnorm(logsig, sd = 10, log = TRUE)
   lprior + llhd
@@ -191,7 +209,7 @@
                         xi = xi, data = data))
   lprior <- dnorm(mu, sd = 50, log = TRUE)
   lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
-  lprior <- lprior + dnorm(xi, sd = 5, log = TRUE)
+  lprior <- lprior + dnorm(xi, sd = 10, log = TRUE)
   lprior + llhd
 }
 
@@ -278,9 +296,7 @@
 # ===============================================================
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @title Gibbs Sampler for GEV (MCMC)
-#' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
+#' @description#'
 #' @param start numeric vector of length 3 containing the starting values for the parameters theta=
 #'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
 #' @param proposd The proposal's standard deviations : controlling the cceptance rate.
@@ -317,102 +333,221 @@
 #'  set.seed(100)
 #' iter <- 2000
 #' gibb1 <- gibbs_mcmc.own(start, iter = iter)
+#' @rdname gibbs_statio
 #' @export
 "gibbs_mcmc.own" <- function (start,  nbr.chain = length(start),
+                              propsd = c(.4, .1, .1), Gumbel = F,
+                              iter = 2000,  burnin = ceiling(iter/2 + 1),
+                              data = max_years$data ) {
+  # Store values
+  acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
+
+  if(Gumbel)   out.fin <- data.frame(mu = numeric(0),
+                                     logsig = numeric(0),
+                                     chain.nbr = character(0))
+  else  out.fin <- data.frame(mu = numeric(0),
+                              logsig = numeric(0),
+                              xi = numeric(0),
+                              chain.nbr = character(0))
+  #browser()
+  time <- proc.time()
+
+  k <- 1
+  while (k <= nbr.chain) {
+
+    if(Gumbel)  out <- data.frame(mu = rep(NA, iter+1),
+                                  logsig = rep(NA, iter+1) )
+
+    else  out <- data.frame(mu = rep(NA, iter+1),
+                            logsig = rep(NA, iter+1),
+                            xi = rep(NA, iter+1))
+
+    # For DIC computation
+    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+
+    if(Gumbel) ic_vals[1,] <- log_post_gumb(out[1,1], out[1, 2],
+                                            data)
+    else  ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                                   data)
+
+    out[1, ] <- start
+    out <- cbind.data.frame(out, iter = 1:(iter+1))
+
+    if(Gumbel) lpost_old <- log_post_gumb(out[1,1], out[1,2], data)
+    else  lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+
+    if(!is.finite(lpost_old))
+      stop("starting values give non-finite log_post")
+    acc_rates <- matrix(NA, nrow = iter, ncol = length(propsd))
+
+    data <- max_years$data
+    for (t in 1:iter) {
+      prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
+      # so that it removes in the ratio.
+
+      if(Gumbel)  lpost_prop <- log_post_gumb(prop1, out[t,2],  data)
+      else  lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
+
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,1] <- prop1
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,1] <- out[t,1]
+      acc_rates[t,1] <- min(r, 1)
+
+      prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+
+      if(Gumbel) lpost_prop <- log_post_gumb(out[t+1,1], prop2, data)
+      else  lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
+
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,2] <- prop2
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,2] <- out[t,2]
+      acc_rates[t,2] <- min(r, 1)
+
+      if(Gumbel == F) {
+        prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+        lpost_prop <- log_post0(out[t+1,1], out[t+1,2], prop3, data)
+        r <- exp(lpost_prop - lpost_old)
+        if(r > runif(1)) {
+          out[t+1,3] <- prop3
+          lpost_old <- lpost_prop
+        }
+        else out[t+1,3] <- out[t,3]
+        acc_rates[t,3] <- min(r, 1)
+      }
+
+      # For DIC
+      if(Gumbel) ic_vals[t+1, ] <- log_post_gumb(out[1,1], out[1, 2],
+                                                 data)
+      else  ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                                        data)
+    }
+    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+    ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
+    out.ind[[k]] <- out
+
+    # Combine Chains And Remove Burn-In Period
+    out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
+    # out.fin <- cbind.data.frame(out.fin)
+    # chain.nmbr = rep(k, nrow(out.fin)))
+
+    print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+
+    k <- k + 1
+  }
+
+  out <- cbind.data.frame(out.fin,
+                          iter = (1:nrow(out.fin)))
+
+  return(list(n.chains = nbr.chain,
+              mean_acc.rates = acc_rate.list,
+              out.chain = out,
+              dic.vals = ic_val.list,
+              out.ind = out.ind))
+}
+
+#' @rdname gibbs_statio
+#' @export
+"gibbs_mcmc.own_WithoutGumbel" <-
+                    function (start,  nbr.chain = length(start),
                               propsd = c(.4, .1, .1),
                               iter = 2000,  burnin = ceiling(iter/2 + 1),
                               data = max_years$data ) {
- # Store values
- acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
+  # Store values
+  acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
 
- out.fin <- data.frame(mu = numeric(0),
-                       logsig = numeric(0),
-                       xi = numeric(0),
-                       chain.nbr = character(0))
+  out.fin <- data.frame(mu = numeric(0),
+                        logsig = numeric(0),
+                        xi = numeric(0),
+                        chain.nbr = character(0))
 
   time <- proc.time()
 
- k <- 1
- while (k <= nbr.chain) {
-   out <- data.frame(mu = rep(NA, iter+1),
-                     logsig = rep(NA, iter+1),
-                     xi = rep(NA, iter+1))
+  k <- 1
+  while (k <= nbr.chain) {
+    out <- data.frame(mu = rep(NA, iter+1),
+                      logsig = rep(NA, iter+1),
+                      xi = rep(NA, iter+1))
 
-   # For DIC computation
-   ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
-   ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                            data)
+    # For DIC computation
+    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+    ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                             data)
 
-   out[1,] <- start
-   out <- cbind.data.frame(out, iter = 1:(iter+1))
-   lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
-   if(!is.finite(lpost_old))   stop("starting values give non-finite log_post")
-   acc_rates <- matrix(NA, nrow = iter, ncol = 3)
+    out[1,] <- start
+    out <- cbind.data.frame(out, iter = 1:(iter+1))
+    lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
+    if(!is.finite(lpost_old))
+      stop("starting values give non-finite log_post")
+    acc_rates <- matrix(NA, nrow = iter, ncol = 3)
 
-   data <- max_years$data
-   for (t in 1:iter) {
-     prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
-     # so that it removes in the ratio.
+    data <- max_years$data
+    for (t in 1:iter) {
+      prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
+      # so that it removes in the ratio.
 
-     lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
-     r <- exp(lpost_prop - lpost_old)
-     if(r > runif(1)) {
-       out[t+1,1] <- prop1
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,1] <- out[t,1]
-     acc_rates[t,1] <- min(r, 1)
+      lpost_prop <- log_post0(prop1, out[t,2], out[t,3], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,1] <- prop1
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,1] <- out[t,1]
+      acc_rates[t,1] <- min(r, 1)
 
-     prop2 <- rnorm(1, mean = out[t,2], propsd[2])
-     lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
-     r <- exp(lpost_prop - lpost_old)
-     if(r > runif(1)) {
-       out[t+1,2] <- prop2
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,2] <- out[t,2]
-     acc_rates[t,2] <- min(r, 1)
+      prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+      lpost_prop <- log_post0(out[t+1,1], prop2, out[t,3], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,2] <- prop2
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,2] <- out[t,2]
+      acc_rates[t,2] <- min(r, 1)
 
-     prop3 <- rnorm(1, mean = out[t,3], propsd[3])
-     lpost_prop <- log_post0(out[t+1,1],out[t+1,2], prop3, data)
-     r <- exp(lpost_prop - lpost_old)
-     if(r > runif(1)) {
-       out[t+1,3] <- prop3
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,3] <- out[t,3]
-     acc_rates[t,3] <- min(r, 1)
+      prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+      lpost_prop <- log_post0(out[t+1,1],out[t+1,2], prop3, data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,3] <- prop3
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,3] <- out[t,3]
+      acc_rates[t,3] <- min(r, 1)
 
-     # For DIC
-     ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                                data)
-   }
-   acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
-   ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
-   out.ind[[k]] <- out
+      # For DIC
+      ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                                  data)
+    }
+    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+    ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
+    out.ind[[k]] <- out
 
-   # Combine Chains And Remove Burn-In Period
-   out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
-   # out.fin <- cbind.data.frame(out.fin)
-   # chain.nmbr = rep(k, nrow(out.fin)))
+    # Combine Chains And Remove Burn-In Period
+    out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
+    # out.fin <- cbind.data.frame(out.fin)
+    # chain.nmbr = rep(k, nrow(out.fin)))
 
-   print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+    print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
 
-   k <- k + 1
- }
+    k <- k + 1
+  }
 
- out <- cbind.data.frame(out.fin,
-                         iter = (1:nrow(out.fin)))
+  out <- cbind.data.frame(out.fin,
+                          iter = (1:nrow(out.fin)))
 
- return(list(n.chains = length(start),
-             mean_acc.rates = acc_rate.list,
-             out.chain = out,
-             dic.vals = ic_val.list,
-             out.ind = out.ind))
+  return(list(n.chains = length(start),
+              mean_acc.rates = acc_rate.list,
+              out.chain = out,
+              dic.vals = ic_val.list,
+              out.ind = out.ind))
 }
-
-
 
 
 # ===============================================================
@@ -491,13 +626,13 @@
 }
 #' @export
 'gibbs.trend.own' <- function (start, propsd = c(.5, 2.5, .08, .08),
-                               iter = 1000, data = max_years$data) {
+                               iter = 1000, burnin = ceiling(iter/2 + 1),
+                               data = max_years$data) {
   # To store values inside
   acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
-  hf <- ceiling(iter/2 + 1) # Determines values for burn.in (see end)
 
-  out.fin <- data.frame(mu = numeric(0),
+  out.fin <- data.frame(mu0 = numeric(0),
                         mu1 = numeric(0),
                         logsig = numeric(0),
                         xi = numeric(0),
@@ -505,12 +640,13 @@
   nr.chain <- length(start)   ;    time <- proc.time()
 
  for(k in 1:nr.chain) {
-   out <- data.frame(mu = rep(NA, iter+1),
+   out <- data.frame(mu0 = rep(NA, iter+1),
                      mu1 = rep(NA, iter+1),
                      logsig = rep(NA, iter+1),
                      xi = rep(NA, iter+1))
 
    out[1,] <- start[[k]]
+
    out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
 
    lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4], data)
@@ -570,11 +706,13 @@
                                 data)
    }
    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
-   ic_val.list[[k]] <- ic_vals[-(1:hf), ]
+   ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
    out.ind[[k]] <- out
 
+   #browser()
+
    # Combine Chains And Remove Burn-In Period
-   out.fin <- rbind.data.frame(out.fin, out[-(1:hf), ])
+   out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
   # out.fin <- cbind.data.frame(out.fin)
                               # chain.nmbr = rep(k, nrow(out.fin)))
 
@@ -620,7 +758,7 @@
 
   hf <- ceiling(iter/2 + 1) # Determines values for burn.in (see end)
 
-  out.fin <- data.frame(mu = numeric(0),
+  out.fin <- data.frame(mu0 = numeric(0),
                         mu1 = numeric(0),
                         mu2 = numeric(0),
                         logsig = numeric(0),
@@ -630,7 +768,7 @@
   nr.chain <- length(start)   ;    time <- proc.time() ;  k = 1
 
   while(k <= nr.chain) {
-    out <- data.frame(mu = rep(NA, iter+1),
+    out <- data.frame(mu0 = rep(NA, iter+1),
                       mu1 = rep(NA, iter+1),
                       mu2 = rep(NA, iter+1),
                       logsig = rep(NA, iter+1),
@@ -653,7 +791,8 @@
     for(t in 1:iter) {
 
       prop1 <- rnorm(1, mean = out[t,1], propsd[1])
-      lpost_prop <- log_post2(prop1, out[t,2], out[t,3], out[t,4],  out[t,5], data)
+      lpost_prop <- log_post2(prop1, out[t,2], out[t,3],
+                              out[t,4],  out[t,5], data)
       r <- exp(lpost_prop - lpost_old)
 
       if(r > runif(1)) {
@@ -664,7 +803,8 @@
       acc_rates[t,1] <- min(r, 1)
 
       prop2 <- rnorm(1, mean = out[t,2], propsd[2])
-      lpost_prop <- log_post2(out[t+1,1], prop2, out[t,3], out[t,4],  out[t,5], data)
+      lpost_prop <- log_post2(out[t+1,1], prop2, out[t,3],
+                              out[t,4],  out[t,5], data)
       r <- exp(lpost_prop - lpost_old)
       if(r > runif(1)) {
         out[t+1,2] <- prop2
@@ -696,8 +836,8 @@
       acc_rates[t,4] <- min(r, 1)
 
       prop5 <- rnorm(1, mean = out[t,5], propsd[5])
-      lpost_prop <- log_post2(out[t+1,1], out[t+1,2], out[t+1,3], out[t+1,4],
-                              prop5, data)
+      lpost_prop <- log_post2(out[t+1,1], out[t+1,2], out[t+1,3],
+                              out[t+1,4],  prop5, data)
       r <- exp(lpost_prop - lpost_old)
       if(r > runif(1)) {
         out[t+1,5] <- prop5
@@ -707,8 +847,8 @@
       acc_rates[t,5] <- min(r, 1)
 
       # For DIC
-      ic_vals[t+1,] <- log_post2(out[1,1], out[1, 2], out[1,3], out[1,4], out[1,5],
-                                 data)
+      ic_vals[t+1,] <- log_post2(out[1,1], out[1, 2], out[1,3],
+                                 out[1,4], out[1,5], data)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:hf), ]
@@ -778,7 +918,7 @@
 
   hf <- ceiling(iter/2 + 1) # Determines values for burn.in (see end)
 
-  out.fin <- data.frame(mu = numeric(0),
+  out.fin <- data.frame(mu0 = numeric(0),
                         mu1 = numeric(0),
                         sig0 = numeric(0),
                         sig1 = numeric(0),
@@ -786,7 +926,7 @@
                         chain.nbr = character(0))
   nr.chain <- length(start)   ;    time <- proc.time()  ;  k = 1
   while(k <= nr.chain) {
-    out <- data.frame(mu = rep(NA, iter+1),
+    out <- data.frame(mu0 = rep(NA, iter+1),
                       mu1 = rep(NA, iter+1),
                       sig0 = rep(NA, iter+1),
                       sig1 = rep(NA, iter+1),
@@ -808,7 +948,8 @@
 
     for(t in 1:iter) {
       prop1 <- rnorm(1, mean = out[t,1], propsd[1])
-      lpost_prop <- log_post3(prop1, out[t,2], out[t,3], out[t,4],  out[t,5], data)
+      lpost_prop <- log_post3(prop1, out[t,2], out[t,3],
+                              out[t,4],  out[t,5], data)
       r <- exp(lpost_prop - lpost_old)
       if(r > runif(1)) {
         out[t+1,1] <- prop1
@@ -818,7 +959,8 @@
       acc_rates[t,1] <- min(r, 1)
 
       prop2 <- rnorm(1, mean = out[t,2], propsd[2])
-      lpost_prop <- log_post3(out[t+1,1], prop2, out[t,3], out[t,4],  out[t,5], data)
+      lpost_prop <- log_post3(out[t+1,1], prop2, out[t,3],
+                              out[t,4],  out[t,5], data)
       r <- exp(lpost_prop - lpost_old)
       if(r > runif(1)) {
         out[t+1,2] <- prop2
@@ -850,8 +992,8 @@
       acc_rates[t,4] <- min(r, 1)
 
       prop5 <- rnorm(1, mean = out[t,5], propsd[5])
-      lpost_prop <- log_post3(out[t+1,1], out[t+1,2], out[t+1,3], out[t+1,4],
-                              prop5, data)
+      lpost_prop <- log_post3(out[t+1,1], out[t+1,2],
+                              out[t+1,3], out[t+1,4],  prop5, data)
       r <- exp(lpost_prop - lpost_old)
       if(r > runif(1)) {
         out[t+1,5] <- prop5
@@ -861,8 +1003,8 @@
       acc_rates[t,5] <- min(r, 1)
 
       # For DIC
-      ic_vals[t+1,] <- log_post3(out[1,1], out[1, 2], out[1,3], out[1,4], out[1,5],
-                                 data)
+      ic_vals[t+1,] <- log_post3(out[1,1], out[1, 2], out[1,3],
+                                 out[1,4], out[1,5], data)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:hf), ]

@@ -6,7 +6,7 @@
 \alias{dic_4p}
 \alias{dic_5p}
 \alias{waic}
-\title{PRedictive accuracy criterion}
+\title{Predictive accuracy criterion}
 \usage{
 dic_3p(out, vals)
 
