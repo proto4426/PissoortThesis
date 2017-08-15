@@ -9,9 +9,9 @@ uninformative normal priors.}
 \usage{
 gev.nloglik(mu, sig, xi, data)
 
-log_post_gumb(mu, logsig, data)
+log_post_gumb(mu, logsig, data, ic = F)
 
-log_post0(mu, logsig, xi, data)
+log_post0(mu, logsig, xi, data, ic = F)
 }
 \arguments{
 \item{mu}{numeric representig the location parameter of the GEV}

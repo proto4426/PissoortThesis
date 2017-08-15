@@ -9,7 +9,7 @@ chains.plotOwn(data, vline.red = min(data$iter),
   post.mean.green = apply(data, 2, mean), ...,
   title = "TracePlots of the generated Chains ")
 
-mixchains.Own(data, moreplot = F,
+mixchains.Own(data, moreplot = F, burnin.redline = 0, legend2 = F,
   title = "TracePlots of the generated Chains ")
 }
 \arguments{

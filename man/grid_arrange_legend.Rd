@@ -5,7 +5,7 @@
 \title{Format legend for several ggplots}
 \usage{
 grid_arrange_legend(..., ncol = length(list(...)), nrow = 1,
-  position = c("bottom", "right"))
+  position = c("bottom", "right"), top = "")
 }
 \value{
 A \code{grid.arrange()} with legend formatted

@@ -5,7 +5,8 @@
 \title{Gibbs Sampler for nonstationary GEV (MCMC)}
 \usage{
 log_post1(mu0, mu1, logsig, xi, data, model.mu = mu0 + mu1 * tt,
-  mnpr = c(30, 0, 0, 0), sdpr = c(40, 40, 10, 10))
+  mnpr = c(30, 0, 0, 0), sdpr = c(40, 40, 10, 10), rescale.time = T,
+  ic = F)
 }
 \arguments{
 \item{data}{numeric vector containing the GEV in block-maxima}
@@ -24,6 +25,9 @@ It must be wel chosen (e.g. Trial-and-error method)}
 \item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
 
 \item{burnin}{Determines value for burn-in}
+
+\item{keep.same.seed}{sets a seed at each iterations that is the integer you specify
+times the iteration number.}
 }
 \value{
 A named list containing

@@ -2,17 +2,20 @@
 % Please edit documentation in R/BayesFunc.R
 \name{predic_accuracy}
 \alias{predic_accuracy}
+\alias{dic_2p}
 \alias{dic_3p}
 \alias{dic_4p}
 \alias{dic_5p}
 \alias{waic}
 \title{Predictive accuracy criterion}
 \usage{
+dic_2p(out, vals)
+
 dic_3p(out, vals)
 
 dic_4p(out, vals)
 
-dic_5p(out, vals)
+dic_5p(out, vals, sig = F)
 
 waic(vals)
 }

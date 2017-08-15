@@ -189,10 +189,16 @@
 
 #' @rdname log_post0
 #' @export
-"log_post_gumb" <- function(mu, logsig, data) {
-  #llhd <- sum(dgumbel(data, loc = mu, scale = exp(logsig), log = TRUE))
-  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
-                        xi = 0, data = data))
+"log_post_gumb" <- function(mu, logsig, data, ic = F) {
+  #llhd <- dgumbel(data, loc = mu, scale = exp(logsig), log = TRUE)
+  # llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
+  #                       xi = 0, data = data))
+  #browser()
+
+  llhd <- evd::dgev(data, loc = mu, scale = exp(logsig), shape = 0, log = TRUE)
+
+  if(ic) return(llhd)  # Return only the log-likelihood values for the DIC
+  llhd <- sum(llhd, na.rm = TRUE)
   lprior <- dnorm(mu, sd = 50, log = TRUE)
   lprior <- lprior + dnorm(logsig, sd = 10, log = TRUE)
   lprior + llhd
@@ -200,12 +206,21 @@
 
 #' @rdname log_post0
 #' @export
-'log_post0' <- function(mu, logsig, xi, data) {
+'log_post0' <- function(mu, logsig, xi, data, ic = F) {
   # Posterior Density Function
   # Compute the log_posterior in a stationary context.
   # Be careful to incorporate the fact that the distribution can have finite endpoints.
-  llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
-                        xi = xi, data = data))
+
+  # llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
+  #                       xi = xi, data = data))
+
+  llhd <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+                     log = TRUE)
+  #browser()
+
+  if(ic) return(llhd)  # Return only the log-likelihood values for the DIC
+  llhd <- sum(llhd, na.rm = TRUE)
+
   lprior <- dnorm(mu, sd = 50, log = TRUE)
   lprior <- lprior + dnorm(logsig, sd = 50, log = TRUE)
   lprior <- lprior + dnorm(xi, sd = 10, log = TRUE)
@@ -364,12 +379,14 @@
     # For DIC computation
     ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
 
-    if(Gumbel) ic_vals[1,] <- log_post_gumb(out[1,1], out[1, 2],
-                                            data)
-    else  ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                                   data)
+    out[1, ] <- start[[k]]
 
-    out[1, ] <- start
+    #browser()
+    if(Gumbel) ic_vals[1,] <- log_post_gumb(out[1,1], out[1, 2],
+                                            data, ic = T)
+    else  ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
+                                   data, ic = T)
+
     out <- cbind.data.frame(out, iter = 1:(iter+1))
 
     if(Gumbel) lpost_old <- log_post_gumb(out[1,1], out[1,2], data)
@@ -422,9 +439,9 @@
 
       # For DIC
       if(Gumbel) ic_vals[t+1, ] <- log_post_gumb(out[1,1], out[1, 2],
-                                                 data)
+                                                 data, ic = T)
       else  ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                                        data)
+                                        data, ic = T)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
@@ -477,9 +494,9 @@
     # For DIC computation
     ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
     ic_vals[1,] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                             data)
+                             data, ic = T)
 
-    out[1,] <- start
+    out[1,] <- start[[k]]
     out <- cbind.data.frame(out, iter = 1:(iter+1))
     lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
     if(!is.finite(lpost_old))
@@ -522,7 +539,7 @@
 
       # For DIC
       ic_vals[t+1, ] <- log_post0(out[1,1], out[1, 2], out[1,3],
-                                  data)
+                                  data, ic = T)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
@@ -616,7 +633,7 @@
 'log_post1' <- function(mu0, mu1, logsig, xi, data,
                         model.mu = mu0 + mu1 * tt,
                         mnpr = c(30,0,0,0), sdpr = c(40,40,10,10),
-                        rescale.time = T ) {
+                        rescale.time = T, ic = F ) {
   theta <- c(mu0, mu1, logsig, xi)
 
   if(rescale.time)  tt <-
@@ -625,8 +642,12 @@
   else tt <- seq(1, length(max_years$data),1)
 
   mu <-  model.mu
-  llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi,
-                         log = TRUE))
+  llhd1 <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+                         log = TRUE)
+
+  if(ic) return(llhd1)  # Return only the log-likelihood values for the DIC
+  llhd1 <- sum(llhd1, na.rm = TRUE)
+
   lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
   lprior + llhd1 #+ llhd2
 }
@@ -663,7 +684,7 @@
    # For DIC computation
    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
    ic_vals[1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                            rescale.time = rescale.time, data)
+                            rescale.time = rescale.time, data, ic =T)
 
    if(!is.finite(lpost_old))
      stop("starting values give non-finite log_post")
@@ -733,7 +754,7 @@
 
      # For DIC
      ic_vals[t+1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                                rescale.time = rescale.time, data)
+                                rescale.time = rescale.time, data, ic =T)
    }
    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
    ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
@@ -763,19 +784,22 @@
 
 # ===============================================================
 #' @name gibbs_trend2
-#' @title Gibbs sampler for a quadratic nonstationary model
+#' @title Gibbs sampler for a quadratic nonstationary model in the location
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @rdname gibbs2
 #' @export
 'log_post2' <- function(mu0, mu1, mu2, logsig, xi, data,
                         model.mu = mu0 + mu1 * tt + mu2 * tt^2,
-                        mnpr = c(30,0,0,0,0), sdpr = c(40,40,10,10,10)) {
+                        mnpr = c(30,0,0,0,0), sdpr = c(40,40,10,10,10),
+                        ic = F) {
   theta <- c(mu0, mu1, mu2, logsig, xi)
   tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
             mean(max_years$df$Year) ) / length(max_years$data)
   mu <-  model.mu
-  llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi,
-                         log = TRUE))
+  llhd1 <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+                         log = TRUE)
+  if(ic) return(llhd1)  # Return only the log-likelihood values for the DIC
+  llhd1 <- sum(llhd1, na.rm = T)
   lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
   lprior + llhd1 #+ llhd2
 }
@@ -812,7 +836,7 @@
     # For DIC computation
     ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
     ic_vals[1,] <- log_post2(out[1,1], out[1, 2], out[1,3], out[1,4],  out[1,5],
-                             data)
+                             data, ic = T)
 
     if(!is.finite(lpost_old))  stop("starting values give non-finite log_post")
 
@@ -878,7 +902,7 @@
 
       # For DIC
       ic_vals[t+1,] <- log_post2(out[1,1], out[1, 2], out[1,3],
-                                 out[1,4], out[1,5], data)
+                                 out[1,4], out[1,5], data, ic = T)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:hf), ]
@@ -904,45 +928,196 @@
 }
 
 
+
+
 # ===============================================================
-#' @name gibbstrend3
-#' @title Return Levels with nonstationarity
+#' @name gibbs_trend3
+#' @title Gibbs sampler for a cubic nonstationary model in the location
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
-
-#' @description
-#' Compute return levels plot of nonstationary model with the data (in years)
-#'
-#' @param data numeric vector containing the GEV block-maxima
-#' @param gev_nstatio Nonstationary GEV fitted model of class \code{gev.fit}
-#' (from package \code{ismev})
-#' @param t Maximum time period for which the return levels are considered
-#' @param m Return period
-#'
-#' @return The return levels for the considered time period (t)
-#' @examples
-#' rl_10_lin <- return.lvl.nstatio(max_years$df$Year,
-#'
-
-## for the model 3 :allowing linear trend in mu and log-linked varying scale param.
 #' @rdname gibbs3
 #' @export
-'log_post3' <- function(mu0, mu1, sig0, sig1, xi, data,
-                        model.mu = mu0 + mu1 * tt,
-                        mnpr = c(30,0,1,0, 0), sdpr = c(10,40,10,10, 10)) {
-  theta <- c(mu0, mu1, sig0, sig1, xi)
+'log_post_mu3' <- function(mu0, mu1, mu2, mu3, logsig, xi, data,
+                        model.mu = mu0 + mu1 * tt + mu2 * tt^2 + mu3 * tt^3,
+                        mnpr = c(30,0,0,0,0,0), sdpr = c(40,40,10,10,10,10),
+                        ic = F) {
+  theta <- c(mu0, mu1, mu2, mu3, logsig, xi)
   tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
             mean(max_years$df$Year) ) / length(max_years$data)
   mu <-  model.mu
-  logsig <- sig0 + sig1 * tt
-  llhd1 <- sum(evd::dgev(data, loc = mu, scale = exp(logsig), xi,
-                         log = TRUE))
+  llhd1 <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+                     log = TRUE)
+  if(ic) return(llhd1)  # Return only the log-likelihood values for the DIC
+  llhd1 <- sum(llhd1, na.rm = T)
   lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
   lprior + llhd1 #+ llhd2
 }
 #' @rdname gibbs3
 #' @export
-'gibbs.trend.sig3own' <- function (start, propsd = c(.5, 2.5, 2, .08, .08),
+'gibbs.trend3.own' <- function (start, propsd = c(.5, 2.5, 2, 0.5, .08, .08),
                                 iter = 1000, data = max_years$data) {
+  # To store values inside
+  acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
+
+  hf <- ceiling(iter/2 + 1) # Determines values for burn.in (see end)
+
+  out.fin <- data.frame(mu0 = numeric(0),
+                        mu1 = numeric(0),
+                        mu2 = numeric(0),
+                        mu3 = numeric(0),
+                        logsig = numeric(0),
+                        xi = numeric(0),
+                        chain.nbr = character(0))
+
+  nr.chain <- length(start)   ;    time <- proc.time() ;  k = 1
+
+  while(k <= nr.chain) {
+    out <- data.frame(mu0 = rep(NA, iter+1),
+                      mu1 = rep(NA, iter+1),
+                      mu2 = rep(NA, iter+1),
+                      mu3 = rep(NA, iter+1),
+                      logsig = rep(NA, iter+1),
+                      xi = rep(NA, iter+1))
+
+    out[1,] <- start[[k]]
+    out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
+
+    lpost_old <- log_post_mu3(out[1,1], out[1,2], out[1,3],
+                           out[1,4], out[1,5], out[1,6], data)
+
+    # For DIC computation
+    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+    ic_vals[1,] <- log_post_mu3(out[1,1], out[1, 2], out[1,3], out[1,4],
+                                out[1,5], out[1,6], data, ic = T)
+
+    if(!is.finite(lpost_old))  stop("starting values give non-finite log_post")
+
+    acc_rates <- matrix(NA, nrow = iter, ncol = 6)
+
+    for(t in 1:iter) {
+
+      prop1 <- rnorm(1, mean = out[t,1], propsd[1])
+      lpost_prop <- log_post_mu3(prop1, out[t,2], out[t,3],
+                              out[t,4],  out[t,5], out[1,6], data)
+      r <- exp(lpost_prop - lpost_old)
+
+      if(r > runif(1)) {
+        out[t+1,1] <- prop1
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,1] <- out[t,1]
+      acc_rates[t,1] <- min(r, 1)
+
+      prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+      lpost_prop <- log_post_mu3(out[t+1,1], prop2, out[t,3],
+                              out[t,4],  out[t,5], out[1,6], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,2] <- prop2
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,2] <- out[t,2]
+      acc_rates[t,2] <- min(r, 1)
+
+      prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+      lpost_prop <- log_post_mu3(out[t+1,1], out[t+1,2], prop3, out[t,4],
+                              out[t,5], out[1,6], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,3] <- prop3
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,3] <- out[t,3]
+      acc_rates[t,3] <- min(r, 1)
+
+      prop4 <- rnorm(1, mean = out[t,4], propsd[4])
+      lpost_prop <- log_post_mu3(out[t+1,1], out[t+1,2], out[t+1,3], prop4,
+                              out[t,5], out[1,6], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,4] <- prop4
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,4] <- out[t,4]
+      acc_rates[t,4] <- min(r, 1)
+
+      prop5 <- rnorm(1, mean = out[t,5], propsd[5])
+      lpost_prop <- log_post_mu3(out[t+1,1], out[t+1,2], out[t+1,3],
+                              out[t+1,4],  prop5, out[1,6], data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,5] <- prop5
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,5] <- out[t,5]
+      acc_rates[t,5] <- min(r, 1)
+
+      prop6 <- rnorm(1, mean = out[t,6], propsd[6])
+      lpost_prop <- log_post_mu3(out[t+1,1], out[t+1,2], out[t+1,3],
+                                 out[t+1,4], out[1,5], prop6, data)
+      r <- exp(lpost_prop - lpost_old)
+      if(r > runif(1)) {
+        out[t+1,6] <- prop6
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,6] <- out[t,6]
+      acc_rates[t,6] <- min(r, 1)
+
+      # For DIC
+      ic_vals[t+1,] <- log_post_mu3(out[1,1], out[1, 2], out[1,3],
+                                 out[1,4], out[1,5], out[1,6], data, ic = T)
+    }
+    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+    ic_val.list[[k]] <- ic_vals[-(1:hf), ]
+    out.ind[[k]] <- out
+
+    # Combine Chains And Remove Burn-In Period
+    out.fin <- rbind.data.frame(out.fin, out[-(1:hf), ])
+    # out.fin <- cbind.data.frame(out.fin)
+    # chain.nmbr = rep(k, nrow(out.fin)))
+
+    print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+    k = k + 1
+  }
+
+  out <- cbind.data.frame(out.fin,
+                          iter = (1:nrow(out.fin)))
+
+  return( list(n.chains = length(start),
+               mean_acc.rates = acc_rate.list,
+               out.chain = out,
+               dic.vals = ic_val.list,
+               out.ind = out.ind) )
+}
+
+
+
+
+# ===============================================================
+#' @name gibbssig3
+#' @title Return Levels with nonstationarity
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+#' @rdname gibbssig3
+#' @export
+'log_post3' <- function(mu0, mu1, sig0, sig1, xi, data,
+                        model.mu = mu0 + mu1 * tt,
+                        mnpr = c(30,0,1,0, 0), sdpr = c(10,40,10,10, 10),
+                        ic = F) {
+  theta <- c(mu0, mu1, sig0, sig1, xi)
+  tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
+            mean(max_years$df$Year) ) / length(max_years$data)
+  mu <-  model.mu
+  logsig <- sig0 + sig1 * tt
+  llhd1 <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+                         log = TRUE)
+  if(ic) return(llhd1)  # Return only the log-likelihood values for the DIC
+  llhd1 <- sum(llhd1, na.rm = T)
+  lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
+  lprior + llhd1 #+ llhd2
+}
+#' @rdname gibbssig3
+#' @export
+'gibbs.trend.sig3own' <- function (start, propsd = c(.5, 2.5, 2, .08, .08),
+                                 iter = 1000, data = max_years$data) {
   # To store values inside
   acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
@@ -954,6 +1129,7 @@
                         sig1 = numeric(0),
                         xi = numeric(0),
                         chain.nbr = character(0))
+
   nr.chain <- length(start)   ;    time <- proc.time()  ;  k = 1
   while(k <= nr.chain) {
     out <- data.frame(mu0 = rep(NA, iter+1),
@@ -970,7 +1146,7 @@
     # For DIC computation
     ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
     ic_vals[1,] <- log_post3(out[1,1], out[1, 2], out[1,3], out[1,4],  out[1,5],
-                             data)
+                             data, ic = T)
 
     if(!is.finite(lpost_old))
       stop("starting values give non-finite log_post")
@@ -1034,7 +1210,7 @@
 
       # For DIC
       ic_vals[t+1,] <- log_post3(out[1,1], out[1, 2], out[1,3],
-                                 out[1,4], out[1,5], data)
+                                 out[1,4], out[1,5], data, ic = T)
     }
     acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
     ic_val.list[[k]] <- ic_vals[-(1:hf), ]
@@ -1065,6 +1241,7 @@
 
 # ===============================================================
 #' @name predic_accuracy
+#' @aliases dic_2p
 #' @aliases dic_3p
 #' @aliases dic_4p
 #' @aliases dic_5p
@@ -1074,8 +1251,17 @@
 
 #' @rdname pred_bay_accur
 #' @export
+'dic_2p' <- function(out, vals) {
+  pm <- colMeans(out) ;   pmv <- log_post_gumb(pm[1], pm[2],
+                                              data, ic = T)
+  pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
+  2*pmv - 4*mean(vec1)
+}
+#' @rdname pred_bay_accur
+#' @export
 'dic_3p' <- function(out, vals) {
-  pm <- colMeans(out) ;   pmv <- log_post0(pm[1], pm[2], pm[3], data)
+  pm <- colMeans(out) ;   pmv <- log_post0(pm[1], pm[2], pm[3],
+                                          data, ic = T)
   pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
   2*pmv - 4*mean(vec1)
 }
@@ -1083,24 +1269,32 @@
 #' @rdname pred_bay_accur
 #' @export
 'dic_4p' <- function(out, vals) {
-  pm <- colMeans(out) ;   pmv <- log_post1(pm[1], pm[2], pm[3], pm[4], data)
+  pm <- colMeans(out) ;   pmv <- log_post1(pm[1], pm[2], pm[3], pm[4],
+                                           data, ic = T)
   pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
   2*pmv - 4*mean(vec1)
 }
 
 #' @rdname pred_bay_accur
 #' @export
-'dic_5p' <- function(out, vals) {
+'dic_5p' <- function(out, vals, sig = F) {
   pm <- colMeans(out)
-  pmv <- log_post2(pm[1], pm[2], pm[3], pm[4], pm[5], data)
+  if (sig)
+     pmv <- log_post3(pm[1], pm[2], pm[3], pm[4], pm[5],  data, ic = T)
+  else
+     pmv <- log_post2(pm[1], pm[2], pm[3], pm[4], pm[5],  data, ic = T)
   pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
   2*pmv - 4*mean(vec1)
 }
+
 
 #' @rdname pred_bay_accur
 #' @export
 'waic' <- function(vals) {
-  vec1 <- log(colMeans(exp(vals))) ;    vec2 <- colMeans(vals)
+  #browser()
+  vec1 <- log(colMeans(exp(vals))) ;
+  #vec1[which(!is.finite(vec1))] <- -1e10
+  vec2 <- colMeans(vals)
   sum(2*vec1 - 4*vec2, na.rm = TRUE)
 }
 
@@ -1111,7 +1305,6 @@
 
 #'
 "crossval.bayes" <- function(){
-
 }
 
 
@@ -1151,11 +1344,10 @@
   g <- ggplot(df) + geom_line(aes(y = TX.5., x = 'return period'), col= "red") +
     geom_line(aes(y = TX.50., x = 'return period')) +
     geom_line(aes(y = TX.95., x = 'return period'), col = "red") +
-    scale_x_log10(breaks = c(1,10,100),labels = c(1,10,100)) +
+    scale_x_log10(breaks = c(1,10,100), labels = c(1,10,100)) +
     theme_piss(...)
   print(g)
-  # matplot(rps, mat, log = "x", type = "l",
-  #         xlab = xlab, ylab = ylab, lty = lty, col = col, ...)
+
   return(list(x = rps, y = mat))
 }
 
@@ -1199,7 +1391,8 @@
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description
 #' Compute posterior predictive samples from the obtained model (gibbs.trend)
-"pred_post_samples" <- function (from = 1, until = nrow(max_years$df), n_future = 0) {
+"pred_post_samples" <- function (from = 1, until = nrow(max_years$df),
+                                 n_future = 0, seed = NULL) {
 
   tt2 <- ( (max_years$df$Year[from]):(max_years$df$Year[until] + n_future ) -
              mean(max_years$df$Year) )  /  until
@@ -1208,6 +1401,7 @@
 
   for(t in 1:nrow(repl2)) {
     mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt2
+    if(!is.null(seed)) set.seed(t + seed)
     repl2[t,] <- evd::rgev(length(tt2),
                            loc = mu,
                            scale = gibbs.trend$out.chain[t,3],

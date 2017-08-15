@@ -352,6 +352,9 @@ ci.lin <- gevcdn.bootstrap(n.bootstrap = 500,
 (proc.time() - time)[3]  # 11sec for B=50 , 61sec for B=250
 
 
+
+
+
 # M <- 100 # M is the number of times we do bagging, thus the total number of resamples is
 # n.boot*M.
 # Function created just to facilitate our work to compute directly several methods.
@@ -362,7 +365,7 @@ ci.lin <- gevcdn.bootstrap(n.bootstrap = 500,
   y <- as.matrix(max_years$data)
 
   ### In parralel !!! First model : nonstationary in location ( 0 hidden)
-  cores <- detectCores()
+  cores <- parallel::detectCores()
   cl <- parallel::makeCluster(cores[1]-1) #not to overload the computer, do not use all cores
   doParallel::registerDoParallel(cl)
 
@@ -631,4 +634,104 @@ compare_methods_quantiles_plot(diff.boot.met.hid)
 
 
 
+### ==================================================================================
+## Find the values of the confidence intervals for comparisons in Bayes_own_gev.R
+
+cores <- parallel::detectCores()  ;   cl <- parallel::makeCluster(cores[1]-1)
+doParallel::registerDoParallel(cl)  ; n.boot <- 10  ;  M <- 50  ;  t <- proc.time()
+boot_par0 <- foreach::foreach(i = 1:M,
+                             .packages = c("PissoortThesis", "GEVcdn"),
+                             .verbose = T) %dopar% {
+                               set.seed(i+12)
+                               ci.lin <- gevcdn.bootstrap(n.bootstrap = n.boot,
+                                                          x = x, y = y,
+                                                          iter.max = 100,
+                                                          n.hidden = 0,
+                                                          fixed = c("shape", "scale"),
+                                                          Th = gevcdn.identity,
+                                                          n.trials = 1,
+                                                          boot.method = "residual",
+                                                          probs = c(0.1, 0.5, 0.9))
+                               list(loc = ci.lin$location.bootstrap,
+                                    sc = ci.lin$scale.bootstrap,
+                                    sh = ci.lin$shape.bootstrap
+                               )
+                             }
+(proc.time()-t)[3] ## only 74 sec for B=1000 !!!
+parallel::stopCluster(cl)
+
+## Aggregate the results of the resamples and the parralel computation
+boot.loc <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.loc <- cbind(boot.loc, boot_par0[[i]]$loc)
+boot.loc_f <- boot.loc[,-1]
+
+boot.sc <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.sc <- cbind(boot.sc, boot_par0[[i]]$sc)
+boot.sc_f <- boot.sc[,-1]
+
+boot.sh <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.sh <- cbind(boot.sh, boot_par0[[i]]$sh)
+boot.sh_f <- boot.sh[,-1]
+
+## Compute the quantiles
+t(apply(boot.loc_f, 1, quantile, p = c(0.025, 0.975)))
+# For the location, as it takes the aggregated parameter mu(t), we cannot compute one single interval
+sigma95_boot <- t(apply(boot.sc_f, 1, quantile, p = c(0.025, 0.5, 0.975)))[1,]
+xi95_boot <- t(apply(boot.sh_f, 1, quantile, p = c(0.025, 0.5, 0.975)))[1,]
+sigma75_boot <- t(apply(boot.sc_f, 1, quantile, p = c(0.25, 0.5,  0.75)))[1,]
+xi75_boot <- t(apply(boot.sh_f, 1, quantile, p = c(0.25, 0.5, 0.75)))[1,]
+
+boot.ci.Sig_Xi <- data.frame(sigma95_boot, sigma75_boot,
+                             xi75_boot, xi95_boot)
+
+
+
+## Find the values of the confidence intervals for comparisons in Bayes_own_gev.R
+## Parametric bootstrap
+cores <- parallel::detectCores()  ;   cl <- parallel::makeCluster(cores[1]-1)
+doParallel::registerDoParallel(cl)  ; n.boot <- 10  ;  M <- 50  ;  t <- proc.time()
+boot_par <- foreach::foreach(i = 1:M,
+                             .packages = c("PissoortThesis", "GEVcdn"),
+                             .verbose = T) %dopar% {
+                               set.seed(i+12)
+                               ci.lin <- gevcdn.bootstrap(n.bootstrap = n.boot,
+                                                          x = x, y = y,
+                                                          iter.max = 100,
+                                                          n.hidden = 0,
+                                                          fixed = c("shape", "scale"),
+                                                          Th = gevcdn.identity,
+                                                          n.trials = 1,
+                                                          boot.method = "parametric",
+                                                          probs = c(0.1, 0.5, 0.9))
+                               list(loc = ci.lin$location.bootstrap,
+                                    sc = ci.lin$scale.bootstrap,
+                                    sh = ci.lin$shape.bootstrap
+                               )
+                             }
+(proc.time()-t)[3] ## only 74 sec for B=1000 !!!
+parallel::stopCluster(cl)
+
+## Aggregate the results of the resamples and the parralel computation
+boot.loc <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.loc <- cbind(boot.loc, boot_par[[i]]$loc)
+boot.loc_f <- boot.loc[,-1]
+
+boot.sc <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.sc <- cbind(boot.sc, boot_par[[i]]$sc)
+boot.sc_f <- boot.sc[,-1]
+
+boot.sh <- matrix(nrow = nrow(boot_par[[1]]$loc))
+for (i in 1:M)   boot.sh <- cbind(boot.sh, boot_par[[i]]$sh)
+boot.sh_f <- boot.sh[,-1]
+
+## Compute the quantiles
+t(apply(boot.loc_f, 1, quantile, p = c(0.025, 0.975)))
+# For the location, as it takes the aggregated parameter mu(t), we cannot compute one single interval
+sigma95_bootp <- t(apply(boot.sc_f, 1, quantile, p = c(0.025, 0.5, 0.975)))[1,]
+xi95_bootp <- t(apply(boot.sh_f, 1, quantile, p = c(0.025, 0.5, 0.975)))[1,]
+sigma75_bootp <- t(apply(boot.sc_f, 1, quantile, p = c(0.25, 0.5,  0.75)))[1,]
+xi75_bootp <- t(apply(boot.sh_f, 1, quantile, p = c(0.25, 0.5, 0.75)))[1,]
+
+boot.ci.Sig_Xi.par <- data.frame(sigma95_bootp, sigma75_bootp,
+                             xi75_bootp, xi95_bootp)
 

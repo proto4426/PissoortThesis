@@ -4,10 +4,10 @@
 \alias{gibbs_trend2}
 \alias{log_post2}
 \alias{gibbs.trend2.own}
-\title{Gibbs sampler for a quadratic nonstationary model}
+\title{Gibbs sampler for a quadratic nonstationary model in the location}
 \usage{
 log_post2(mu0, mu1, mu2, logsig, xi, data, model.mu = mu0 + mu1 * tt + mu2 *
-  tt^2, mnpr = c(30, 0, 0, 0, 0), sdpr = c(40, 40, 10, 10, 10))
+  tt^2, mnpr = c(30, 0, 0, 0, 0), sdpr = c(40, 40, 10, 10, 10), ic = F)
 
 gibbs.trend2.own(start, propsd = c(0.5, 2.5, 2, 0.08, 0.08), iter = 1000,
   data = max_years$data)

@@ -329,7 +329,7 @@ gg_rlAll_predict <- rl_25_lin$g +
 gg_rlAll_predict
 
 
-## For the period of the observed data (1901-2016)
+## For the period (1980 to 1980+t)
 rl_25_lin_data <- PissoortThesis::return.lvl.nstatio(max_years$df$Year, start = 1980,
                                                      gev_nonstatio,
                                                      t = 218, m = 10, colour = "blue2")

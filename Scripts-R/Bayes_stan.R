@@ -1,15 +1,14 @@
 #setwd('/home/piss/Documents/Extreme/R resources/IRM')
-
-# setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
+# load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.RData")
+# setwd("C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\stan")
+#setwd('/home/piss/PissoortRepo/PissoortThesis/stan')
 # load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
+repo <- '/home/proto4426/Documents/Thesis/PissoortThesis/stan/'
 
 library("rstantools")
 
 options(mc.cores=parallel::detectCores()) # all available cores
 # can be used without needing to manually specify the cores argument.
-
-load("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM\\data1.RData")
-setwd("C:\\Users\\Piss\\Documents\\LINUX\\PissoortRepo\\PissoortThesis\\stan")
 
 library("rstan")
 library(bayesplot)
@@ -32,13 +31,20 @@ while(k < 5) { # starting value is randomly selected from a distribution
   if(is.finite(svlp)) {
     start0[[k]] <- as.list(sv) ;  names(start0[[k]]) <- c("mu", "logsig","xi")
     k <- k + 1
-  } }
-######
+  }
+}
 
-fit_stan <- stan(file = 'gev.stan', data = list(n = length(max_years$data),
-                                                y = max_years$data),
-                 iter = 2000, chains = 4, warmup = 0, #init = rev(start0),
-                 cores = 8, verbose = T, control = list(adapt_delta = .9))
+## Change logsig in sigma (for some models)
+for(i in 1:(k-1)){
+  start0[[i]]$sigma <- exp(start0[[i]]$logsig)
+  #start[[i]] <-
+  }
+
+fit_stan <- stan(file = paste0(repo,'gev_git.stan',collapse = ""),
+                  data = list(n = length(max_years$data), y = max_years$data),
+                 iter = 2000, chains = 1, warmup = 100,# init = rev(start0),
+                 cores = 8, control = list(adapt_delta = .9,
+                                           max_treedepth = 15))
 fit_stan
 summary(fit_stan)
 pairs(fit_stan)
@@ -49,6 +55,17 @@ lapply(sampler_par, summary, digits = 2)
 lookup(Inf)
 
 
+
+##### Nonstationary Model with Linear trend
+##########################################"
+data <- max_years$data
+
+
+fn <- function(par, data) -log_post1(par[1], par[2], par[3],
+                                     par[4],rescale.time = T, data)
+param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
+opt <- optim(param, fn, data = max_years$data,
+             method = "BFGS", hessian = T)
 
 tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
           mean(max_years$df$Year) ) / length(max_years$data)
@@ -63,10 +80,11 @@ while(k < 5) {
   }
 }
 
-fit_lin <- stan(file = 'gev_lin.stan', data = list(n = length(max_years$data),
-                                                  y = max_years$data,
-                                                  tt = tt),
-              init=start, iter = 2000, chains = 4, warmup = 100, cores = 8,
+fit_lin <- stan(file = paste0(repo, 'gev_lin.stan'),
+                data = list(n = length(max_years$data),
+                            y = max_years$data, tt = tt),
+              #init=start,
+              iter = 2000, chains = 4, warmup = 100, cores = 8,
                control = list(adapt_delta = .99))
 fit_lin
 sampler_params <- get_sampler_params(fit_lin, inc_warmup = TRUE)

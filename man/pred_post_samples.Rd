@@ -4,7 +4,8 @@
 \alias{pred_post_samples}
 \title{Predictive Posterior samples}
 \usage{
-pred_post_samples(from = 1, until = nrow(max_years$df), n_future = 0)
+pred_post_samples(from = 1, until = nrow(max_years$df), n_future = 0,
+  seed = NULL)
 }
 \description{
 Compute posterior predictive samples from the obtained model (gibbs.trend)
