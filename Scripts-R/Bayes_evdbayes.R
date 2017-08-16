@@ -15,10 +15,11 @@ mat <- diag(c(10000, 10000, 100))
 # Large variance prior : near flat
 pn <- prior.norm(mean = c(0,0,0), cov = mat)
 
-n <- 1000 ;   t0 <- c(31, 1 ,0) ;   s <- c(.02,.1,.1)
+n <- 1000 ;   t0 <- c(31, 1 ,0) ;   s <- c(.4,.1,.1)
 # s contains sd for proposal distributions
-max.mc <- posterior(n, t0, prior = pn, lh = "gev", data = max_years$data, psd = s)
-
+max.mc <- posterior(n, t0, prior = pn, lh = "gev",
+                    data = max_years$data, psd = s)
+max.mc
 
 mcmc.max <- mcmc (max.mc, start = 0, end = 1000)
 plot(mcmc.max, den = F, sm = F)

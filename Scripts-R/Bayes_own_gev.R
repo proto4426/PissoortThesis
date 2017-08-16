@@ -50,7 +50,7 @@ while(k < 5) { # starting values are randomly selected from a distribution
   svlp <- log_post_gumb(sv[1], sv[2], max_years$data)
   print(svlp)
   if(is.finite(svlp)) {
-    start0[[k]] <- sv
+    start0[[k]] <- sv ; names(start0[[k]]) <- c("mu", "logsig")
     k <- k + 1
   }
 }
@@ -98,13 +98,13 @@ varmat <- ev$vectors %*% diag(sqrt(ev$values)) %*% t(ev$vectors)
 # Starting Values
 set.seed(101)
 start <- list() ;   k <- 1
-while(k < 5) { # starting values are randomly selected from a distribution
+while(k < 2) { # starting values are randomly selected from a distribution
   # that is overdispersed relative to the target
   sv <- as.numeric(rmvnorm(1, opt$estimate, 50 * solve(opt$hessian)))
   svlp <- log_post0(sv[1], sv[2], sv[3], max_years$data)
   print(svlp)
   if(is.finite(svlp)) {
-    start[[k]] <- sv
+    start[[k]] <- sv  ; names(start[[k]]) <- c("mu", "logsig", "xi")
     k <- k + 1
   }
 }
@@ -112,12 +112,13 @@ while(k < 5) { # starting values are randomly selected from a distribution
 
 set.seed(101)
 iter <- 2e3
-mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start, varmat %*% c(.5,.6,.85),
-                                        iter = iter, burnin = iter/4)
+mh.mcmc1 <- PissoortThesis::MH_mcmc.own(start[[1]], varmat %*% c(.5,.6,.85),
+                                        iter = iter, burnin = iter/2)
 # Display the mean acceptance rate
 mh.mcmc1$mean.acc_rates
 
 param_mean_mh <- apply(mh.mcmc1$out.chain[,1:3], 2, mean)
+names(param_mean_mh) <- c("mu", "logsig", "xi")
 chainsPlot_mh <- chains.plotOwn(mh.mcmc1$out.chain,
                                 post.mean.green = param_mean_mh,
                                 title = "Using Metropolis-Hastings Algorithm")
@@ -153,11 +154,15 @@ gibbs_statio$mean_acc.rates
 
 chainsPlot_gibb <- chains.plotOwn(gibbs_statio$out.chain,
                                   title = "Using Gibbs Sampler")
-## Compare chains of Gibbs sampler with MH
-grid.arrange(chainsPlot_mh, chainsPlot_gibb, ncol = 2,
+## Compare chains of Gibbs sampler with MH and HMC (see other code)
+grid.arrange(arrangeGrob(chainsPlot_mh, chainsPlot_gibb,ncol = 2),
+             arrangeGrob(plots_hmc), #, nrow = 2,
+             #layout_matrix = cbind(c(1,3), c(2,3)), widths = cbind(c(1/2, 1/4),
+             widths = c(2,1),
              top = textGrob("TracePlots of the generated Chains for the stationary Model",
                             gp = gpar(col ="#33666C",
                                       fontsize = 28, font = 2)))
+
 
 ## Compare the parameters from Gibbs and MH
 param_gibbs <- apply(gibbs_statio$out.chain[,1:3], 2, mean)
@@ -870,6 +875,8 @@ dic.gum.3 <- mc.listDiag2(gib.mcmc_gumbel$out.ind)[[3]] %>%
 dic.gum.4 <- mc.listDiag2(gib.mcmc_gumbel$out.ind)[[4]] %>%
   dic_2p(vals = ic_vals.gumb[[4]])
 cat(dic.gum.1, dic.gum.2, dic.gum.3, dic.gum.4)
+# Variability
+sd(c(dic.gum.1, dic.gum.2, dic.gum.3, dic.gum.4))
 
 dic.mean.gum <- mean(dic.gum.1, dic.gum.2, dic.gum.3, dic.gum.4)
 # WAIC Values
@@ -878,6 +885,8 @@ waic.gum.2 <- PissoortThesis::waic( ic_vals.gumb[[2]] )
 waic.gum.3 <- PissoortThesis::waic( ic_vals.gumb[[3]] )
 waic.gum.4 <- PissoortThesis::waic( ic_vals.gumb[[4]] )
 cat(waic.gum.1, waic.gum.2, waic.gum.3, waic.gum.4)
+# Variability
+sd(c(waic.gum.1, waic.gum.2, waic.gum.3, waic.gum.4))
 
 waic.mean.gum <- mean(waic.gum.1, waic.gum.2, waic.gum.3, waic.gum.4)
 
@@ -1101,6 +1110,8 @@ dic.sig3.3 <- mc.listDiag4(gibbs.trend.sig3$out.ind, 1:5)[[3]] %>%
 dic.sig3.4 <- mc.listDiag4(gibbs.trend.sig3$out.ind, 1:5)[[4]] %>%
   PissoortThesis::dic_5p(vals = ic_vals.trend.sc[[4]], sig = T)
 cat(dic.sig3.1, dic.sig3.2, dic.sig3.3, dic.sig3.4)
+#Variability
+sd(c(dic.sig3.1, dic.sig3.2, dic.sig3.3, dic.sig3.4))
 
 dic.mean.sig3 <- mean(dic.sig3.1, dic.sig3.2,
                        dic.sig3.3, dic.sig3.4)
@@ -1165,15 +1176,18 @@ mixchains.Own(chain.mix)
 ic_vals.trend33 <- gibbs.trend33$dic.vals
 
 # DIC Values. "1:5" takes the 5 parameters of the model, see function
-dic.trend33.1 <- mc.listDiag6(gibbs.trend33$out.ind)[[1]] %>%
-  PissoortThesis::dic_5p(vals = ic_vals.trend33[[1]])
-dic.trend33.2 <- mc.listDiag5(gibbs.trend33$out.ind)[[2]] %>%
-  PissoortThesis::dic_5p(vals = ic_vals.trend33[[2]])
-dic.trend33.3 <- mc.listDiag5(gibbs.trend33$out.ind)[[3]] %>%
-  PissoortThesis::dic_5p(vals = ic_vals.trend33[[3]])
-dic.trend33.4 <- mc.listDiag5(gibbs.trend33$out.ind)[[4]] %>%
-  PissoortThesis::dic_5p(vals = ic_vals.trend33[[4]])
+dic.trend33.1 <- mc.listDiag4(gibbs.trend33$out.ind)[[1]] %>%
+   dic_6p(vals = ic_vals.trend33[[1]])
+dic.trend33.2 <- mc.listDiag4(gibbs.trend33$out.ind)[[2]] %>%
+   dic_6p(vals = ic_vals.trend33[[2]])
+dic.trend33.3 <- mc.listDiag4(gibbs.trend33$out.ind)[[3]] %>%
+    dic_6p(vals = ic_vals.trend33[[3]])
+dic.trend33.4 <- mc.listDiag4(gibbs.trend33$out.ind)[[4]] %>%
+     dic_6p(vals = ic_vals.trend33[[4]])
 cat(dic.trend33.1, dic.trend33.2, dic.trend33.3, dic.trend33.4)
+#Variability
+sd(c(dic.trend33.1, dic.trend33.2, dic.trend33.3,
+     dic.trend33.4))
 
 dic.mean.trend33 <- mean(dic.trend33.1, dic.trend33.2, dic.trend33.3,
                         dic.trend33.4)
@@ -1189,6 +1203,9 @@ cat(waic.trend33.1, waic.trend33.2, waic.trend33.3, waic.trend33.4)
 
 waic.mean.trend33 <- mean(waic.trend33.1, waic.trend33.2, waic.trend33.3,
                          waic.trend33.4)
+# Variability
+sd(c(waic.trend33.1, waic.trend33.2, waic.trend33.3,
+     waic.trend33.4))
 
 
 ##################### Comparisons ("Model Selection")  #######################

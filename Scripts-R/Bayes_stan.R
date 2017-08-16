@@ -15,7 +15,7 @@ library(bayesplot)
 library(mvtnorm)
 
 library(PissoortThesis)
-
+data('max_years')
 
 #######
 fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
@@ -24,7 +24,7 @@ opt <- nlm(fn, param, data = max_years$data,
            hessian=T, iterlim = 1e5)
 
 start0 <- list() ;  k <- 1
-while(k < 5) { # starting value is randomly selected from a distribution
+while(k < 2) { # starting value is randomly selected from a distribution
   # that is overdispersed relative to the target
   sv <- as.numeric(rmvnorm(1, opt$estimate, 50 * solve(opt$hessian)))
   svlp <- log_post0(sv[1], sv[2], sv[3], max_years$data)
@@ -34,15 +34,15 @@ while(k < 5) { # starting value is randomly selected from a distribution
   }
 }
 
-## Change logsig in sigma (for some models)
-for(i in 1:(k-1)){
-  start0[[i]]$sigma <- exp(start0[[i]]$logsig)
-  #start[[i]] <-
-  }
+# ## Change logsig in sigma (for some models)
+# for(i in 1:(k-1)){
+#   start0[[i]]$sigma <- exp(start0[[i]]$logsig)
+#   #start[[i]] <-
+#   }
 
-fit_stan <- stan(file = paste0(repo,'gev_git.stan',collapse = ""),
+fit_stan <- stan(file = paste0(repo,'gev.stan',collapse = ""),
                   data = list(n = length(max_years$data), y = max_years$data),
-                 iter = 2000, chains = 1, warmup = 100,# init = rev(start0),
+                 iter = 2000, chains = 1, warmup = 500, init = rev(start0),
                  cores = 8, control = list(adapt_delta = .9,
                                            max_treedepth = 15))
 fit_stan
@@ -53,6 +53,41 @@ summary(do.call(rbind, sampler_par), digits = 2)
 lapply(sampler_par, summary, digits = 2)
 
 lookup(Inf)
+
+fit_summary <- summary(fit_stan)
+## Traceplot
+arrayfit <- as.array(fit_stan)
+arrayfit[["iterations"]] <- 501:2000
+dimnames(arrayfit)[[1]]
+
+color_scheme_set("darkgray")
+
+g_xi <- mcmc_trace(arrayfit, pars = "xi", size = 0.5) +
+  geom_vline(xintercept = 1500, col = "red",
+             linetype = "dashed", size = 0.6) +
+  geom_hline(aes(yintercept = unname(fit_summary$summary[2,1])),
+             col = "green",
+             linetype = "dashed", size = .7)
+
+g_logsig <- mcmc_trace(arrayfit, pars = "logsig", size =0.5) +
+  geom_vline(xintercept = 1500, col = "red",
+             linetype = "dashed", size = 0.6) +
+  geom_hline(aes(yintercept = unname(fit_summary$summary[1,1])),
+             col = "green",
+             linetype = "dashed", size = .7)
+
+g_mu <- mcmc_trace(arrayfit, pars = "mu", size = 0.5) +
+  geom_vline(xintercept = 1500, col = "red",
+             linetype = "dashed", size = 0.6) +
+  geom_hline(aes(yintercept = unname(fit_summary$summary[3,1])),
+             col = "green",
+             linetype = "dashed", size = .7)
+
+## To Compare chains with Gibbs sampler and MH
+plots_hmc <- grid.arrange(g_mu, g_logsig, g_xi, ncol = 1,
+             top = textGrob("Using Hamiltonian Monte Carlo",
+                            gp = gpar(col ="darkolivegreen4",
+                                      fontsize = 25, font = 4)))
 
 
 
@@ -91,41 +126,8 @@ sampler_params <- get_sampler_params(fit_lin, inc_warmup = TRUE)
 summary(do.call(rbind, sampler_params), digits = 2)
 lapply(sampler_params, summary, digits = 2)
 
-arrayfit <- as.array(fit_stan)
-mcmc_trace(arrayfit, pars = c("mu", "logsig", "xi"),
-           facet_args = list(ncol = 1, strip.position = "left"))
 
-# test_fun <-' functions {
-#   real gev_log (vector y, real mu, real logsig, real xi) {
-#     vector[num_elements(y)] z;
-#     vector[num_elements(y) + 1] lp;
-#     real inv_xi;
-#     real inv_xi_p1;
-#     real neg_inv_xi;
-#     z = ((1 + y) - mu) * (xi / exp(logsig));
-#     inv_xi = inv(xi);
-#     inv_xi_p1 = 1 + inv_xi;
-#     neg_inv_xi = -inv_xi;
-#     for (n in 1:num_elements(y))
-#       lp[n] =  inv_xi_p1 * log(z[n]) + pow(z[n],neg_inv_xi);
-#     lp[num_elements(y) + 1] = num_elements(y) * logsig;
-#     return -sum(lp);
-#   } }
-#   model {}
-# '
-# test_fun <- ' functions {
-#   real gg( int y) {
-#    return 1e15+y;
-#   }
-# }
-#   model {}
-# '
-# expose_stan_functions(stanc(model_code = test_fun))
-# gev_log(max_years$data, 30, 0.7, -.22)
-# gg(20)
-# sm <- stan_model(model_code = test_fun)
-# optimizing(sm, data = list(y = max_years$data,
-#                            N = length(max_years$data)), hessian = T)
+
 
 
 ############# Diagnostics + visualization with bayesplot package

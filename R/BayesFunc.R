@@ -195,7 +195,8 @@
   #                       xi = 0, data = data))
   #browser()
 
-  llhd <- evd::dgev(data, loc = mu, scale = exp(logsig), shape = 0, log = TRUE)
+  llhd <- evd::dgev(loc = mu, scale = exp(logsig), shape = 0,
+                    data, log = TRUE)
 
   if(ic) return(llhd)  # Return only the log-likelihood values for the DIC
   llhd <- sum(llhd, na.rm = TRUE)
@@ -214,7 +215,7 @@
   # llhd <- -(gev.nloglik(mu = mu, sig = exp(logsig),
   #                       xi = xi, data = data))
 
-  llhd <- evd::dgev(data, loc = mu, scale = exp(logsig), xi,
+  llhd <- evd::dgev(loc = mu, scale = exp(logsig), shape = xi, data,
                      log = TRUE)
   #browser()
 
@@ -271,14 +272,15 @@
 'MH_mcmc.own' <- function(start, varmat.prop,
                           data = max_years$data,
                           iter = 2000, burnin = ceiling(iter/2 + 1)){
-
-  out <- matrix(NA, nrow = iter+1, ncol = length(start))
+  time <- proc.time()
+  out <- matrix(NA, nrow = iter+1, ncol = length(varmat.prop))
   dimnames(out) <- list(1:(iter+1), names(start) )
+
 
   out[1,] <- start
 
   ## Handles the Gumbel case
-  if(length(start) == 2)  lpost_old <- log_post_gumb(out[1,1], out[1,2],  data)
+  if(length(varmat.prop) == 2)  lpost_old <- log_post_gumb(out[1,1], out[1,2],  data)
    else  lpost_old <- log_post0(out[1,1], out[1,2], out[1,3], data)
 
   if(!is.finite(lpost_old))  stop("starting values give non-finite log_post")
@@ -287,9 +289,9 @@
 
   for(t in 1:iter) {
 
-    prop <- rnorm(length(start)) %*% varmat.prop + out[t, ]  # add tuning parameter delta ?
+    prop <- rnorm(length(varmat.prop)) %*% varmat.prop + out[t, ]  # add tuning parameter delta ?
 
-    if(length(start) == 2)  lpost_prop <- log_post_gumb(prop[1], prop[2],  data)
+    if(length(varmat.prop) == 2)  lpost_prop <- log_post_gumb(prop[1], prop[2],  data)
      else  lpost_prop <- log_post0(prop[1], prop[2], prop[3], data)
 
     r <- exp(lpost_prop - lpost_old) # as the prop is symmetric
@@ -301,6 +303,10 @@
     else out[t+1,] <- out[t,]
     acc_rates[t] <- min(r, 1)
   }
+
+  print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+
+
   return(list(mean.acc_rates = mean(acc_rates),
               out.chain = data.frame(out[burnin:(iter+1),],
                                      iter = burnin:(iter+1))))
@@ -394,9 +400,11 @@
 
     if(!is.finite(lpost_old))
       stop("starting values give non-finite log_post")
+
     acc_rates <- matrix(NA, nrow = iter, ncol = length(propsd))
 
     data <- max_years$data
+
     for (t in 1:iter) {
       prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
       # so that it removes in the ratio.
@@ -1283,6 +1291,19 @@
      pmv <- log_post3(pm[1], pm[2], pm[3], pm[4], pm[5],  data, ic = T)
   else
      pmv <- log_post2(pm[1], pm[2], pm[3], pm[4], pm[5],  data, ic = T)
+  pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
+  2*pmv - 4*mean(vec1)
+}
+
+#' @rdname pred_bay_accur
+#' @export
+'dic_6p' <- function(out, vals, sig = F) {
+  pm <- colMeans(out)
+  if (sig)
+    pmv <- log_post3(pm[1], pm[2], pm[3], pm[4], pm[5],  data, ic = T)
+  else
+    pmv <- log_post_mu3(pm[1], pm[2], pm[3], pm[4], pm[5], pm[6],
+                        data, ic = T)
   pmv <- sum(pmv, na.rm = TRUE) ;   vec1 <- rowSums(vals, na.rm = TRUE)
   2*pmv - 4*mean(vec1)
 }

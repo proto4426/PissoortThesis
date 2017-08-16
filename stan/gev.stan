@@ -31,7 +31,7 @@ parameters {
 
 model {
    logsig ~ normal(log(sd_y), 100);
-  mu ~ normal(mean(y), 1);
+  mu ~ normal(mean(y), 1000);
   xi ~ normal(0, 1000);
 
   for (i in 1:n) {
