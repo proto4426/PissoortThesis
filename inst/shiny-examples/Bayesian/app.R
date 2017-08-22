@@ -1,21 +1,21 @@
-library(shiny)
+library(coda)
 library(htmltools)
+library(shiny)
 library(shinythemes)
 library(shinydashboard)
 
-library(tidyverse)
 library(gridExtra)
 library(grid)
 library(DT)
+library(tidyverse)
+library(reshape2)
 
 library(mvtnorm)
 library(HDInterval)
 library(ggjoy)
 library(viridis)
 library(plotly)
-library(coda)
 library(ggcorrplot)
-
 
 
 library(PissoortThesis)
@@ -27,16 +27,15 @@ shinyApp(
  navbarPage(
    theme = shinytheme("spacelab"),
    "EVT thesis of Antoine Pissoort",
-    tabPanel("Bayesian",
+    tabPanel("Bayesian Analysis",
      sidebarPanel(
-       wellPanel(h2("Model"),
+       wellPanel(tags$h2("Model"),
        sliderInput("iterchain", "Number of iterations by chains ",
                    value = 500, min = 10, max = 1e4, step = 20),
        numericInput("seed", "Set the seed ",
                    value = 123, min = 1, max = 1e15)
        ),
-       wellPanel(h2("Priors"),
-                 #h5(strong("Normal distributions for the parameters")),
+       wellPanel(tags$h2("Priors"),
         fluidRow(column(3,
                  numericInput("priormumean", "mean mu",
                              value = 30, min = -100, max = 200, step = 1),
@@ -60,13 +59,13 @@ shinyApp(
                   numericInput("priorxisd", "SD xi",
                                value = 10, min = 1e-15, max = 5e3, step = 2)
         )),
-       h5("Take them uninformative by default ")
+       tags$h5("Take them uninformative by default ")
        ),
 
-       p(actionButton("run","RUN Gibbs Sampler", icon("random") ),
+       htmltools::p(actionButton("run","RUN Gibbs Sampler", icon("random") ),
          align = "center", width = 9 ),
 
-       wellPanel(h2("Diagnostics"),
+       wellPanel(tags$h2("Diagnostics"),
          sliderInput("start", "Number of chains with different starting values ?",
                       value = 2, min = 1, max = 10, step = 1),
          sliderInput("burnin", "Number of burnin by chains ",
@@ -81,12 +80,12 @@ shinyApp(
               )
        ),
        br(),
-       wellPanel(h2("Posterior Predictive"),
+       wellPanel(tags$h2("Posterior Predictive"),
        sliderInput("from", "Start at year ",
                 value = 1901, min = 1901, max = 2016, step = 1 ),
        sliderInput("fut", "Prediction in the future ? ",
                 value = 1, min = 0, max = 250, step = 5 ),
-       numericInput("dens", "Show densities every which years ? ",
+       numericInput("dens", "Show densities every which years ?",
                 value = "10", min = "1", max = "30" ),
        #h4("years"),
       checkboxInput("show", "Show the intervals' lengths on the graph ? ", FALSE)
@@ -97,7 +96,8 @@ shinyApp(
      tabsetPanel(
        tabPanel(h4("Predictive Posterior"),
                 br(),
-                wellPanel(h5("This application demonstrates the Bayesian Results. Information are given on the ", icon("info-circle"), "Informations tab."),
+                wellPanel(h5("This application demonstrates the Bayesian Results. Information are given on the ",
+                             icon("info-circle"), "Informations tab."),
                           h5(strong("Click on the"), icon("random"), strong("RUN button to compute the results"))
                           ),
                 br(),        br(),
@@ -116,26 +116,26 @@ shinyApp(
                 h4(strong("Acceptance rates : ")),
                 DT::dataTableOutput("accrates", width = "600px"),
                 code("These values are recommended to be around 0.4 (chosen automatically here). If this is not the case, convergence is expected to be slower."),
-                br(), br(),
+                br(), br(),   # ==================================================================
                 # box(title = "Showed MCMC Diagnostics",
                 #     status = "warning", solidHeader = TRUE, # collapsible = TRUE,
                 #     background = "light-blue",
-                p(h4(strong("Other MCMC Diagnostics")), align = "center"),
-                tabsetPanel("Other MCMC Diagnostics",
+                htmltools::p(h4(strong("Other MCMC Diagnostics")), align = "center"),
+                tabsetPanel(#"Other MCMC Diagnostics",
                   tabPanel("Gelamn-Rubin",
-                           plotOutput("gelman", height = "400px", width = "750px")
+                           plotOutput("gelman", height = "500px", width = "750px")
                            ),
                   tabPanel("Correlation",
                            plotOutput(outputId="autocorr", width="600px",height="400px"),
                            plotOutput(outputId="crosscorr", width="450px",height="400px")
                   ),
                   tabPanel("Geweke",
-                           plotOutput(outputId="geweke", width="600px",height="400px")
-                  )
+                           plotOutput(outputId="geweke", width="650px",height="500px")
+                  )   ## ============================================================
                      # fluidRow(
                     #   column(10, plotOutput(outputId="autocorr", width="450px",height="400px")),
                     #   column(4, plotOutput(outputId="crosscorr", width="250px",height="400px"))
-                    # )
+                    #)
                   )
                 ),
                 tabPanel("Informations", icon = icon("info-circle"),
@@ -145,10 +145,12 @@ shinyApp(
             )  # tabsetPanel
         )  # mainPanel
        ), # tabPanel
-   br(), br(),
-   footer = p( hr(), p("ShinyApp created by ", strong("Antoine Pissoort"), "(",
-                                  a(icon("linkedin"), "Linkedin", href = "https://www.linkedin.com/in/antoine-pissoort-858b54113/"), ")", align="center",width=4),
-              p(("Code available on "), a(icon("github"),"Github", href="https://github.com/proto4426"),align="center",width=4)
+   br(), br(), br(), br(),
+   footer = htmltools::p( hr(), htmltools::p("ShinyApp created by ", strong("Antoine Pissoort"), "(",
+                                  a(icon("linkedin"), "Linkedin",
+                                    href = "https://www.linkedin.com/in/antoine-pissoort-858b54113/"), ")", align="center",width=4),
+                          htmltools::p(("Code available on "), a(icon("github"),"Github",
+                                          href="https://github.com/proto4426"),align="center",width=4)
            )
     )#, # navbarPage
 #  tags$footer(title="Your footer here", align = "right", style = "
@@ -168,7 +170,6 @@ shinyApp(
 server <- function(input, output) {
 
   data <- eventReactive(input$run, {
-
     # ## Start the progress bar.
     # withProgress(message = 'Gibbs sampling', value = 0, {
 
@@ -410,15 +411,15 @@ server <- function(input, output) {
 
 
    # Function to create mcmc.lists, useful for diagnostics on chains.
-   'mc.listDiag' <- function (list, subset = c("mu0", "mu1", "logsig", "xi")) {
-     if(length(list) <=1 )
+   'mc.listDiag' <- function(list, subset = c("mu0", "mu1", "logsig", "xi")) {
+     if(length(list) <= 1 )
        resmc.list <- mcmc.list(mcmc(list[[1]][, subset]) )
      else {
        #browser()
        res <- list() # Initiialize list wherewe stock results
        res[[1]] <- mcmc(list[[1]][,subset])
 
-       for (i in 2:length(list) ){
+       for (i in 2:length(list)) {
 
          res[[i]] <- mcmc( list[[i]][,subset] )
          # resmc.list <- mcmc.list(resmc.list,
@@ -453,7 +454,7 @@ server <- function(input, output) {
                             labels = c(1, 1.1, 1.5, 2, 3, 4 )) +
          #ggtitle("Gelman Rubin dignostic : R-hat Statistic") +
          facet_wrap(~variable,
-                    labeller= labeller(.cols=function(x) gsub("V", "Chain ", x))) +
+                    labeller= labeller(.cols = function(x) gsub("V", "Chain ", x))) +
          labs(x="Last Iteration in Chain", y="Shrink Factor",
               colour="Quantile", linetype="Quantile",
               subtitle = "Gelman Rubin diagnostic : R-hat Statistic") +
@@ -538,3 +539,10 @@ server <- function(input, output) {
 
 
 })
+
+# shiny::runApp(display.mode="showcase")
+#
+# options(shiny.trace = TRUE)
+# options(shiny.fullstacktrace = TRUE)
+# options(shiny.reactlog=TRUE)
+

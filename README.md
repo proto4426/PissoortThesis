@@ -61,15 +61,16 @@ Present the Conditional Density Netowrks applied to the GEV (see Sections **3.4*
 ```coffee
 runExample('neural_networks') 
 ```
-Parralel computing is used for efficiency. Click on the "informations" tab for more explanations.
+Parralel computing is used for efficiency. Click on the "informations" tab in the application for more explanations. Here is a very quick summary...
 ![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/NN_small.gif)
 
 
 ### 5. Bayesian Analysis
-Present the Bayesian Analysis applied in Chapter **7** in the thesis. This app also provides convenient tools to visualize the effects of changing the (hyper)parameters of the model(s). 
+Present the Bayesian Analysis applied in Chapter **7** in the thesis. This app also provides convenient tools to visualize the effects of changing the (hyper)parameters of the model(s), diagnostics, Predictive Posterior, ... 
 ```coffee
 runExample('Bayesian') 
 ```
+Click on the "informations" tab in the application for more explanations. Here is a very quick GIF summary :
 ![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/Bayes.gif)
 
 

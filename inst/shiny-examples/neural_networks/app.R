@@ -85,7 +85,7 @@ ui <- tagList(
                             "9", min = "2", max = "1000"  )
     ),
 
-    p(actionButton("runfit","RUN GEV-CDN", icon("random") ),
+    htmltools::p(actionButton("runfit","RUN GEV-CDN", icon("random") ),
       align = "center", width = 9 ),
 
     sliderInput("bag", "Bagging resamples B ? ",
@@ -100,7 +100,7 @@ ui <- tagList(
                   label = "Bootstrap method ?",
                   choices = c("Residual" = "residual",
                               "Parametric" =  "parametric")),
-      p(actionButton("runboot","RUN Bootstrap intervals", icon("random") ),
+      htmltools::p(actionButton("runboot","RUN Bootstrap intervals", icon("random") ),
         align = "center", width = 9 ),
 
     checkboxInput("comp", "Comparison of the resdiual and parametric methods ? ", FALSE)
