@@ -2,11 +2,17 @@
 % Please edit documentation in R/BayesFunc.R
 \name{log_post1}
 \alias{log_post1}
+\alias{gibbs.trend.own}
 \title{Gibbs Sampler for nonstationary GEV (MCMC)}
 \usage{
 log_post1(mu0, mu1, logsig, xi, data, model.mu = mu0 + mu1 * tt,
   mnpr = c(30, 0, 0, 0), sdpr = c(40, 40, 10, 10), rescale.time = T,
   ic = F)
+
+gibbs.trend.own(start, propsd = c(0.5, 2.5, 0.08, 0.08), iter = 1000,
+  burnin = ceiling(iter/2 + 1), data = max_years$data,
+  keep.same.seed = NULL, rescale.time = T, Progress.Shiny = NULL,
+  .mnpr = c(30, 0, 0, 0), .sdpr = c(40, 40, 10, 10))
 }
 \arguments{
 \item{data}{numeric vector containing the GEV in block-maxima}
@@ -16,18 +22,21 @@ containing the starting values for the parameters theta=(intercept mu0, trend mu
 LOG-scale and shape).
 It is advised explore different ones, and typically take the MPLE.}
 
-\item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
-To facilitate convergence, it is advised to target an acceptance rate of around 0.25
-when all components of theta are updated  simultaneously,
-and 0.40 when the components are updated one at a time.
-It must be wel chosen (e.g. Trial-and-error method)}
-
 \item{iter}{The number of iterations of the algorithm. Must e high enough to ensure convergence}
 
 \item{burnin}{Determines value for burn-in}
 
 \item{keep.same.seed}{sets a seed at each iterations that is the integer you specify
 times the iteration number.}
+
+\item{Progress.Shiny}{Additional parameter that handles the progress bar
+in the pertaining Shiny application.}
+
+\item{proposd}{The proposal's standard deviations : controlling the cceptance rate.
+To facilitate convergence, it is advised to target an acceptance rate of around 0.25
+when all components of theta are updated  simultaneously,
+and 0.40 when the components are updated one at a time.
+It must be wel chosen (e.g. Trial-and-error method)}
 }
 \value{
 A named list containing

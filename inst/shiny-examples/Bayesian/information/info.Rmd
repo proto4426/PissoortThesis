@@ -1,0 +1,57 @@
+---
+title: "Informations"
+author: ""
+date: ""
+output:
+   html_document : 
+    #css: style.css
+   #theme: cosmo  # Style du document
+   code_folding: hide #  Cache le code  
+   highlight: tango # style de mise en valeur du code
+   number_sections: yes # Ajout table des matières
+   toc: yes # Table des matière ?
+   toc_float: no # table des matière flottante
+   toc_depth: 3  # Profondeur table des matière
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R code 
+
+* The application is hosted at the following [URL](https://github.com/proto4426/PissoortThesis/) **(to update !)**. 
+* The **global repository** for the thesis which contains the R package can be found [here](https://github.com/proto4426/PissoortThesis/)
+* The **specific code**  for this app can be found in this [folder](https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples).
+
+The following package are needed to run the application : 
+
+```{r pack, eval=F}
+install.packages(c("shiny", "htmltools", "shinythemes","tidyverse","DT",
+                   "gridExtra","grid","mvtnorm","plotly","HDInterval","ggjoy","scales","heatmaply", "coda"))
+## And of course the package for this thesis ... 
+devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)
+```
+
+## Model 
+
+* The number of starting values (see diagnostics) influence the total number of iterations ! 
+* The seed is set for both the random generation of the starting values (see Algorithm 1 in the text) and the random generation of all the Markov chains. All results can thus be easily retrieved, without having to set two different seeds. 
+
+## Prior
+
+* Yet, these priors are taken to be univariate Normal distributions for each parameters. It would be interesting to incorporate other forms of priors as discussed in 
+* The values set by default here and in the thesis are chosen... by default ! **But**, since these are taken to be uninformative (near-flat) priors, relatively small changes won't change the ouput. Verify it by your mouse ! 
+
+
+## Diagnostics 
+
+
+## Posterior Predictive 
+
+
+
+
+
+
+

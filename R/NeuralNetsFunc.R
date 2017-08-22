@@ -1,6 +1,6 @@
 # Modifify source function to avoid unesful printings
 # ===============================================================
-#' @export gevcdn.fit2
+#' @name gevcdn
 #' @title Rebuilding of the function from \code{GEVcdn} package
 #'
 #' @description
@@ -19,11 +19,14 @@
 #' See other function's details in the GEVcdn package
 #' @references Cannon, A.J., 2010. A flexible nonlinear modelling framework for nonstationary generalized
 #' extreme value analysis in hydroclimatology. Hydrological Processes, 24: 673-685. DOI: 10.1002/hyp.7506
+#' @rdname  gevcdn
+#' @export
 'gevcdn.fit2' <- function (x, y, iter.max = 1000, n.hidden = 2, Th = gevcdn.logistic,
                            fixed = NULL, init.range = c(-0.25, 0.25),
                            scale.min = .Machine$double.eps,
                            beta.p = 3.3, beta.q = 2, sd.norm = Inf, n.trials = 5,
-                           method = c("BFGS", "Nelder-Mead"), max.fails = 100, ...) {
+                           method = c("BFGS", "Nelder-Mead"), max.fails = 100,
+                           silent = F, ...) {
   if (!is.matrix(x))  stop("\"x\" must be a matrix")
   if (!is.matrix(y))  stop("\"y\" must be a matrix")
   method <- match.arg(method)
@@ -52,17 +55,18 @@
       if (!class(fit.cur) == "try-error")   exception <- fit.cur$value > 1e+308
       if (exception)  exception.count <- exception.count + 1
       if (exception.count == max.fails) {
-        stop("exception... check arguments")
-      }
+        stop("exception... check arguments you put in the function.
+                 SHINY : The error is probably that you used bagging for a stationary model
+                 or that you did not put hidden layers for a nonlinear model")      }
     }
     GML.cur <- fit.cur$value
-    cat(GML.cur,"")
+    if(!silent)  cat(GML.cur,"")
     if (GML.cur < GML) {
       GML <- GML.cur
       output.cdn <- fit.cur
     }
   }
-  cat("\n")
+  if(!silent)  cat("\n")
   weights <- output.cdn$par
   cost <- gevcdn.cost(weights, x, y, n.hidden, Th, fixed, scale.min,
                       beta.p, beta.q, sd.norm)
@@ -91,10 +95,10 @@
   return(w)
 }
 
-
 ### We put functions here, slightly modifying them, just to better understand them
-
-"gevcdn.bag" <- function (x, y, iter.max = 1000, iter.step = 10, n.bootstrap = 30,
+#' @rdname  gevcdn
+#' @export
+"gevcdn.bag2" <- function (x, y, iter.max = 1000, iter.step = 10, n.bootstrap = 30,
             n.hidden = 3, Th = gevcdn.logistic, fixed = NULL,
             init.range = c(-0.25, 0.25), scale.min = .Machine$double.eps,
             beta.p = 3.3, beta.q = 2, sd.norm = Inf,
@@ -106,6 +110,7 @@
 
     method <- match.arg(method)
     if (identical(Th, gevcdn.identity)) n.hidden <- 3
+
     x.min <- apply(x, 2, min)
     x.max <- apply(x, 2, max)
     x <- sweep(sweep(x, 2, x.min, '-'), 2, x.max - x.min, '/')
@@ -113,6 +118,7 @@
     y.max <- max(y)
     y <- (y - y.min)/(y.max - y.min)
     w.bootstrap <- vector("list", n.bootstrap)
+
     for (i in seq_len(n.bootstrap)){
       cat("*** Bootstrap sample", i, "\n")
       cases.in <- sample(nrow(x), replace=TRUE)
@@ -157,7 +163,9 @@
             iter.best <- iter <- 0
           }
           if (exception.count == max.fails){
-            stop("exception... check arguments")
+            stop("exception... check arguments you put in the function.
+                 SHINY : The error is probably that you used bagging for a stationary model
+                 or that you did not put any hidden layers")
           }
         }
         weights <- fit$par
@@ -196,6 +204,11 @@
     if (n.bootstrap==1) w.bootstrap <- w.bootstrap[[i]]
     w.bootstrap
 }
+
+
+#' @rdname  gevcdn
+#' @export
+hyp.tan <- function(x) ( exp(x) - exp(x) ) / ( exp(x) + exp(-x) )
 
 
 gevcdn.bootstrap <- function (n.bootstrap, x, y, iter.max = 1000, n.hidden = 2,
@@ -265,4 +278,6 @@ gevcdn.bootstrap <- function (n.bootstrap, x, y, iter.max = 1000, n.hidden = 2,
          shape.bootstrap = shape.bootstrap,
          quantiles.bootstrap = quantiles.bootstrap)
 }
+
+
 

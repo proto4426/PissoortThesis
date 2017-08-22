@@ -101,7 +101,7 @@
     geom_vline(xintercept = burnin.redline, col = "red", linetype = "dashed", size = 0.6) +
     guides(colour = guide_legend(override.aes = list(size= 1.2)))
 
-  g_mutrend <- ggplot(chain.mix, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
+  g_mutrend <- ggplot(data, aes(x = iter.chain, y = mu1, col = as.factor(chain.nbr))) +
     geom_line() + theme_piss(18,16, theme = theme_classic()) +
     labs(y = "mu_1", x = "iterations by chain") +
     scale_colour_brewer(name = "chain nr", palette = "Set1") +
@@ -316,7 +316,7 @@
 # ===============================================================
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @title Gibbs Sampler for GEV (MCMC)
-#' @description#'
+#' @description
 #' @param start numeric vector of length 3 containing the starting values for the parameters theta=
 #'(location, LOG-scale and shape). It is advised explore different ones, and typically take the MPLE
 #' @param proposd The proposal's standard deviations : controlling the cceptance rate.
@@ -594,6 +594,8 @@
 #' @param burnin Determines value for burn-in
 #' @param keep.same.seed  sets a seed at each iterations that is the integer you specify
 #' times the iteration number.
+#' @param Progress.Shiny Additional parameter that handles the progress bar
+#'  in the pertaining Shiny application.
 #' @return A named list containing
 #' \describe{
 #' \item{\code{n.chains} : The number of chains generated melted in a data.frame}
@@ -637,6 +639,7 @@
 #'
 #' ### Plot of the chains
 #' chains.plotOwn(gibbs.trend$out.chain )
+#' @rdname gibbs.Nstatio1
 #' @export
 'log_post1' <- function(mu0, mu1, logsig, xi, data,
                         model.mu = mu0 + mu1 * tt,
@@ -659,12 +662,17 @@
   lprior <- sum(dnorm(theta, mean = mnpr, sd = sdpr, log = TRUE))
   lprior + llhd1 #+ llhd2
 }
+
+#' @rdname gibbs.Nstatio1
 #' @export
 'gibbs.trend.own' <- function (start, propsd = c(.5, 2.5, .08, .08),
                                iter = 1000, burnin = ceiling(iter/2 + 1),
                                data = max_years$data,
                                keep.same.seed = NULL,
-                               rescale.time = T ) {
+                               rescale.time = T,
+                               Progress.Shiny = NULL,
+                               .mnpr = c(30,0,0,0), .sdpr = c(40,40,10,10)) {
+
   # To store values inside
   acc_rate.list <- list() ;  ic_val.list <- list() ;  out.ind <- list()
 
@@ -676,117 +684,139 @@
                         chain.nbr = character(0))
   nr.chain <- length(start)   ;    time <- proc.time()
 
- for(k in 1:nr.chain) {
-   out <- data.frame(mu0 = rep(NA, iter+1),
-                     mu1 = rep(NA, iter+1),
-                     logsig = rep(NA, iter+1),
-                     xi = rep(NA, iter+1))
+  for(k in 1:nr.chain) {
+    out <- data.frame(mu0 = rep(NA, iter+1),
+                      mu1 = rep(NA, iter+1),
+                      logsig = rep(NA, iter+1),
+                      xi = rep(NA, iter+1))
 
-   out[1,] <- start[[k]]
+    out[1,] <- start[[k]]
 
-   out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
+    out <- cbind.data.frame(out, chain.nbr = rep(as.factor(k), iter+1))
 
-   lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4],
-                          rescale.time = rescale.time, data)
+    lpost_old <- log_post1(out[1,1], out[1,2], out[1,3], out[1,4],
+                           rescale.time = rescale.time, data,
+                           mnpr = .mnpr, sdpr = .sdpr)
 
-   # For DIC computation
-   ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
-   ic_vals[1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                            rescale.time = rescale.time, data, ic =T)
+    # For DIC computation
+    ic_vals <- matrix(NA, nrow = iter+1, ncol = length(data))
+    ic_vals[1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
+                             rescale.time = rescale.time, data, ic =T,
+                             mnpr = .mnpr, sdpr = .sdpr)
 
-   if(!is.finite(lpost_old))
-     stop("starting values give non-finite log_post")
+    if(!is.finite(lpost_old))
+      stop("starting values give non-finite log_post")
     acc_rates <- matrix(NA, nrow = iter, ncol = 4)
 
-   for(t in 1:iter) {
+    for(t in 1:iter) {
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 1)
-     prop1 <- rnorm(1, mean = out[t,1], propsd[1])
+      # Handle the progress bar in Shiny
+      # if(shiny.timing & is.integer((t*k/100)) )
+      #   progress$inc(1/(iter*nr.chain),
+      #                detail = paste("Iteration", t, "for chain #", k))
+      # incProgress( 1/t*k,
+      #             detail = paste("Iteration", t, "for chain #", k))
+      # If we were passed a progress update function, call it
+      if (is.function(Progress.Shiny)) {
+        text <- paste0("Iteration ", t, " for chain #", k)
+        Progress.Shiny(#value = 1-(1/t*k),
+          detail = text)
+      }
 
-     lpost_prop <- log_post1(prop1, out[t,2], out[t,3], out[t,4],
-                             rescale.time = rescale.time, data)
-     r <- exp(lpost_prop - lpost_old)
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
-     if(r > runif(1)) {
-       out[t+1,1] <- prop1
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,1] <- out[t,1]
-     acc_rates[t,1] <- min(r, 1)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 1)
+      prop1 <- rnorm(1, mean = out[t,1], propsd[1])
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 2)
-     prop2 <- rnorm(1, mean = out[t,2], propsd[2])
+      lpost_prop <- log_post1(prop1, out[t,2], out[t,3], out[t,4],
+                              rescale.time = rescale.time, data,
+                              mnpr = .mnpr, sdpr = .sdpr)
+      r <- exp(lpost_prop - lpost_old)
 
-     lpost_prop <- log_post1(out[t+1,1], prop2, out[t,3], out[t,4],
-                             rescale.time = rescale.time, data)
-     r <- exp(lpost_prop - lpost_old)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
+      if(r > runif(1)) {
+        out[t+1,1] <- prop1
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,1] <- out[t,1]
+      acc_rates[t,1] <- min(r, 1)
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
-     if(r > runif(1)) {
-       out[t+1,2] <- prop2
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,2] <- out[t,2]
-     acc_rates[t,2] <- min(r, 1)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 2)
+      prop2 <- rnorm(1, mean = out[t,2], propsd[2])
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 3)
-     prop3 <- rnorm(1, mean = out[t,3], propsd[3])
+      lpost_prop <- log_post1(out[t+1,1], prop2, out[t,3], out[t,4],
+                              rescale.time = rescale.time, data,
+                              mnpr = .mnpr, sdpr = .sdpr)
+      r <- exp(lpost_prop - lpost_old)
 
-     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], prop3, out[t,4],
-                             rescale.time = rescale.time, data)
-     r <- exp(lpost_prop - lpost_old)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
+      if(r > runif(1)) {
+        out[t+1,2] <- prop2
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,2] <- out[t,2]
+      acc_rates[t,2] <- min(r, 1)
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
-     if(r > runif(1)) {
-       out[t+1,3] <- prop3
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,3] <- out[t,3]
-     acc_rates[t,3] <- min(r, 1)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 3)
+      prop3 <- rnorm(1, mean = out[t,3], propsd[3])
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
-     prop4 <- rnorm(1, mean = out[t,4], propsd[4])
+      lpost_prop <- log_post1(out[t+1,1], out[t+1,2], prop3, out[t,4],
+                              rescale.time = rescale.time, data,
+                              mnpr = .mnpr, sdpr = .sdpr)
+      r <- exp(lpost_prop - lpost_old)
 
-     lpost_prop <- log_post1(out[t+1,1], out[t+1,2], out[t+1,3], prop4,
-                             rescale.time = rescale.time, data)
-     r <- exp(lpost_prop - lpost_old)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
+      if(r > runif(1)) {
+        out[t+1,3] <- prop3
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,3] <- out[t,3]
+      acc_rates[t,3] <- min(r, 1)
 
-     if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
-     if(r > runif(1)) {
-       out[t+1,4] <- prop4
-       lpost_old <- lpost_prop
-     }
-     else out[t+1,4] <- out[t,4]
-     acc_rates[t,4] <- min(r, 1)
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
+      prop4 <- rnorm(1, mean = out[t,4], propsd[4])
 
-     # For DIC
-     ic_vals[t+1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
-                                rescale.time = rescale.time, data, ic =T)
-   }
-   acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
-   ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
-   out.ind[[k]] <- out
+      lpost_prop <- log_post1(out[t+1,1], out[t+1,2], out[t+1,3], prop4,
+                              rescale.time = rescale.time, data,
+                              mnpr = .mnpr, sdpr = .sdpr)
+      r <- exp(lpost_prop - lpost_old)
 
-   #browser()
+      if( !is.null(keep.same.seed) )  set.seed(t * keep.same.seed + 4)
+      if(r > runif(1)) {
+        out[t+1,4] <- prop4
+        lpost_old <- lpost_prop
+      }
+      else out[t+1,4] <- out[t,4]
+      acc_rates[t,4] <- min(r, 1)
 
-   # Combine Chains And Remove Burn-In Period
-   out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
-  # out.fin <- cbind.data.frame(out.fin)
-                              # chain.nmbr = rep(k, nrow(out.fin)))
+      # For DIC
+      ic_vals[t+1,] <- log_post1(out[1,1], out[1, 2], out[1,3], out[1,4],
+                                 rescale.time = rescale.time, data, ic =T,
+                                 mnpr = .mnpr, sdpr = .sdpr)
+    }
+    acc_rate.list[[k]] <- apply(acc_rates, 2, mean )
+    ic_val.list[[k]] <- ic_vals[-(1:burnin), ]
+    out.ind[[k]] <- out
 
-   print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
- }
+    #browser()
+
+    # Combine Chains And Remove Burn-In Period
+    out.fin <- rbind.data.frame(out.fin, out[-(1:burnin), ])
+    # out.fin <- cbind.data.frame(out.fin)
+    # chain.nmbr = rep(k, nrow(out.fin)))
+
+    print(paste("time is ", round((proc.time() - time)[3], 5), " sec"))
+  }
 
   out <- cbind.data.frame(out.fin,
                           iter = (1:nrow(out.fin)))
 
- return( list(n.chains = length(start),
-              mean_acc.rates = acc_rate.list,
-              out.chain = out,
-              dic.vals = ic_val.list,
-              out.ind = out.ind) )
+  return( list(n.chains = length(start),
+               mean_acc.rates = acc_rate.list,
+               out.chain = out,
+               dic.vals = ic_val.list,
+               out.ind = out.ind) )
 }
+
 
 
 
@@ -1412,21 +1442,25 @@
 #' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
 #' @description
 #' Compute posterior predictive samples from the obtained model (gibbs.trend)
-"pred_post_samples" <- function (from = 1, until = nrow(max_years$df),
+"pred_post_samples" <- function (data = max_years$df,
+                                 model_out.chain = gibbs.trend$out.chain,
+                                 from = 1, until = nrow(max_years$df),
                                  n_future = 0, seed = NULL) {
 
-  tt2 <- ( (max_years$df$Year[from]):(max_years$df$Year[until] + n_future ) -
-             mean(max_years$df$Year) )  /  until
+  tt2 <- ( (data$Year[from]):(data$Year[until] + n_future ) -
+             mean(data$Year) )  / until
 
-  repl2 <- matrix(NA, nrow(gibbs.trend$out.chain), length(tt2))
+  repl2 <- matrix(NA, nrow(model_out.chain), length(tt2))
 
   for(t in 1:nrow(repl2)) {
-    mu <- gibbs.trend$out.chain[t,1] + gibbs.trend$out.chain[t,2] * tt2
+
+    mu <- model_out.chain[t,1] + model_out.chain[t,2] * tt2
+
     if(!is.null(seed)) set.seed(t + seed)
     repl2[t,] <- evd::rgev(length(tt2),
                            loc = mu,
-                           scale = gibbs.trend$out.chain[t,3],
-                           shape = gibbs.trend$out.chain[t,4])
+                           scale = model_out.chain[t,3],
+                           shape = model_out.chain[t,4])
   }
   return(repl2)
 }
@@ -1469,6 +1503,73 @@
     geom_vline(xintercept = hpd_pred['lower', index], col = "green") +
     geom_vline(xintercept = hpd_pred['upper', index], col = "green") +
     theme_piss()
+}
+
+
+# ===============================================================
+#' @export posterior_pred_ggplot
+#' @title Predictive Posterior density plots
+#' @author Antoine Pissoort, \email{antoine.pissoort@@student.uclouvain.be}
+'posterior_pred_ggplot' <- function(Data = max_years$df,
+                                    Model_out.chain = gibbs.trend$out.chain,
+                                    from = 1, until = nrow(max_years$df),
+                                    n_future = 0, by = 10, x_coord = c(27,35)) {
+
+  repl2 <- PissoortThesis::pred_post_samples(data = Data,
+                                             model_out.chain = Model_out.chain,
+                                             from = from, until = until,
+                                             n_future = n_future)
+
+  repl2_df <- data.frame(repl2)
+  colnames(repl2_df) <- seq(from + 1900, length = ncol(repl2))
+
+  ## Compute some quantiles to later draw on the plot
+  quantiles_repl2 <- apply(repl2_df, 2,
+                           function(x) quantile(x , probs = c(.025, 0.05,
+                                                              0.5, 0.95, 0.975)) )
+  quantiles_repl2 <- as.data.frame(t(quantiles_repl2))
+  quantiles_repl2$year <- colnames(repl2_df)
+
+  repl2_df_gg <- repl2_df[, seq(1, (until + n_future) - from, by = by)] %>%
+    gather(year, value)
+
+  col.quantiles <- c("2.5%-97.5%" = "red", "Median" = "black", "HPD 95%" = "green2")
+
+  last_year <- as.character((until + n_future) - from + 1900)
+  titl <- paste("Posterior Predictive densities evolution in [ 1901 -", last_year,"] with linear model on location")
+  subtitl <- paste("with some quantiles and intervals. The last density is in year ", last_year, ". After 2016 is extrapolation.")
+
+  #browser()
+  ## Compute the HPD intervals
+  hpd_pred <- as.data.frame(t(hdi(repl2)))
+  hpd_pred$year <- colnames(repl2_df)
+
+  g <- ggplot(repl2_df_gg, aes(x = value, y = as.numeric(year) )) +  # %>%rev() inside aes()
+    geom_joy(aes(fill = year)) +
+    geom_point(aes(x = `2.5%`, y = as.numeric(year), col = "2.5%-97.5%"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_point(aes(x = `50%`, y = as.numeric(year), col = "Median"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_point(aes(x = `97.5%`, y = as.numeric(year), col = "2.5%-97.5%"),
+               data = quantiles_repl2, size = 0.9) +
+    geom_point(aes(x = lower, y = as.numeric(year) , col = "HPD 95%"),
+               data = hpd_pred, size = 0.9) +
+    geom_point(aes(x = upper, y = as.numeric(year) , col = "HPD 95%"),
+               data = hpd_pred, size = 0.9) +
+    geom_hline(yintercept = 2016, linetype = "dashed", size = 0.3, col  = 1) +
+    scale_fill_viridis(discrete = T, option = "D", direction = -1, begin = .1, end = .9) +
+    scale_y_continuous(breaks = c(  seq(1901, 2016, by = by),
+                                    seq(2016, colnames(repl2_df)[ncol(repl2_df)], by = by) ) )  +
+    coord_cartesian(xlim = x_coord) +
+    theme_piss(theme = theme_minimal()) +
+    labs(x = expression( Max~(T~degree*C)), y = "Year",
+         title = titl, subtitle = subtitl) +
+    scale_colour_manual(name = "Intervals", values = col.quantiles) +
+    guides(colour = guide_legend(override.aes = list(size=4))) +
+    theme(legend.position = c(.952, .37),
+          plot.subtitle = element_text(hjust = 0.5,face = "italic"),
+          plot.caption = element_text(hjust = 0.1,face = "italic"))
+  g
 }
 
 

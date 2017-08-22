@@ -56,8 +56,24 @@ runExample('splines_draws')
 ```
 ![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/splines.gif)
 
+### 4. Neural Networks (GEV-CDN)
+Present the Conditional Density Netowrks applied to the GEV (see Sections **3.4** and  **6.3**). This app provides convenient visualization to see the effect of all the (hyper)parameters of the model(s).  
+```coffee
+runExample('neural_networks') 
+```
+Parralel computing is used for efficiency. Click on the "informations" tab for more explanations.
+![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/NN_small.gif)
 
-### 4. All together in a dashboard 
+
+### 5. Bayesian Analysis
+Present the Bayesian Analysis applied in Chapter **7** in the thesis. This app also provides convenient tools to visualize the effects of changing the (hyper)parameters of the model(s). 
+```coffee
+runExample('Bayesian') 
+```
+![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/Bayes.gif)
+
+
+### All together in a dashboard 
 All applications created above in a smooth dashboard. Allows to put quite more tools. 
 ```coffee
 runExample('All_dashboard') 

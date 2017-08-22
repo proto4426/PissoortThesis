@@ -1,0 +1,63 @@
+---
+title: "Informations"
+author: ""
+date: ""
+output:
+  html_document :
+  #css: style.css
+  #theme: united  # Style du document
+code_folding: hide #  Cache le code
+highlight: tango # style de mise en valeur du code
+number_sections: yes # Ajout table des matières
+toc: yes # Table des matière ?
+toc_float: no # table des matière flottante
+toc_depth: 3  # Profondeur table des matière
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R code
+
+* The application is hosted at the following [URL](https://github.com/proto4426/PissoortThesis/) **(to update !)**.
+* The **global repository** for the thesis which contains the R package can be found [here](https://github.com/proto4426/PissoortThesis/)
+* The **specific code**  for this app can be found in this [folder](https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples/neural_networks).
+
+The following package are needed to run the application :
+
+```{r pack, eval=F}
+install.packages(c("shiny", "htmltools", "shinythemes","tidyverse","DT", "foreach", "doParallel", "doSNOW", "pander", "GEVcdn", "gridExtra","grid","mvtnorm","plotly","HDInterval","ggjoy","scales","heatmaply"))
+## And of course the package for this thesis ...
+devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)
+```
+
+## Tools developped for the App'
+
+* **You can ook at R console to follow bootstrap parallel computation's progress.**
+* **The computations are made in parralel using all your cores-1 by default.**
+* **But, computations with much bootstrap resamples could still take time.**
+
+* For the bootstrap resampling methods, the values are 2 times the displayed values : e.g. the maximum value is actually 1000.
+
+
+## Model and hyperparameters
+
+* The **Hyperbolic tangent** activation function, i.e. 
+$$tanh(x)= \frac{\exp(x)-\exp(x)}{\exp(x) + \exp(x)}$$
+is **not implemented** in `GEVcdn` and hence, we have problems to locally  implement this function in the `GEVcdn` framework. 
+
+## Prior distributions
+
+* By default, we do not regularize the weights, i.e. we do not control for the overfitting in this way as we put a very large variance prior (near-flat) on the prior distribution of these weigths. It is interesting to see how controlling this value can indeed regularize ("smooth") the model. Try for example a nonstationary model with a nonlinear activation function (e.g. logistic sigmoid) and with a large number of hidden layers (e.g. 5). Then, you will see the effect of decreasing to very small values the variance of this prior.
+* Two other prior values are needed, but here it is to control the  shape parameter. The values set by default are the values given by the authors [Martins and
+Stedinger [2000]](http://onlinelibrary.wiley.com/doi/10.1029/1999WR900330/abstract) of the *Generalized Maximum Likelihood* method.
+
+
+## Bootstrap confidence intervals
+
+
+
+
+
+

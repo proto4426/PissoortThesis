@@ -6,7 +6,7 @@
 \alias{gibbs.trend.sig3own}
 \title{Return Levels with nonstationarity}
 \usage{
-log_post3(mu0, mu1, logsig0, logsig1, xi, data, model.mu = mu0 + mu1 * tt,
+log_post3(mu0, mu1, sig0, sig1, xi, data, model.mu = mu0 + mu1 * tt,
   mnpr = c(30, 0, 1, 0, 0), sdpr = c(10, 40, 10, 10, 10), ic = F)
 
 gibbs.trend.sig3own(start, propsd = c(0.5, 2.5, 2, 0.08, 0.08), iter = 1000,

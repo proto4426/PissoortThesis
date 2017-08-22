@@ -6,6 +6,7 @@
 \alias{dic_3p}
 \alias{dic_4p}
 \alias{dic_5p}
+\alias{dic_6p}
 \alias{waic}
 \title{Predictive accuracy criterion}
 \usage{
@@ -16,6 +17,8 @@ dic_3p(out, vals)
 dic_4p(out, vals)
 
 dic_5p(out, vals, sig = F)
+
+dic_6p(out, vals, sig = F)
 
 waic(vals)
 }

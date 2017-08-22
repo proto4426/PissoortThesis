@@ -41,9 +41,6 @@ predictive accuracy, see ?dic)}
 \item{\code{out.ind} : The generated individual chainS (in a list)}
 }
 }
-\description{
-#'
-}
 \examples{
 data("max_years")
 fn <- function(par, data) -log_post0(par[1], par[2], par[3], data)
