@@ -1,3 +1,5 @@
+library(htmltools)
+library(shinythemes)
 library(shiny)
 library(shinydashboard)
 
@@ -11,12 +13,17 @@ sidebar <- dashboardSidebar(
              badgeLabel = "chap.5", badgeColor = "green"),
     menuItem("Splines GAM", icon = icon("coffee"), tabName = "splines",
              badgeLabel = "chap.5", badgeColor = "red"),
-    menuItem("Neural Networks", icon = icon("plane"), tabName = "nn",
+    menuItem("Neural Networks", icon = icon("plane"), tabName = "NN",
              badgeLabel = "chap.6", badgeColor = "red"),
     menuItem("Source code : Github", icon = icon("file-code-o"),
              href = "https://github.com/proto4426/PissoortThesis")
   )
 )
+
+# 'tabItems' <- function (...)  {
+#   lapply(..., tagAssert)
+#   div(class = "tab-content", ...)
+# }
 
 body <- dashboardBody(
   tabItems(
@@ -89,94 +96,95 @@ body <- dashboardBody(
       ),
 
   # Fourth tab content
-  tabItem(tabName = "nn",
-          navbarPage(
-            theme = shinytheme("united"),
-            "EVT thesis of Antoine Pissoort",
-            tabPanel("GEV-CDN : Neural Networks to fit flexible nonstationary Nonlinear GEV Models in parallel + prevent overfitting (bagging)",
-                     sidebarPanel(
-                       wellPanel(tags$h3("Hyperparameters "),
-                                 selectInput("param",
-                                             label = "Which model ? ",
-                                             choices = c("Stationary" = "sta",
-                                                         "nonstationary in Location" =  "lin1",
-                                                         "nonstationary in Location and Scale" = "lin2",
-                                                         "nonstationary in Location, Scale and Shape" = "lin3") ),
-                                 selectInput("m",
-                                             label = "Activation function ? ",
-                                             choices = c("Identity" = "identity",
-                                                         "Logistic sigmoid" = "logsig",
-                                                         "Hyperbolic tangent" =  "tanh")),
-                                 code("Problem could occur for hyperbolic tan."),
-                                 sliderInput("hidd", "Number of hidden layers ?",
-                                             value = 0, min =0, max = 5 )
-                       ),
-                       wellPanel(numericInput("regprior",
-                                              "Std deviation for Gaussian prior on the weights ? (regularization)" ,
-                                              value = 1e5, min = 1e-5, max = 1e15, step = 10  ),
-                                 numericInput("beta1", "Parameters for the shifted Beta prior distribution (1) ?" ,
-                                              "6", min = "2", max = "1000"  ),
-                                 numericInput("beta2", "Parameters for the shifted Beta prior distribution (2) ?" ,
-                                              "9", min = "2", max = "1000"  )
-                       ),
-                       p(actionButton("runfit","RUN GEV-CDN", icon("random") ),
-                         align = "center", width = 9 ),
-                       sliderInput("bag", "Bagging resamples B ? ",
-                                   value = 1, min = 1, max = 500, step = 4 ),
-                       h5("1=no bagging. Only for nonstationary models with hidden layer >0"),
-                       wellPanel(tags$h3("Bootstrap conf. intervals "),
-                                 sliderInput("nboot", "Bootstrap resamples?",
-                                             value = 1, min = 1, max = 500, step = 4 ),
-                                 selectInput("method",
-                                             label = "Bootstrap method ?",
-                                             choices = c("Residual" = "residual",
-                                                         "Parametric" =  "parametric")),
-                                 p(actionButton("runboot","RUN Bootstrap intervals", icon("random") ),
-                                   align = "center", width = 9 ),
-                                 checkboxInput("comp", "Comparison of the resdiual and parametric methods ? ", FALSE)
-                       ),
-                       wellPanel(tags$h5("Created by Antoine Pissoort"), tags$body("(", tags$a("Github",
-                                  href="https://github.com/proto4426)"," | ",
-                                  tags$a("Linkedin", href="https://www.linkedin.com/in/antoine-pissoort-858b54113/"),")") )
-                       )
-                     ),
-                     mainPanel(
-                       tabsetPanel(#h3( "If bootstrap, look at console to follow computation's progress "),
-                         tabPanel(h5("Model fitting + parameters' intervals"),
-                                  plotOutput("plotFitNN", height = '500px', width = "800px"),
-                                  br(),        br(),
-                                  h4(strong("Computation times (sec.)")),
-                                  tableOutput("datatable"),
+  tabItem(tabName = "NN",
+   # navbarPage(#theme = shinytheme("united"),
+   # "EVT thesis of Antoine Pissoort",
+     #tabPanel("GEV-CDN : Neural Networks to fit flexible nonstationary Nonlinear GEV Models in parallel + prevent overfitting (bagging)",
+   titlePanel(h3("GEV-CDN : Neural Networks to fit flexible nonstationary Nonlinear GEV Models in parallel + prevent overfitting (bagging)")),
+      sidebarPanel(
+        wellPanel(h3("Hyperparameters "),
+                  selectInput("param",
+                              label = "Which model ? ",
+                              choices = c("Stationary" = "sta",
+                                          "nonstationary in Location" =  "lin1",
+                                          "nonstationary in Location and Scale" = "lin2",
+                                          "nonstationary in Location, Scale and Shape" = "lin3") ),
+                  selectInput("m",
+                              label = "Activation function ? ",
+                              choices = c("Identity" = "identity",
+                                          "Logistic sigmoid" = "logsig",
+                                          "Hyperbolic tangent" =  "tanh")),
+                  code("Problem could occur for hyperbolic tan."),
+                  sliderInput("hidd", "Number of hidden layers ?",
+                              value = 0, min =0, max = 5 )
+        ),
+        wellPanel(numericInput("regprior",
+                               "Std deviation for Gaussian prior on the weights ? (regularization)" ,
+                               value = 1e5, min = 1e-5, max = 1e15, step = 10  ),
+                  numericInput("beta1", "Parameters for the shifted Beta prior distribution (1) ?" ,
+                               "6", min = "2", max = "1000"  ),
+                  numericInput("beta2", "Parameters for the shifted Beta prior distribution (2) ?" ,
+                               "9", min = "2", max = "1000"  )
+        ),
+        htmltools::p(actionButton("runfit","RUN GEV-CDN", icon("random") ),
+                     align = "center", width = 9 ),
+        sliderInput("bag", "Bagging resamples B ? ",
+                    value = 1, min = 1, max = 500, step = 4 ),
+        h5("1=no bagging. Only for nonstationary models only with hidden layer >0"),
+        wellPanel(h3("Bootstrap conf. intervals "),
+                  sliderInput("nboot", "Bootstrap resamples?",
+                              value = 1, min = 1, max = 500, step = 4 ),
+                  selectInput("method",
+                              label = "Bootstrap method ?",
+                              choices = c("Residual" = "residual",
+                                          "Parametric" =  "parametric")),
+                  htmltools::p(actionButton("runboot","RUN Bootstrap intervals", icon("random") ),
+                               align = "center", width = 9 ),
 
-                                  plotOutput("plotBoot", height = '700px', width = "600px")
-                         ),
-                         tabPanel("Interval's comparison + Summary Table",
-                                  plotOutput("plot3", height = '300px', width = "780px"),
-                                  br(),        br(),
-                                  h5(strong("Parameters' Estimated values from the selected model")),
-                                  DT::dataTableOutput("datatableFin")
-                         ),
-                         tabPanel("Informations", icon = icon("info-circle"),
-                                  htmlOutput("infoNN")  # See start of server()
-                                  #tabPanel("Summary Table",  DT::dataTableOutput("datatableFin"))
-                         )))
-            )
-          ) # navbarPage, h2("Refer to Section ", strong("3.4"), "and", strong("6.3"), "for more information")
+                  checkboxInput("comp", "Comparison of the resdiual and parametric methods ? ", FALSE)
+        )
+      #)
+     ),
+   mainPanel(
+     tabsetPanel(#h3( "If bootstrap, look at console to follow computation's progress "),
+       tabPanel(h5("Model fitting + parameters' intervals"),
+                plotOutput("plotfitNN", height = '500px', width = "800px"),
+                br(),        br(),
+                h4(strong("Computation times (sec.)")),
+                tableOutput("datatable"),
+
+                plotOutput("plotNNboot", height = '700px', width = "600px")
+       ),
+       tabPanel("Interval's comparison + Summary Table",
+                h4(strong("Difference between residual and parametric Bootrstrap quantiles")),
+     plotOutput("plotBootcomp", height = '300px', width = "800px"),
+     br(),        br(),
+     h5(strong("Parameters' Estimated values from the selected model")),
+     DT::dataTableOutput("datatableFin", width = "800px")
+   ),
+   tabPanel("Informations", icon = icon("info-circle"),
+            htmlOutput("infoNN")  # See start of server()
+   )
+     )
+   )
   )
- )
+  )
 )
+ # )
+#)
+
 
 
 ui <- dashboardPage(header, sidebar, body)
 
 
 library(evd)
+#devtools::install_github("proto4426/PissoortThesis", force = T)
 library(PissoortThesis)
 library(plotly)
 library(gridExtra)
 library(grid)
-library(htmltools)
-library(shinythemes)
+
 library(GEVcdn)
 library(foreach)
 library(doParallel)
@@ -244,6 +252,7 @@ Vb <- vcov(gam3.0) # Bayesian covariance matrix of the model coefficients.
 
 
 server <- function(input, output) {
+  #browser()
 
   #### First application
 
@@ -629,7 +638,7 @@ server <- function(input, output) {
   })
 
 
-  output$plotFitNN <- renderPlot({
+  output$plotfitNN <- renderPlot({
 
     df <- fit()[["df"]]
 
@@ -744,7 +753,7 @@ server <- function(input, output) {
 
 
 
-  output$plotBoot <- renderPlot({
+  output$plotNNboot <- renderPlot({
 
     meth <- boot()[["meth"]]
     df.boott <- boot()[["df.boot"]]
@@ -778,7 +787,7 @@ server <- function(input, output) {
   })
 
 
-  output$plot3 <- renderPlot({
+  output$plotBootcomp <- renderPlot({
 
     validate(
       need(input$comp,  "Check the 'comparison...' box to see the graphs")
@@ -1046,7 +1055,7 @@ server <- function(input, output) {
   })
 
 
-  'getPage' <- function(file = "~/inst/shiny-examples/neural_networks/information/infoNN.html") {
+  'getPage' <- function(file = "information/infoNN.html") {
     return(includeHTML(file))
   }
   output$infoNN <- renderUI({ getPage() })
@@ -1056,4 +1065,8 @@ server <- function(input, output) {
 shinyApp(ui, server)
 
 
+#shiny::runApp(display.mode="showcase")
 
+# options(shiny.trace = TRUE)
+# options(shiny.fullstacktrace = TRUE)
+# options(shiny.reactlog=TRUE)
