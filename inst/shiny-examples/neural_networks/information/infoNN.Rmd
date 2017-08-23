@@ -9,7 +9,7 @@ output:
 code_folding: hide #  Cache le code
 highlight: tango # style de mise en valeur du code
 number_sections: yes # Ajout table des matières
-toc: yes # Table des matière ?
+#toc: yes # Table des matière ?
 toc_float: no # table des matière flottante
 toc_depth: 3  # Profondeur table des matière
 ---

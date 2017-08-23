@@ -1,0 +1,20 @@
+---
+output:
+  html_document :
+  #css: style.css
+  #theme: united  # Style du document
+  code_folding: hide #  Cache le code
+highlight: tango # style de mise en valeur du code
+number_sections: yes # Ajout table des matières
+#toc: yes # Table des matière ?
+toc_float: no # table des matière flottante
+toc_depth: 3  # Profondeur table des matière
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+* **Burn-in M** number of deleted values is small, meaning that starting values are not very influent.
+* **Total N**  is the advised number of iterations, which is actually quite close to our "choice" (=2000) 
+* **Lower bound Nmin** is the minimum sample size based on zero autocorrelation. Here it is relatively low, so it is a good point.
+* **Dependence factor I** informs about the dependence into the chains, or the extent to which autocorrelation inflates the required sample size. It is common to say that values above 5for this criterion indicate a strong autocorrelation. Here we see that it is slightly the case, especially for $\xi$. 

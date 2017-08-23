@@ -77,7 +77,9 @@ shinyApp(
         column(4,
                checkboxInput("autocor", "Autcorr", F),
                 checkboxInput("crosscor", "Cross-corr", F)
-              )
+              ),
+        column(4, checkboxInput("raft", "Raftery-Coda", F)
+               )
        ),
        br(),
        wellPanel(tags$h2("Posterior Predictive"),
@@ -131,8 +133,18 @@ shinyApp(
                   ),
                   tabPanel("Geweke",
                            plotOutput(outputId="geweke", width="650px",height="500px")
-                  )   ## ============================================================
-                     # fluidRow(
+                  ),   ## ============================================================
+                  tabPanel("Raftery-Coda",
+                           column(6,
+                                  DT::dataTableOutput("raft", width = "400px")),
+                           column(8, htmlOutput("info_raft")
+#   h5(strong("M"), "is the avdised number of iterations to be discarded at the beginning of each chain.", strong("N")," is the advised number of iterations.
+# 			", strong("Nmin")," is the minimum sample size based on zero autocorrelation.
+# 			 The dependence factor", strong("I"), " informs to which extent the autocorrelation in the chains inflates the required sample size, with values above 5 indicating a strong autocorrelation.")
+                                  )
+
+                  )
+                  # fluidRow(
                     #   column(10, plotOutput(outputId="autocorr", width="450px",height="400px")),
                     #   column(4, plotOutput(outputId="crosscorr", width="250px",height="400px"))
                     #)
@@ -526,7 +538,40 @@ server <- function(input, output) {
    output$geweke <- renderPlot({ geweke()  })
 
 
-   'getPage' <- function(file = "information/info.html") {
+
+   raftery <- reactive({
+     if(input$raft){
+       param.chain <- data()[["param.chain"]]
+
+       return(
+         raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
+                      q=0.05, r=0.02, s=0.95)
+       )
+     }
+     else return(
+       validate( need(input$raft == T,
+                      label = "Check the 'Raftery-Coda' box") )
+     )
+   })
+   output$raft <- DT::renderDataTable({
+     df <- as.data.frame(raftery()$resmatrix)
+
+     datatable(round(df,4), style = "bootstrap",
+               selection = 'multiple', escape = F, options = list(
+                 initComplete = JS(
+                   "function(settings, json) {",
+                   "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                   "}" ),
+                 dom = 't'))
+     })
+   'getPage_raft' <- function(file = "information/info_raft.html") {
+     return(includeHTML(file))
+   }
+   output$info_raft <- renderUI({ getPage_raft() })
+
+
+
+   'getPage' <- function(file = "information/infobay.html") {
      return(includeHTML(file))
    }
    output$info <- renderUI({ getPage() })

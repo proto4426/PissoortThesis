@@ -3,7 +3,9 @@ library(shinythemes)
 library(shiny)
 library(shinydashboard)
 
-header <- dashboardHeader( title = "Extreme Values' Analysis in Uccle")
+
+header <- dashboardHeader( title = h4("Extreme Values' Analysis in Uccle :", strong("PisssortThesis")),
+                           titleWidth = 450)
 
 sidebar <- dashboardSidebar(
   sidebarMenu(
@@ -28,6 +30,7 @@ sidebar <- dashboardSidebar(
 # }
 
 body <- dashboardBody(
+ includeCSS("custom/style.css"),
   tabItems(
 
    # First tab content
@@ -104,6 +107,7 @@ body <- dashboardBody(
      #tabPanel("GEV-CDN : Neural Networks to fit flexible nonstationary Nonlinear GEV Models in parallel + prevent overfitting (bagging)",
    titlePanel(h3("GEV-CDN : Neural Networks to fit flexible nonstationary Nonlinear GEV Models in parallel + prevent overfitting (bagging)")),
       sidebarPanel(
+       fluidRow(
         wellPanel(h3("Hyperparameters "),
                   selectInput("param",
                               label = "Which model ? ",
@@ -145,9 +149,10 @@ body <- dashboardBody(
 
                   checkboxInput("comp", "Comparison of the resdiual and parametric methods ? ", FALSE)
         )
-      #)
+      )
      ),
    mainPanel(
+     fluidRow(
      tabsetPanel(#h3( "If bootstrap, look at console to follow computation's progress "),
        tabPanel(h5("Model fitting + parameters' intervals"),
                 plotOutput("plotfitNN", height = '500px', width = "800px"),
@@ -167,6 +172,7 @@ body <- dashboardBody(
    tabPanel("Informations", icon = icon("info-circle"),
             htmlOutput("infoNN")  # See start of server()
    )
+     )
      )
    )
   ),
@@ -219,6 +225,8 @@ body <- dashboardBody(
                                column(4,
                                       checkboxInput("autocor", "Autcorr", F),
                                       checkboxInput("crosscor", "Cross-corr", F)
+                               ),
+                               column(4, checkboxInput("raft", "Raftery-Coda", F)
                                )
                      ),
                      br(),
@@ -268,6 +276,12 @@ body <- dashboardBody(
                                   ),
                                   tabPanel("Geweke",
                                            plotOutput(outputId="geweke", width="650px",height="500px")
+                                  ),
+                                  tabPanel("Raftery-Coda",
+                                           column(6,
+                                                  DT::dataTableOutput("raft", width = "400px")),
+                                           column(6, htmlOutput("info_raft")
+                                           )
                                   )
                                 )
                        ),
@@ -1539,6 +1553,40 @@ server <- function(input, output) {
     )
   })
   output$geweke <- renderPlot({ geweke()  })
+
+
+
+
+  raftery <- reactive({
+    if(input$raft){
+      param.chain <- data()[["param.chain"]]
+
+      return(
+        raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
+                     q=0.05, r=0.02, s=0.95)
+      )
+    }
+    else return(
+      validate( need(input$raft == T,
+                     label = "Check the 'Raftery-Coda' box") )
+    )
+  })
+  output$raft <- DT::renderDataTable({
+    df <- as.data.frame(raftery()$resmatrix)
+
+    datatable(round(df,4), style = "bootstrap",
+              selection = 'multiple', escape = F, options = list(
+                initComplete = JS(
+                  "function(settings, json) {",
+                  "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                  "}" ),
+                dom = 't'))
+  })
+  'getPage_raft' <- function(file = "information/info_raft.html") {
+    return(includeHTML(file))
+  }
+  output$info_raft <- renderUI({ getPage_raft() })
+
 
 
   'getPage' <- function(file = "information/infobay.html") {

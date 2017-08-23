@@ -20,15 +20,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## R code 
 
-* The application is hosted at the following [URL](https://github.com/proto4426/PissoortThesis/) **(to update !)**. 
-* The **global repository** for the thesis which contains the R package can be found [here](https://github.com/proto4426/PissoortThesis/)
+* The application is hosted at the following [URL](https://github.com/proto4426/PissoortThesis/) . 
+* The **global repository** for the thesis which contains the R package can be found [here](https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples/Bayesian)
 * The **specific code**  for this app can be found in this [folder](https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples).
 
 The following package are needed to run the application : 
 
 ```{r pack, eval=F}
 install.packages(c("shiny", "htmltools", "shinythemes","tidyverse","DT",
-                   "gridExtra","grid","mvtnorm","plotly","HDInterval","ggjoy","scales","heatmaply", "coda"))
+                   "gridExtra","grid","mvtnorm","plotly","HDInterval","ggjoy","scales","heatmaply", "coda", "reshape2", "ggcorrplot", "viridis"))
 ## And of course the package for this thesis ... 
 devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)
 ```
@@ -46,9 +46,12 @@ devtools::install_github("proto4426/PissoortThesis", build_vignettes=T)
 
 ## Diagnostics 
 
+The diagnostics presented in Section **4.4** and used in Section **7.4.1** can be used to assess the chains' convergence to their target stationary distribution.
+
 
 ## Posterior Predictive 
 
+Presented in Section **4.6** and used in Section **7.4.3**, the Posterior Predictive Distribution can be conveniently visualized here for the chosen model. 
 
 
 

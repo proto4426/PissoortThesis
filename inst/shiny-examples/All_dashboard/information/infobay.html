@@ -123,13 +123,13 @@ $(document).ready(function () {
 <div id="r-code" class="section level2">
 <h2>R code</h2>
 <ul>
-<li>The application is hosted at the following <a href="https://github.com/proto4426/PissoortThesis/">URL</a> <strong>(to update !)</strong>.</li>
-<li>The <strong>global repository</strong> for the thesis which contains the R package can be found <a href="https://github.com/proto4426/PissoortThesis/">here</a></li>
+<li>The application is hosted at the following <a href="https://github.com/proto4426/PissoortThesis/">URL</a> .</li>
+<li>The <strong>global repository</strong> for the thesis which contains the R package can be found <a href="https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples/Bayesian">here</a></li>
 <li>The <strong>specific code</strong> for this app can be found in this <a href="https://github.com/proto4426/PissoortThesis/tree/master/inst/shiny-examples">folder</a>.</li>
 </ul>
 <p>The following package are needed to run the application :</p>
 <pre class="r"><code>install.packages(c(&quot;shiny&quot;, &quot;htmltools&quot;, &quot;shinythemes&quot;,&quot;tidyverse&quot;,&quot;DT&quot;,
-                   &quot;gridExtra&quot;,&quot;grid&quot;,&quot;mvtnorm&quot;,&quot;plotly&quot;,&quot;HDInterval&quot;,&quot;ggjoy&quot;,&quot;scales&quot;,&quot;heatmaply&quot;))
+                   &quot;gridExtra&quot;,&quot;grid&quot;,&quot;mvtnorm&quot;,&quot;plotly&quot;,&quot;HDInterval&quot;,&quot;ggjoy&quot;,&quot;scales&quot;,&quot;heatmaply&quot;, &quot;coda&quot;, &quot;reshape2&quot;, &quot;ggcorrplot&quot;, &quot;viridis&quot;))
 ## And of course the package for this thesis ... 
 devtools::install_github(&quot;proto4426/PissoortThesis&quot;, build_vignettes=T)</code></pre>
 </div>
@@ -149,9 +149,11 @@ devtools::install_github(&quot;proto4426/PissoortThesis&quot;, build_vignettes=T
 </div>
 <div id="diagnostics" class="section level2">
 <h2>Diagnostics</h2>
+<p>The diagnostics presented in Section <strong>4.4</strong> and used in Section <strong>7.4.1</strong> can be used to assess the chains’ convergence to their target stationary distribution.</p>
 </div>
 <div id="posterior-predictive" class="section level2">
 <h2>Posterior Predictive</h2>
+<p>Presented in Section <strong>4.6</strong> and used in Section <strong>7.4.3</strong>, the Posterior Predictive Distribution can be conveniently visualized here for the chosen model.</p>
 </div>
 
 
