@@ -79,7 +79,8 @@ All applications created above in a smooth dashboard. Allows to put quite more t
 ```coffee
 runExample('All_dashboard') 
 ```
-can be directly accessed by clicking on this [link](https://proto4426.shinyapps.io/All_dashboard/)
+can be directly accessed by clicking on this [link](https://proto4426.shinyapps.io/All_dashboard/).
+However, it is recommended to visualize the *Bayesian* and *Neural Networks* applications individually since the dashboard's layout is not optimal with the panel divided in tabsets.
 
 
 
