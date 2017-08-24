@@ -124,7 +124,7 @@ shinyApp(
                 #     background = "light-blue",
                 htmltools::p(h4(strong("Other MCMC Diagnostics")), align = "center"),
                 tabsetPanel(#"Other MCMC Diagnostics",
-                  tabPanel("Gelamn-Rubin",
+                  tabPanel("Gelman-Rubin",
                            plotOutput("gelman", height = "500px", width = "750px")
                            ),
                   tabPanel("Correlation",
@@ -137,7 +137,7 @@ shinyApp(
                   tabPanel("Raftery-Coda",
                            column(6,
                                   DT::dataTableOutput("raft", width = "400px")),
-                           column(8, htmlOutput("info_raft")
+                           column(6, htmlOutput("info_raft")
 #   h5(strong("M"), "is the avdised number of iterations to be discarded at the beginning of each chain.", strong("N")," is the advised number of iterations.
 # 			", strong("Nmin")," is the minimum sample size based on zero autocorrelation.
 # 			 The dependence factor", strong("I"), " informs to which extent the autocorrelation in the chains inflates the required sample size, with values above 5 indicating a strong autocorrelation.")

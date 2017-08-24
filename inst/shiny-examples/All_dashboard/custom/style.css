@@ -44,4 +44,18 @@
 
             .content-wrapper, .left-side {
                          background-color: #ffffff;
-                            }
+            }
+
+/* change the sliver and the color of the selected tab, */
+.nav-tabs-custom .nav-tabs li.active:hover a, .nav-tabs-custom .nav-tabs li.active a {
+     background-color: transparent;
+     border-color: transparent;
+}
+.nav-tabs-custom .nav-tabs li.active {
+     border-top-color: #FFF;
+}
+
+
+body > .content-wrapper,
+             .left-side {background-color: #ffffff;
+                         }

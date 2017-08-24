@@ -403,9 +403,9 @@
 
     acc_rates <- matrix(NA, nrow = iter, ncol = length(propsd))
 
-    data <- max_years$data
 
     for (t in 1:iter) {
+
       prop1 <- rnorm(1, mean = out[t,1], propsd[1]) # symmetric too
       # so that it removes in the ratio.
 
