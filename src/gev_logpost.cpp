@@ -8,6 +8,7 @@ using namespace Rcpp;
 
 // Miscellaneous functions
 
+//' @export
 // [[Rcpp::export]]
 bool any_nonpos(const Rcpp::NumericVector& x) {
   return Rcpp::is_true(Rcpp::any(x <= 0)) ;
@@ -50,6 +51,7 @@ bool any_nonpos(const Rcpp::NumericVector& x) {
 // }
 
 // The 2ND PARAMETER IS LOGSIGMA !!!!
+//' @export
 // [[Rcpp::export]]
 double cpp_gev_loglik(const NumericVector x, const NumericVector data) {
   if (x[1] <= 0)
@@ -80,6 +82,7 @@ double cpp_gev_loglik(const NumericVector x, const NumericVector data) {
 //   priorPtr priorfun = *xpfun ;
 //   return cpp_gev_loglik(x, pars) + priorfun(x, pars) ;
 // }
+//' @export
 // [[Rcpp::export]]
 double gev_logpost(const NumericVector& x,
                    const NumericVector data){//, const NumericVector priorsd ) {
@@ -96,7 +99,7 @@ double gev_logpost(const NumericVector& x,
   return cpp_gev_loglik(x, data) ; //+ lprior ;
 }
 
-
+//' @export
 // [[Rcpp::export]]
 List gibbs_statioCpp(NumericVector start, NumericVector data,
                      int iter, NumericVector propsd,
