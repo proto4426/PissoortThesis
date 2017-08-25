@@ -11,13 +11,34 @@ cpp_gev_loglik <- function(x, data) {
     .Call('_PissoortThesis_cpp_gev_loglik', PACKAGE = 'PissoortThesis', x, data)
 }
 
+cpp_gev_loglik_other <- function(x, data) {
+    .Call('_PissoortThesis_cpp_gev_loglik_other', PACKAGE = 'PissoortThesis', x, data)
+}
+
 #' @export
 gev_logpost <- function(x, data) {
     .Call('_PissoortThesis_gev_logpost', PACKAGE = 'PissoortThesis', x, data)
 }
 
+#' @useDynLib PissoortThesis
 #' @export
 gibbs_statioCpp <- function(start, data, iter, propsd, verbose) {
     .Call('_PissoortThesis_gibbs_statioCpp', PACKAGE = 'PissoortThesis', start, data, iter, propsd, verbose)
+}
+
+#' @export
+gevNsta_loglik <- function(x, data, tt) {
+    .Call('_PissoortThesis_gevNsta_loglik', PACKAGE = 'PissoortThesis', x, data, tt)
+}
+
+#' @export
+gevNsta_lpost <- function(x, data, tt, mnpr = as.numeric( c(30,0,0,0)), sdpr = as.numeric( c(40,40,10,10))) {
+    .Call('_PissoortThesis_gevNsta_lpost', PACKAGE = 'PissoortThesis', x, data, tt, mnpr, sdpr)
+}
+
+#' @useDynLib PissoortThesis
+#' @export
+gibbs_NstaCpp <- function(start, data, tt, iter, propsd, verbose) {
+    .Call('_PissoortThesis_gibbs_NstaCpp', PACKAGE = 'PissoortThesis', start, data, tt, iter, propsd, verbose)
 }
 
