@@ -38,7 +38,7 @@ gevNsta_lpost <- function(x, data, tt, mnpr = as.numeric( c(30,0,0,0)), sdpr = a
 
 #' @useDynLib PissoortThesis
 #' @export
-gibbs_NstaCpp <- function(start, data, tt, iter, propsd, verbose) {
-    .Call('_PissoortThesis_gibbs_NstaCpp', PACKAGE = 'PissoortThesis', start, data, tt, iter, propsd, verbose)
+gibbs_NstaCpp <- function(start, data, tt, iter, propsd, mnpr = as.numeric( c(30,0,0,0)), sdpr = as.numeric( c(40,40,10,10)), verbose) {
+    .Call('_PissoortThesis_gibbs_NstaCpp', PACKAGE = 'PissoortThesis', start, data, tt, iter, propsd, mnpr, sdpr, verbose)
 }
 

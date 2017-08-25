@@ -96,18 +96,20 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_NstaCpp
-NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data, NumericVector tt, int iter, NumericVector propsd, bool verbose);
-RcppExport SEXP _PissoortThesis_gibbs_NstaCpp(SEXP startSEXP, SEXP dataSEXP, SEXP ttSEXP, SEXP iterSEXP, SEXP propsdSEXP, SEXP verboseSEXP) {
+List gibbs_NstaCpp(const NumericVector start, const NumericVector data, NumericVector tt, int iter, NumericVector propsd, NumericVector mnpr, NumericVector sdpr, bool verbose);
+RcppExport SEXP _PissoortThesis_gibbs_NstaCpp(SEXP startSEXP, SEXP dataSEXP, SEXP ttSEXP, SEXP iterSEXP, SEXP propsdSEXP, SEXP mnprSEXP, SEXP sdprSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type start(startSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const NumericVector >::type data(dataSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type tt(ttSEXP);
     Rcpp::traits::input_parameter< int >::type iter(iterSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type propsd(propsdSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mnpr(mnprSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sdpr(sdprSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_NstaCpp(start, data, tt, iter, propsd, verbose));
+    rcpp_result_gen = Rcpp::wrap(gibbs_NstaCpp(start, data, tt, iter, propsd, mnpr, sdpr, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -120,7 +122,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_PissoortThesis_gibbs_statioCpp", (DL_FUNC) &_PissoortThesis_gibbs_statioCpp, 5},
     {"_PissoortThesis_gevNsta_loglik", (DL_FUNC) &_PissoortThesis_gevNsta_loglik, 3},
     {"_PissoortThesis_gevNsta_lpost", (DL_FUNC) &_PissoortThesis_gevNsta_lpost, 5},
-    {"_PissoortThesis_gibbs_NstaCpp", (DL_FUNC) &_PissoortThesis_gibbs_NstaCpp, 6},
+    {"_PissoortThesis_gibbs_NstaCpp", (DL_FUNC) &_PissoortThesis_gibbs_NstaCpp, 8},
     {NULL, NULL, 0}
 };
 

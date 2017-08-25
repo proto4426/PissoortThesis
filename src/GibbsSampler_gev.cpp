@@ -223,7 +223,7 @@ double gevNsta_lpost(const NumericVector& x,
                    const NumericVector data,
                    NumericVector tt,
                    NumericVector mnpr = NumericVector::create(30,0,0,0),
-                   NumericVector sdpr= NumericVector::create(40,40,10,10)){
+                   NumericVector sdpr = NumericVector::create(40,40,10,10)){
   double mu0 = x[0] ;
   double mu1 = x[1] ;
   double logsig = x[2] ;
@@ -258,10 +258,12 @@ double gevNsta_lpost(const NumericVector& x,
 //' @useDynLib PissoortThesis
 //' @export
 // [[Rcpp::export]]
-NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
+List gibbs_NstaCpp(const NumericVector start, const NumericVector data,
                             NumericVector tt,
                             int iter, NumericVector propsd,
-                            bool verbose ) {
+                            NumericVector mnpr = NumericVector::create(30,0,0,0),
+                            NumericVector sdpr = NumericVector::create(40,40,10,10),
+                            bool verbose = TRUE) {
 
   // Initialize storage
   NumericMatrix  out(iter+1, start.size() ) ;
@@ -273,7 +275,7 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
   if(verbose == TRUE) Rcout << "out starts= " << out << std::endl;
   if(verbose == TRUE) Rcout << "starts= " << start << std::endl;
 
-  double lpost_old = gevNsta_lpost(start, data, tt) ;
+  double lpost_old = gevNsta_lpost(start, data, tt, mnpr, sdpr) ;
   if(verbose == TRUE)  Rcout << "lpost_old= " << lpost_old << std::endl;
 
   // Acceptances rates
@@ -291,7 +293,7 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
     NumericVector new_param1 =  NumericVector::create(prop1[0] , out(t,1), out(t,2),out(t,3));
     if(verbose == TRUE)  Rcout << " new_param1 init= " << new_param1 << std::endl;
 
-    double lpost_prop1 = gevNsta_lpost(new_param1, data, tt) ;
+    double lpost_prop1 = gevNsta_lpost(new_param1, data, tt, mnpr, sdpr) ;
     if(verbose == TRUE)  Rcout << " lpost_prop1= " << lpost_prop1 << std::endl;
 
     double r1 = exp(lpost_prop1 - lpost_old) ;
@@ -316,7 +318,7 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
     NumericVector new_param2 =  NumericVector::create(out(t+1,0), prop2[0], out(t,2),out(t,3));
     if(verbose == TRUE)  Rcout << " new_param1 init= " << new_param2 << std::endl;
 
-    double lpost_prop2 = gevNsta_lpost(new_param2, data, tt) ;
+    double lpost_prop2 = gevNsta_lpost(new_param2, data, tt, mnpr, sdpr) ;
     if(verbose == TRUE)  Rcout << " lpost_prop1= " << lpost_prop2 << std::endl;
 
     double r2 = exp(lpost_prop2 - lpost_old) ;
@@ -342,7 +344,7 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
     NumericVector new_param3 = NumericVector::create(out(t+1,0), out(t+1,1), prop3[0], out(t,3));
     if(verbose == TRUE) Rcout << " new_param2 init= " << new_param3 << std::endl;
 
-    double lpost_prop3 = gevNsta_lpost(new_param3, data, tt) ;
+    double lpost_prop3 = gevNsta_lpost(new_param3, data, tt, mnpr, sdpr) ;
 
     double r3 = exp(lpost_prop3 - lpost_old) ;
     if(verbose == TRUE) Rcout << "r2= " << r2 << std::endl;
@@ -365,7 +367,7 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
     NumericVector new_param4 = NumericVector::create(out(t+1,0), out(t+1,1),out(t+1,2), prop4[0]);
     if(verbose == TRUE) Rcout << " new_param3 init= " << new_param4 << std::endl;
 
-    double lpost_prop4 = gevNsta_lpost(new_param4, data, tt) ;
+    double lpost_prop4 = gevNsta_lpost(new_param4, data, tt, mnpr, sdpr) ;
 
     double r4 = exp(lpost_prop4 - lpost_old) ;
     if(verbose == TRUE) Rcout << "r4= " << r3 << std::endl;
@@ -390,5 +392,8 @@ NumericMatrix gibbs_NstaCpp(NumericVector start, NumericVector data,
   mean_acc_rates = mean_acc_rates / iter ;
   Rcout << "mean_acc_rates FINAL= " << mean_acc_rates << std::endl;
 
-  return out;
+  // return out;
+  return Rcpp::List::create( Rcpp::Named("out.ind") = out,
+                             Rcpp::Named("mean.acc.rates") = mean_acc_rates
+                               ) ;
 }
