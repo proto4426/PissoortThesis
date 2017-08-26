@@ -1,0 +1,18 @@
+LDFLAGS=-L/usr/local/opt/gettext/lib -L/usr/local/opt/llvm/lib
+CPPFLAGS=-I/usr/local/opt/gettext/include -I/usr/local/opt/llvm/include
+
+# CC=/usr/local/Cellar/gcc/7.1.0/bin/gcc-7
+CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+# CXX=/usr/local/Cellar/gcc/7.1.0/bin/g++-7
+CXX=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+# CXX1X=/usr/local/bin/g++-7
+CXX1X=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang
+SHLIB_CXXLD=/usr/local/Cellar/gcc/7.1.0/bin/g++-7
+FC=/usr/local/Cellar/gcc/7.1.0/bin/gfortran-7
+F77=/usr/local/Cellar/gcc/7.1.0/bin/gfortran-7
+MAKE=make -j8
+
+SHLIB_OPENMP_CFLAGS=-fopenmp
+SHLIB_OPENMP_CXXFLAGS=-fopenmp
+SHLIB_OPENMP_FCFLAGS=-fopenmp
+SHLIB_OPENMP_FFLAGS=-fopenmp
