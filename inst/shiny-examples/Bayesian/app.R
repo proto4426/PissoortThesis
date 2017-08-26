@@ -16,6 +16,8 @@ library(ggjoy)
 library(viridis)
 library(plotly)
 library(ggcorrplot)
+library(ggmcmc)
+
 
 
 library(PissoortThesis)
@@ -773,27 +775,39 @@ server <- function(input, output) {
 
 
 
-   "geweke" <- function(param.chain){
-       return(
-         geweke.plot(mcmc(param.chain), nbins = 20)
-         )
-   }
+   # "geweke" <- function(param.chain){
+   #     return(
+   #       geweke.plot(mcmc(param.chain), nbins = 20)
+   #       )
+   # }
    output$geweke <- renderPlot({
 
      validate( need(input$geweke == T,
                     label = "Check the 'Geweke' box") )
 
      observeEvent(input$run, {
-       param.chain <- data()[["param.chain"]]
+       #param.chain <- data()[["param.chain"]]
+       #browser()
+       mod <- data()["model"]
        output$geweke <- renderPlot({
-         geweke(param.chain)
+         #attr(param.chain, "nIterations") <-
+         #S <- ggs(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]))
+         S <- ggs(mc.listDiag(mod$model$out.ind))
+
+         ggs_geweke(S)
        })
      })
 
      observeEvent(input$runcpp, {
-       param.chain <- datacpp()[["param.chain"]]
+       #param.chain <- datacpp()[["param.chain"]]
+       mod <- datacpp()["model"]
+
        output$geweke <- renderPlot({
-         geweke(param.chain)
+         #browser()
+         #S <- ggs(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]))
+         S <- ggs(mc.listDiag(mod$model$out.ind))
+
+         ggs_geweke(S)
        })
      })
 

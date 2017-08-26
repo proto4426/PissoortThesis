@@ -8,6 +8,8 @@ header <- dashboardHeader( title = h4("Extreme Values' Analysis in Uccle :", str
                            titleWidth = 450)
 
 sidebar <- dashboardSidebar(
+  tags$head(tags$style(".wrapper {overflow: visible !important;}")),
+
   sidebarMenu(
     menuItem("GEV distribution", tabName = "gev", icon = icon("dashboard"),
              badgeLabel = "chap.1", badgeColor = "green"),
@@ -24,10 +26,6 @@ sidebar <- dashboardSidebar(
   )
 )
 
-# 'tabItems' <- function (...)  {
-#   lapply(..., tagAssert)
-#   div(class = "tab-content", ...)
-# }
 
 body <- dashboardBody(
  includeCSS("custom/style.css"),
@@ -211,8 +209,13 @@ body <- dashboardBody(
                                )),
                                h5("Take them uninformative by default ")
                      ),
-                     htmltools::p(actionButton("run","RUN Gibbs Sampler", icon("random") ),
-                                  align = "center", width = 9 ),
+
+                     column(4, htmltools::p(actionButton("run","RUN R", icon("random") ),
+                                            align = "center", width = 9 )),
+                     column(4, checkboxInput("compRC", "Comparison", FALSE)),
+                     column(4, htmltools::p(actionButton("runcpp","RUN C++", icon("random") ),
+                                            align = "center", width = 9 )),
+
                      wellPanel(h2("Diagnostics"),
                                sliderInput("start", "Number of chains with different starting values ?",
                                            value = 2, min = 1, max = 10, step = 1),
@@ -263,6 +266,7 @@ body <- dashboardBody(
                                 DT::dataTableOutput("DTstart", width = "750px"),
                                 h4(strong("Acceptance rates : ")),
                                 DT::dataTableOutput("accrates", width = "600px"),
+                                br(), br(),
                                 code("These values are recommended to be around 0.4 (chosen automatically here). If this is not the case, convergence is expected to be slower."),
                                 br(), br(),   # ==================================================================
                                 htmltools::p(h4(strong("Other MCMC Diagnostics")), align = "center"),
@@ -286,7 +290,10 @@ body <- dashboardBody(
                                 )
                        ),
                        tabPanel("Informations", icon = icon("info-circle"),
-                                htmlOutput("infobay")#,
+                                htmlOutput("infobay")
+                       ),
+                       tabPanel("Computational time comparison",  icon = icon("random"),
+                                DT::dataTableOutput("code", width = "400px")
                        )
                      )  # tabsetPanel
                    )  # mainPanel
@@ -326,7 +333,7 @@ library(HDInterval)
 library(ggjoy)
 library(viridis)
 library(ggcorrplot)
-
+library(ggmcmc)
 
 data("min_years")
 data("max_years")
@@ -1194,20 +1201,11 @@ server <- function(input, output) {
 
 
 
+
   #### 5th Application (Bayesian)
 
 
-  data <- eventReactive(input$run, {
-    # ## Start the progress bar.
-    # withProgress(message = 'Gibbs sampling', value = 0, {
-
-    # Create a Progress object
-    progress <<- shiny::Progress$new()
-    # Make sure it closes when we exit this reactive, even if there's an error
-    on.exit(progress$close())
-    progress$set(message = "Gibbs sampling", value = 0)
-
-
+  'startV' <- reactive({
     data <- max_years$data
 
     fn <- function(par, data) -log_post1(par[1], par[2], par[3],
@@ -1215,9 +1213,6 @@ server <- function(input, output) {
     param <- c(mean(max_years$df$Max), 0, log(sd(max_years$df$Max)), -0.1 )
     opt <- optim(param, fn, data = max_years$data,
                  method = "BFGS", hessian = T)
-    opt
-
-    Nbr.param <- length(opt$par)
 
     # Starting Values
     set.seed(input$seed)
@@ -1234,8 +1229,25 @@ server <- function(input, output) {
     mat_startvalues <- matrix(unlist(start), nrow = input$start, byrow = T)
     df_startvalues <- as.data.frame(mat_startvalues)
 
+    list(start = start, df_startvalues = df_startvalues)
+
+  })
+
+  'data' <- eventReactive(input$run, {
+    time <- proc.time()
+
+    start <- startV()[["start"]]
+
+    # Create a Progress object
+    progress <<- shiny::Progress$new()
+    # Make sure it closes when we exit this reactive, even if there's an error
+    on.exit(progress$close())
+    progress$set(message = "Gibbs sampling", value = 0)
+
+
     set.seed(input$seed)
     iter.by.chain <- input$iterchain   ;  burnin = input$burnin
+    Nstart <- input$start
 
     # Handle the progress bar. See inside gibbs.trend.own()
     n.tot <- input$start * iter.by.chain
@@ -1258,38 +1270,129 @@ server <- function(input, output) {
                                                    Progress.Shiny = Progress.Shiny, # Handles progress bar !
                                                    .mnpr = mean.vec, .sdpr = sd.vec)
 
-    param.chain <- gibbs.trend$out.chain[, 1:Nbr.param]
+    param.chain <- gibbs.trend$out.chain[, 1:4]
 
-    list(model = gibbs.trend, df_startvalues = df_startvalues, param.chain = param.chain)
+    timer <- (proc.time()- time)[3]
+
+    list(model = gibbs.trend, param.chain = param.chain,
+         burnin = burnin, iter.by.chain = iter.by.chain, start = Nstart,
+         timeR = timer)
 
   })
+
+  "datacpp" <- eventReactive(input$runcpp, {
+    time <- proc.time()
+
+    start <- startV()[["start"]]
+
+    withProgress(message = 'C++ computation', value = 0, {
+
+
+      set.seed(input$seed)
+      iter.by.chain <- input$iterchain   ;  burnin = input$burnin
+      Nstart <- input$start
+
+
+      # Handle the inputs for the Normal priors
+      mu.mean.pr <- input$priormumean ;         mu.sd.pr <- input$priormusd
+      mu1.mean.pr <- input$priormu1mean ;       mu1.sd.pr <- input$priormu1sd
+      logsig.mean.pr <- input$priorlogsigmean ; logsig.sd.pr <- input$priorlogsigsd
+      xi.mean.pr <- input$priorximean ;         xi.sd.pr <- input$priorxisd
+      mean.vec <- c(mu.mean.pr, mu1.mean.pr,logsig.mean.pr, xi.mean.pr)
+      sd.vec <- c(mu.sd.pr, mu1.sd.pr, logsig.sd.pr, xi.sd.pr)
+
+
+      tt <- ( min(max_years$df$Year):max(max_years$df$Year) -
+                mean(max_years$df$Year) ) / length(max_years$data)
+
+      incProgress(0.1)
+
+      M <- length(start) ;  mean_acc_rates <- out_ind <- list()
+      param.chain <- data.frame()
+      for(i in 1:M ){
+        time <- proc.time()
+        gibcpp <- gibbs_NstaCpp(start[[i]],
+                                iter = iter.by.chain,
+                                data = max_years$data,
+                                propsd = c(.5, 1.9, .15, .12),
+                                tt = tt,
+                                mnpr = mean.vec, sdpr = sd.vec,
+                                verbose = F)
+        out_ind[[i]] <- gibcpp$out.ind
+        colnames(out_ind[[i]]) <- c("mu0", "mu1", "logsig", "xi")
+        #browser()
+        param.chain <- rbind(param.chain,
+                             cbind(gibcpp$out.ind[-(1:input$burnin),],
+                                   rep(i, iter.by.chain) ))
+
+        mean_acc_rates[[i]] <- gibcpp$mean.acc.rates
+
+        incProgress(1/M, detail = paste("Doing part", i))
+        cat("Time after chain", i,  " is",
+            round((proc.time() - time)[3], 5), " sec \n")
+      }
+
+      model <- list()
+      colnames(param.chain) <- c("mu0", "mu1", "logsig", "xi", "chain.nbr")
+      model$out.chain <- cbind.data.frame(param.chain,
+                                          iter = 1:nrow(param.chain))
+      model$mean_acc.rates <- mean_acc_rates
+      model$out.ind <- out_ind
+
+      setProgress(1)
+    })
+
+    timecpp <- (proc.time()- time)[3]
+
+    list(model = model, param.chain = param.chain,
+         burnin = burnin, iter.by.chain = iter.by.chain, start = Nstart,
+         timecpp = timecpp)
+  })
+
+
+  'plotPred1' <- function(mod){
+
+    from <-  input$from - 1900
+    fut <-  input$fut
+    by <- input$dens
+
+    gg_pred <-  PissoortThesis::posterior_pred_ggplot(Data = max_years$df,
+                                                      Model_out.chain = mod$out.chain,
+                                                      from = from, x_coord = c(27, 35 + 0.02 * fut),
+                                                      n_future = fut, by = by)
+    return(gg_pred)
+  }
+
 
   output$plotPred1 <- renderPlot({
-    #browser()
 
-    mod <- data()[["model"]]
-    from <-  input$from - 1900
-    fut <-  input$fut
-    by <- input$dens
+    validate(
+      need( (input$run || input$runcpp) ,
+            "Click on the RUN R Button to see the PP density plots, from chains run with R or \n Click on the RUN C++ Button to see the PP density plots, from chains run with C++")
+    )
 
-    #browser()
-    PissoortThesis::posterior_pred_ggplot(Data = max_years$df,
-                                          Model_out.chain = mod$out.chain,
-                                          from = from, x_coord = c(27, 35 + 0.02 * fut),
-                                          n_future = fut, by = by)
+    observeEvent(input$run, {
+      mod <- data()[["model"]]
+      output$plotPred1 <- renderPlot({
+        plotPred1(mod)
+      })
+    })
 
+    observeEvent(input$runcpp, {
+      mod <- datacpp()[["model"]]
+      output$plotPred1 <- renderPlot({
+        plotPred1(mod)
+      })
+    })
   })
 
 
-  output$plotPred2 <- renderPlot({
 
-    mod <- data()[["model"]]
+  'plotPred2' <- function(mod){
+
     from <-  input$from - 1900
     fut <-  input$fut
     by <- input$dens
-
-    #browser()
-
 
     repl2 <- pred_post_samples(data = max_years$df, n_future = fut,
                                model_out.chain = mod$out.chain,
@@ -1362,44 +1465,128 @@ server <- function(input, output) {
       print(g.length, vp = vp)
     }
 
+  }
 
 
+  output$plotPred2 <- renderPlot({
+
+    validate(
+      need( (input$run || input$runcpp) ,
+            "Click on the RUN R Button to see the PPD time series, from chains run with R or \n Click on the RUN C++ Button to see the PPD time series, from chains run with C++")
+    )
+
+    observeEvent(input$run, {
+      mod <- data()[["model"]]
+      output$plotPred2 <- renderPlot({
+        plotPred2(mod)
+      })
+    })
+    observeEvent(input$runcpp, {
+      mod <- datacpp()[["model"]]
+      output$plotPred2 <- renderPlot({
+        plotPred2(mod)
+      })
+    })
   })
+
+
+
 
   ## Gather the data for the traceplots
-  traceplot.data <- reactive({
-    mod <- data()[["model"]]
+  'traceplot.data' <- function(mod, it, burn, start){
 
     chain.mix <- cbind.data.frame(mod$out.chain,
-                                  iter.chain = rep( (input$burnin):(input$iterchain),
-                                                    input$start))
-    chain_mix_gg <- mixchains.Own(chain.mix, burnin = input$burnin)
-    list(chain_mix_gg = chain_mix_gg)
-  })
+                                  iter.chain = rep( (burn):(it),
+                                                    start))
+    # chain.nbr = seq(rep(1, input$iterchain,
+    #                 ))
+    chain_mix_gg <- mixchains.Own(chain.mix,
+                                  burnin = burn)
+    return( chain_mix_gg)
+  }
 
   ## Traceplots of the first parameters
   output$plot.chains <- renderPlot({
-    chain_mix_gg <- traceplot.data()[["chain_mix_gg"]]
+    validate(
+      need( (input$run || input$runcpp),
+            "Click on the RUN R Button to see the traceplots of the chains run with R or \n Click on the RUN C++ Button to see the traceplots of the chains run with C++")
+    )
 
-    title = "TracePlots of the generated Chains "
-    grid_arrange_legend(chain_mix_gg$gmu, chain_mix_gg$gmutrend,
-                        ncol = 2,
-                        top = grid::textGrob(title,
-                                             gp = grid::gpar(col = "#33666C",
-                                                             fontsize = 25, font = 4)) )
+
+    observeEvent(input$run, {
+
+      output$plot.chains <- renderPlot({
+        mod <- data()[["model"]]
+        iter <- data()[["iter.by.chain"]]
+        burnin <- data()[["burnin"]]
+        start <- data()[["start"]]
+
+        chain_mix_gg <- traceplot.data(mod = mod, it = iter, burn = burnin, start)
+
+        title = "TracePlots of the generated Chains "
+        grid_arrange_legend(chain_mix_gg$gmu, chain_mix_gg$gmutrend,
+                            ncol = 2,
+                            top = grid::textGrob(title,
+                                                 gp = grid::gpar(col = "#33666C",
+                                                                 fontsize = 25, font = 4)) )
+      })
+    })
+
+    observeEvent(input$runcpp, {
+
+      output$plot.chains <- renderPlot({
+        mod <- datacpp()[["model"]]
+        iter <- datacpp()[["iter.by.chain"]]
+        burnin <- datacpp()[["burnin"]]
+        start <- datacpp()[["start"]]
+        chain_mix_gg <- traceplot.data(mod = mod, it = iter, burn = burnin, start)
+
+        title = "TracePlots of the generated Chains "
+        grid_arrange_legend(chain_mix_gg$gmu, chain_mix_gg$gmutrend,
+                            ncol = 2,
+                            top = grid::textGrob(title,
+                                                 gp = grid::gpar(col = "#33666C",
+                                                                 fontsize = 25, font = 4)) )
+      })
+    })
   })
 
   ## Traceplots of the last parameters
   output$plot.chains2 <- renderPlot({
-    chain_mix_gg <- traceplot.data()[["chain_mix_gg"]]
 
-    grid.arrange(chain_mix_gg$glogsig, chain_mix_gg$gxi, ncol = 2)
+    validate(
+      need((input$run|| input$runcpp),
+           "Click on the RUN R Button to see the traceplots of the chains run with R or \n Click on the RUN C++ Button to see the traceplots of the chains run with C++")
+    )
+
+    observeEvent(input$run, {
+      output$plot.chains2 <- renderPlot({
+        mod <- data()[["model"]]
+        iter <- data()[["iter.by.chain"]]
+        burnin <- data()[["burnin"]]
+        start <- data()[["start"]]
+        chain_mix_gg <- traceplot.data(mod = mod, it = iter, burn = burnin, start)
+        grid.arrange(chain_mix_gg$glogsig, chain_mix_gg$gxi, ncol = 2)
+      })
+    })
+
+    observeEvent(input$runcpp, {
+      output$plot.chains2 <- renderPlot({
+        mod <- datacpp()[["model"]]
+        iter <- datacpp()[["iter.by.chain"]]
+        burnin <- datacpp()[["burnin"]]
+        start <- datacpp()[["start"]]
+        chain_mix_gg <- traceplot.data(mod = mod, it = iter, burn = burnin, start)
+        grid.arrange(chain_mix_gg$glogsig, chain_mix_gg$gxi, ncol = 2)
+      })
+    })
   })
+
 
   ## Table of the starting values
   output$DTstart <- DT::renderDataTable({
 
-    df <- data()[["df_startvalues"]]
+    df <- startV()[["df_startvalues"]]
 
     #rownames(df) <- replicate(1:input$start, paste("start ", i))
     colnames(df) <- c("mu", "mu1", "logsig", "xi")
@@ -1414,8 +1601,8 @@ server <- function(input, output) {
 
   })
 
-  output$accrates <- DT::renderDataTable({
-    mod <- data()[["model"]]
+
+  "accRateDataTableFun" <- function(mod){
 
     df_acc.rates <- matrix(unlist(mod$mean_acc.rates),
                            nrow = input$start, byrow = T) %>% t() %>%
@@ -1426,16 +1613,39 @@ server <- function(input, output) {
     colnames(df) <- c(paste0("start", 1:input$start), "Average")
     row.names(df) <- c("mu", "mu1", "logsig", "xi")
 
-    datatable(round(df,4), style = "bootstrap",
-              selection = 'multiple', escape = F, options = list(
-                initComplete = JS(
-                  "function(settings, json) {",
-                  "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
-                  "}" ),
-                dom = 't')) %>%
+    dTable <- datatable(round(df,4), style = "bootstrap",
+                        selection = 'multiple', escape = F, options = list(
+                          initComplete = JS(
+                            "function(settings, json) {",
+                            "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                            "}" ),
+                          dom = 't')) %>%
       formatStyle( "Average",# target = 'row',
                    backgroundColor = "yellow"
       )
+    return(dTable)
+  }
+
+  output$accrates <- DT::renderDataTable({
+
+    validate(
+      need( (input$run || input$runcpp),
+            "Click on the RUN R Button to see the acceptance rates of the chains run with R or  \n Click on the RUN C++ Button to see the traceplots of the chains run with C++")
+    )
+
+    observeEvent(input$run, {
+      mod <- data()[["model"]]
+      output$accrates <- DT::renderDataTable({
+        accRateDataTableFun(mod)
+      })
+    })
+
+    observeEvent(input$runcpp, {
+      mod <- datacpp()[["model"]]
+      output$accrates <- DT::renderDataTable({
+        accRateDataTableFun(mod)
+      })
+    })
   })
 
 
@@ -1461,126 +1671,196 @@ server <- function(input, output) {
   }
 
 
-  gg_gelman_reac <- reactive ({
-    if(input$gelman) {
+  "gg_gelman_reac" <- function(mod){
+    #  if(input$gelman) {
 
+
+    gp.dat <- gelman.plot(mc.listDiag(mod$out.ind), autoburnin=F)
+    df = data.frame(bind_rows(as.data.frame(gp.dat[["shrink"]][,,1]),
+                              as.data.frame(gp.dat[["shrink"]][,,2])),
+                    q = rep(dimnames(gp.dat[["shrink"]])[[3]],
+                            each = nrow(gp.dat[["shrink"]][,,1])),
+                    last.iter = rep(gp.dat[["last.iter"]], length(gp.dat)))
+    df_gg <-melt(df, c("q","last.iter"), value.name = "shrink_factor")
+
+    #browser()
+    gg <-  ggplot(df_gg, aes(last.iter, shrink_factor, colour=q, linetype=q)) +
+      geom_hline(yintercept=1, colour="grey30", lwd=0.2) +
+      geom_line() +
+      geom_hline(yintercept = 1.1, colour = "green4", linetype = "dashed", size = 0.3) +
+      scale_y_continuous(breaks = c(1, 1.1, 1.5, 2, 3, 4 ),
+                         labels = c(1, 1.1, 1.5, 2, 3, 4 )) +
+      #ggtitle("Gelman Rubin dignostic : R-hat Statistic") +
+      facet_wrap(~variable,
+                 labeller= labeller(.cols = function(x) gsub("V", "Chain ", x))) +
+      labs(x="Last Iteration in Chain", y="Shrink Factor",
+           colour="Quantile", linetype="Quantile",
+           subtitle = "Gelman Rubin diagnostic : R-hat Statistic") +
+      scale_linetype_manual(values=c(2,1)) +
+      theme_piss() +
+      theme(strip.text = element_text(size=15),
+            plot.subtitle = element_text(size = 21, hjust = 0.5,
+                                         colour = "#33666C", face = "bold"))
+    return(gg)
+    # }
+    # else return(
+    #   validate( need(input$gelman == T,
+    #                  label = "Check the 'Gelman-R' box") )
+    # )
+  }
+
+
+  output$gelman <- renderPlot({
+
+    validate( need(input$gelman == T,
+                   label = "Check the 'Gelman-R' box") )
+
+    observeEvent(input$run, {
       mod <- data()[["model"]]
+      output$gelman <- renderPlot({
+        gg_gelman_reac(mod)
+      })
+    })
 
-      gp.dat <- gelman.plot(mc.listDiag(mod$out.ind), autoburnin=F)
-      df = data.frame(bind_rows(as.data.frame(gp.dat[["shrink"]][,,1]),
-                                as.data.frame(gp.dat[["shrink"]][,,2])),
-                      q = rep(dimnames(gp.dat[["shrink"]])[[3]],
-                              each = nrow(gp.dat[["shrink"]][,,1])),
-                      last.iter = rep(gp.dat[["last.iter"]], length(gp.dat)))
-      df_gg <-melt(df, c("q","last.iter"), value.name = "shrink_factor")
+    observeEvent(input$runcpp, {
+      mod <- datacpp()[["model"]]
+      output$gelman <- renderPlot({
+        gg_gelman_reac(mod)
+      })
+    })
 
-      #browser()
-      gg <-  ggplot(df_gg, aes(last.iter, shrink_factor, colour=q, linetype=q)) +
-        geom_hline(yintercept=1, colour="grey30", lwd=0.2) +
-        geom_line() +
-        geom_hline(yintercept = 1.1, colour = "green4", linetype = "dashed", size = 0.3) +
-        scale_y_continuous(breaks = c(1, 1.1, 1.5, 2, 3, 4 ),
-                           labels = c(1, 1.1, 1.5, 2, 3, 4 )) +
-        #ggtitle("Gelman Rubin dignostic : R-hat Statistic") +
-        facet_wrap(~variable,
-                   labeller= labeller(.cols = function(x) gsub("V", "Chain ", x))) +
-        labs(x="Last Iteration in Chain", y="Shrink Factor",
-             colour="Quantile", linetype="Quantile",
-             subtitle = "Gelman Rubin diagnostic : R-hat Statistic") +
-        scale_linetype_manual(values=c(2,1)) +
-        theme_piss() +
-        theme(strip.text = element_text(size=15),
-              plot.subtitle = element_text(size = 21, hjust = 0.5,
-                                           colour = "#33666C", face = "bold"))
-      return(gg)
-    }
-    else return(
-      validate( need(input$gelman == T,
-                     label = "Check the 'Gelman-R' box") )
-    )
   })
 
 
-  output$gelman <- renderPlot({ gg_gelman_reac() })
+  "gg_autocor" <- function(param.chain){
+    return(autocorr.plot(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]  ))
+    )
+  }
 
+  output$autocorr <- renderPlot({
 
-  gg_autocor <- reactive({
+    validate( need(input$autocor == T,
+                   label = "Check the 'autocorr' box") )
 
-    if(input$autocor){
+    observeEvent(input$run, {
       param.chain <- data()[["param.chain"]]
-      #browser()
+      output$autocorr <- renderPlot({
+        gg_autocor(param.chain)
+      })
+    })
 
-      return(autocorr.plot(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]  )) )
-    }
-    else return(
-      validate( need(input$autocor == T,
-                     label = "Check the 'autocorr' box") )
-    )
+    observeEvent(input$runcpp, {
+      param.chain <- datacpp()[["param.chain"]]
+      output$autocorr <- renderPlot({
+        gg_autocor(param.chain)
+      })
+    })
+
   })
-  output$autocorr <- renderPlot({ gg_autocor()   })
 
 
-  gg_crosscor <- reactive({
-    if(input$crosscor){
+  "gg_crosscor" <- function(param.chain){
+    return(
+      ggcorrplot(crosscorr(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")])),
+                 hc.order = TRUE, type = "lower", lab = TRUE, title = "Cross-correlation",
+                 ggtheme = PissoortThesis::theme_piss)
+    )
+
+  }
+  output$crosscorr <- renderPlot({
+
+    validate( need(input$crosscor == T,
+                   label = "Check the 'Cross-corr' box") )
+
+    observeEvent(input$run, {
       param.chain <- data()[["param.chain"]]
+      output$crosscorr <- renderPlot({
+        gg_crosscor(param.chain)
+      })
+    })
 
-      return(
-        ggcorrplot(crosscorr(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")])),
-                   hc.order = TRUE, type = "lower", lab = TRUE, title = "Cross-correlation",
-                   ggtheme = PissoortThesis::theme_piss)
-      )
-    }
-    else return(
-      validate( need(input$crosscor == T,
-                     label = "Check the 'Cross-corr' box") )
-    )
+    observeEvent(input$runcpp, {
+      param.chain <- datacpp()[["param.chain"]]
+      output$crosscorr <- renderPlot({
+        gg_crosscor(param.chain)
+      })
+    })
+
   })
-  output$crosscorr <- renderPlot({ gg_crosscor()  })
 
 
+  output$geweke <- renderPlot({
 
-  geweke <- reactive({
-    if(input$geweke){
-      param.chain <- data()[["param.chain"]]
+    validate( need(input$geweke == T,
+                   label = "Check the 'Geweke' box") )
 
-      return(
-        geweke.plot(mcmc(param.chain), nbins = 20)
-      )
-    }
-    else return(
-      validate( need(input$geweke == T,
-                     label = "Check the 'Geweke' box") )
-    )
+    observeEvent(input$run, {
+      mod <- data()["model"]
+      output$geweke <- renderPlot({
+        S <- ggs(mc.listDiag(mod$model$out.ind))
+        ggs_geweke(S)
+      })
+    })
+
+    observeEvent(input$runcpp, {
+      mod <- datacpp()["model"]
+      output$geweke <- renderPlot({
+        S <- ggs(mc.listDiag(mod$model$out.ind))
+        ggs_geweke(S)
+      })
+    })
+
   })
-  output$geweke <- renderPlot({ geweke()  })
 
 
 
+  "raftery" <- function(param.chain){
 
-  raftery <- reactive({
-    if(input$raft){
-      param.chain <- data()[["param.chain"]]
+    res <- raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
+                        q=0.05, r=0.02, s=0.95)
+    df <- as.data.frame(res$resmatrix)
 
-      return(
-        raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
-                     q=0.05, r=0.02, s=0.95)
-      )
-    }
-    else return(
-      validate( need(input$raft == T,
-                     label = "Check the 'Raftery-Coda' box") )
-    )
-  })
+    return(df)
+  }
+
   output$raft <- DT::renderDataTable({
-    df <- as.data.frame(raftery()$resmatrix)
 
-    datatable(round(df,4), style = "bootstrap",
-              selection = 'multiple', escape = F, options = list(
-                initComplete = JS(
-                  "function(settings, json) {",
-                  "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
-                  "}" ),
-                dom = 't'))
+    validate( need(input$raft == T,
+                   label = "Check the 'Raftery-Coda' box") )
+
+
+    observeEvent(input$run, {
+      param.chain <- data()[["param.chain"]]
+      output$raft <- DT::renderDataTable({
+        df <- raftery(param.chain)
+
+        DT::datatable(round(df,4), style = "bootstrap",
+                      selection = 'multiple', escape = F, options = list(
+                        initComplete = JS(
+                          "function(settings, json) {",
+                          "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                          "}" ),
+                        dom = 't'))
+
+      })
+    })
+
+    observeEvent(input$runcpp, {
+      param.chain <- datacpp()[["param.chain"]]
+      output$raft <- DT::renderDataTable({
+        df <- raftery(param.chain)
+
+        DT::datatable(round(df,4), style = "bootstrap",
+                      selection = 'multiple', escape = F, options = list(
+                        initComplete = JS(
+                          "function(settings, json) {",
+                          "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                          "}" ),
+                        dom = 't'))
+
+      })
+    })
+
   })
   'getPage_raft' <- function(file = "information/info_raft.html") {
     return(includeHTML(file))
@@ -1593,6 +1873,34 @@ server <- function(input, output) {
     return(includeHTML(file))
   }
   output$infobay <- renderUI({ getPage() })
+
+
+  output$code <- DT::renderDataTable({
+
+    validate(
+      need( (input$run && input$runcpp),
+            "Click on the RUN R Button and RUN C++ to see the computational time comparison for the two implemented languages ")
+    )
+    validate( need(input$compRC == T,
+                   label = "Check the 'Comparison' box") )
+
+
+    timeR <- data()["timeR"]
+    timecpp <- datacpp()["timecpp"]
+
+    df <- data.frame( timeR, timecpp)
+    colnames(df) <- c("R", "C++")
+    rownames(df) <- "Elapsed time (sec.)"
+
+    datatable(round(df,4), style = "bootstrap",
+              selection = 'multiple', escape = F, options = list(
+                initComplete = JS(
+                  "function(settings, json) {",
+                  "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                  "}" ),
+                dom = 't'))
+
+  })
 
 
 }

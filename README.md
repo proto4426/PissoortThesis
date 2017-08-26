@@ -72,7 +72,7 @@ runExample('Bayesian')
 ```
 Click on the "informations" tab in the application for more explanations. Here is a very quick GIF summary :
 ![gap_test](https://github.com/proto4426/LaTeX_new/blob/master/gif/Bayes.gif)
-**UPDATE : ** C++ backend for Gibbs sampling is now enabled, relying on the `Rcpp` R package. An  $\approx$**40 times increase of computational time efficiency** is observed. Comparisons can be found inside the application for the generated chains.
+**UPDATE :** C++ backend for Gibbs sampling is now enabled, relying on the `Rcpp` R package. An  $\approx$**40 times increase of computational time efficiency** is observed. Comparisons can be found inside the application for the generated chains.
 
 
 ### All together in a dashboard 
