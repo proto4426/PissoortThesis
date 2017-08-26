@@ -390,7 +390,7 @@ List gibbs_NstaCpp(const NumericVector start, const NumericVector data,
 
   // MEan acceptances rates
   mean_acc_rates = mean_acc_rates / iter ;
-  Rcout << "mean_acc_rates FINAL= " << mean_acc_rates << std::endl;
+  // Rcout << "mean_acc_rates FINAL= " << mean_acc_rates << std::endl;
 
   // return out;
   return Rcpp::List::create( Rcpp::Named("out.ind") = out,

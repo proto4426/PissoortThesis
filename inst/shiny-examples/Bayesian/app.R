@@ -544,10 +544,10 @@ server <- function(input, output) {
 
      observeEvent(input$run, {
        output$plot.chains2 <- renderPlot({
-         mod <- datacpp()[["model"]]
-         iter <- datacpp()[["iter.by.chain"]]
-         burnin <- datacpp()[["burnin"]]
-         start <- datacpp()[["start"]]
+         mod <- data()[["model"]]
+         iter <- data()[["iter.by.chain"]]
+         burnin <- data()[["burnin"]]
+         start <- data()[["start"]]
          chain_mix_gg <- traceplot.data(mod = mod, it = iter, burn = burnin, start)
          grid.arrange(chain_mix_gg$glogsig, chain_mix_gg$gxi, ncol = 2)
        })
@@ -654,11 +654,9 @@ server <- function(input, output) {
    }
 
 
-   gg_gelman_reac <- reactive ({
-     if(input$gelman) {
+   "gg_gelman_reac" <- function(mod){
+   #  if(input$gelman) {
 
-       if(input$run) mod <- data()[["model"]]
-       else if(input$runcpp) mod <- datacpp()[["model"]]
 
        gp.dat <- gelman.plot(mc.listDiag(mod$out.ind), autoburnin=F)
        df = data.frame(bind_rows(as.data.frame(gp.dat[["shrink"]][,,1]),
@@ -687,100 +685,169 @@ server <- function(input, output) {
                plot.subtitle = element_text(size = 21, hjust = 0.5,
                                             colour = "#33666C", face = "bold"))
        return(gg)
-     }
-     else return(
-       validate( need(input$gelman == T,
-                      label = "Check the 'Gelman-R' box") )
-     )
+     # }
+     # else return(
+     #   validate( need(input$gelman == T,
+     #                  label = "Check the 'Gelman-R' box") )
+     # )
+       }
+
+
+   output$gelman <- renderPlot({
+
+     validate( need(input$gelman == T,
+                    label = "Check the 'Gelman-R' box") )
+
+     observeEvent(input$run, {
+       mod <- data()[["model"]]
+       output$gelman <- renderPlot({
+         gg_gelman_reac(mod)
        })
+     })
+
+     observeEvent(input$runcpp, {
+       mod <- datacpp()[["model"]]
+       output$gelman <- renderPlot({
+         gg_gelman_reac(mod)
+       })
+     })
+
+     })
 
 
-   output$gelman <- renderPlot({ gg_gelman_reac() })
+   "gg_autocor" <- function(param.chain){
+       return(autocorr.plot(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]  ))
+              )
+   }
+
+   output$autocorr <- renderPlot({
+
+     validate( need(input$autocor == T,
+                    label = "Check the 'autocorr' box") )
+
+     observeEvent(input$run, {
+       param.chain <- data()[["param.chain"]]
+       output$autocorr <- renderPlot({
+         gg_autocor(param.chain)
+       })
+     })
+
+     observeEvent(input$runcpp, {
+       param.chain <- datacpp()[["param.chain"]]
+       output$autocorr <- renderPlot({
+         gg_autocor(param.chain)
+       })
+     })
+
+     })
 
 
-   gg_autocor <- reactive({
-
-     if(input$autocor){
-       if(input$run) param.chain <- data()[["param.chain"]]
-       else if(input$runcpp) param.chain <- datacpp()[["param.chain"]]
-       #browser()
-
-       return(autocorr.plot(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]  )) )
-     }
-     else return(
-       validate( need(input$autocor == T,
-              label = "Check the 'autocorr' box") )
-     )
-   })
-   output$autocorr <- renderPlot({ gg_autocor()   })
-
-
-   gg_crosscor <- reactive({
-     if(input$crosscor){
-
-       if(input$run) param.chain <- data()[["param.chain"]]
-       else if(input$runcpp) param.chain <- datacpp()[["param.chain"]]
-
+   "gg_crosscor" <- function(param.chain){
        return(
          ggcorrplot(crosscorr(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")])),
                     hc.order = TRUE, type = "lower", lab = TRUE, title = "Cross-correlation",
                     ggtheme = PissoortThesis::theme_piss)
        )
-     }
-     else return(
-       validate( need(input$crosscor == T,
-                      label = "Check the 'Cross-corr' box") )
-     )
-   })
-   output$crosscorr <- renderPlot({ gg_crosscor()  })
+
+   }
+   output$crosscorr <- renderPlot({
+
+     validate( need(input$crosscor == T,
+                    label = "Check the 'Cross-corr' box") )
+
+     observeEvent(input$run, {
+       param.chain <- data()[["param.chain"]]
+       output$crosscorr <- renderPlot({
+         gg_crosscor(param.chain)
+       })
+     })
+
+     observeEvent(input$runcpp, {
+       param.chain <- datacpp()[["param.chain"]]
+       output$crosscorr <- renderPlot({
+         gg_crosscor(param.chain)
+       })
+     })
+
+     })
 
 
 
-   geweke <- reactive({
-     if(input$geweke){
-
-       if(input$run) param.chain <- data()[["param.chain"]]
-       else if(input$runcpp) param.chain <- datacpp()[["param.chain"]]
-
+   "geweke" <- function(param.chain){
        return(
          geweke.plot(mcmc(param.chain), nbins = 20)
          )
-     }
-     else return(
-       validate( need(input$geweke == T,
-                      label = "Check the 'Geweke' box") )
-     )
-   })
-   output$geweke <- renderPlot({ geweke()  })
+   }
+   output$geweke <- renderPlot({
+
+     validate( need(input$geweke == T,
+                    label = "Check the 'Geweke' box") )
+
+     observeEvent(input$run, {
+       param.chain <- data()[["param.chain"]]
+       output$geweke <- renderPlot({
+         geweke(param.chain)
+       })
+     })
+
+     observeEvent(input$runcpp, {
+       param.chain <- datacpp()[["param.chain"]]
+       output$geweke <- renderPlot({
+         geweke(param.chain)
+       })
+     })
+
+     })
 
 
 
-   raftery <- reactive({
-     if(input$raft){
+   "raftery" <- function(param.chain){
 
-       if(input$run) param.chain <- data()[["param.chain"]]
-       else  if(input$runcpp) param.chain <- datacpp()[["param.chain"]]
+     res <- raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
+                  q=0.05, r=0.02, s=0.95)
+     df <- as.data.frame(res$resmatrix)
 
-       return(
-         raftery.diag(mcmc(param.chain[, c("mu0", "mu1", "logsig", "xi")]),
-                      q=0.05, r=0.02, s=0.95)
-       )
-     }
-     else return(
-       validate( need(input$raft == T,
-                      label = "Check the 'Raftery-Coda' box") )
-     )
-   })
+       return(df)
+   }
+
    output$raft <- DT::renderDataTable({
-     df <- as.data.frame(raftery()$resmatrix)
 
-     datatable(round(df,4), style = "bootstrap",
-               selection = 'multiple', escape = F, options = list(
-                 initComplete = JS(
-                   "function(settings, json) {",
-                   "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
-                   "}" ),
-                 dom = 't'))
+     validate( need(input$raft == T,
+                    label = "Check the 'Raftery-Coda' box") )
+
+
+     observeEvent(input$run, {
+       param.chain <- data()[["param.chain"]]
+       output$raft <- DT::renderDataTable({
+         df <- raftery(param.chain)
+
+         DT::datatable(round(df,4), style = "bootstrap",
+                       selection = 'multiple', escape = F, options = list(
+                         initComplete = JS(
+                           "function(settings, json) {",
+                           "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                           "}" ),
+                         dom = 't'))
+
+       })
+     })
+
+     observeEvent(input$runcpp, {
+       param.chain <- datacpp()[["param.chain"]]
+       output$raft <- DT::renderDataTable({
+         df <- raftery(param.chain)
+
+         DT::datatable(round(df,4), style = "bootstrap",
+                       selection = 'multiple', escape = F, options = list(
+                         initComplete = JS(
+                           "function(settings, json) {",
+                           "$(this.api().table().header()).css({'background-color': '#33666C', 'color': '#fff'});",
+                           "}" ),
+                         dom = 't'))
+
+       })
+     })
+
      })
    'getPage_raft' <- function(file = "information/info_raft.html") {
      return(includeHTML(file))
@@ -801,12 +868,16 @@ server <- function(input, output) {
        need( (input$run && input$runcpp),
              "Click on the RUN R Button and RUN C++ to see the computational time comparison for the two implemented languages ")
      )
+     validate( need(input$compRC == T,
+                    label = "Check the 'Comparison' box") )
+
 
      timeR <- data()["timeR"]
      timecpp <- datacpp()["timecpp"]
 
      df <- data.frame( timeR, timecpp)
-     colnames(df) <- c("R (sec.)", "C++ (sec.)")
+     colnames(df) <- c("R", "C++")
+     rownames(df) <- "Elapsed time (sec.)"
 
      datatable(round(df,4), style = "bootstrap",
                selection = 'multiple', escape = F, options = list(
