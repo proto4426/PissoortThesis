@@ -2,3 +2,9 @@ language: r
 sudo: false
 cache: packages
 warnings_are_errors: false
+
+r_github_packages:
+  - proto4426/PissoortThesis
+
+before_install:
+  Rscript -e 'update.packages(ask = FALSE)'
