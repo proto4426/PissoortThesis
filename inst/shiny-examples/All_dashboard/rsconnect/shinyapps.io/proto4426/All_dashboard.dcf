@@ -5,8 +5,8 @@ account: proto4426
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 201415
-bundleId: 955475
+bundleId: 955618
 url: https://proto4426.shinyapps.io/All_dashboard/
-when: 1503747742.64031
+when: 1503763684.41622
 asMultiple: FALSE
 asStatic: FALSE
