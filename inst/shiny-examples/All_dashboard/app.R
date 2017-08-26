@@ -309,7 +309,8 @@ ui <- dashboardPage(header, sidebar, body)
 
 
 library(evd)
-#devtools::install_github("proto4426/PissoortThesis", force = T)
+library(Rcpp)
+#devtools::install_github("proto4426/PissoortThesis")
 library(PissoortThesis)
 library(plotly)
 library(gridExtra)
