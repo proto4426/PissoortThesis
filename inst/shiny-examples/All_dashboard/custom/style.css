@@ -20,12 +20,12 @@
 
         /* active selected tab in the sidebarmenu */
         .skin-blue .main-sidebar .sidebar .sidebar-menu .active a{
-                              background-color: #ff0000;
+                              background-color:#33666C;
                               }
 
         /* other links in the sidebarmenu */
         .skin-blue .main-sidebar .sidebar .sidebar-menu a{
-                              background-color: #40e0d0;
+                              background-color:#cccccc;
                               color: #000000;
                               }
 
