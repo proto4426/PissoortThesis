@@ -11,3 +11,4 @@ Shiny_app_visu/appTest/*
 =======
 >>>>>>> 0edfabca0f7d53d740f6f0beda97b32cf29c9511
 packrat/lib*/
+^packrat/
