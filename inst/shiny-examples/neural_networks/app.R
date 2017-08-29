@@ -334,6 +334,9 @@ server <- function(input, output) {
 
   output$plot1 <- renderPlot({
 
+    validate( need(input$runfit == T,
+                   label = "Click on the 'RUN GEV-CDN' button ") )
+    
     df <- fit()[["df"]]
 
   # in ggplot
@@ -455,6 +458,8 @@ server <- function(input, output) {
 
 
   output$plot2 <- renderPlot({
+    validate( need(input$runboot == T && input$runfit == T ,
+                   label = "Click on the 'RUN GEV-CDN' and 'RUN Bootstrap' button ") )
 
     #df.boot <- boot()[["df.boot"]]
     meth <- boot()[["meth"]]

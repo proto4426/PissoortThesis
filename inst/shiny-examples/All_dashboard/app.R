@@ -892,6 +892,9 @@ server <- function(input, output) {
 
 
   output$plotNNboot <- renderPlot({
+    
+    validate( need(input$runboot == T && input$runfit == T ,
+                   label = "Click on the 'RUN GEV-CDN' and 'RUN Bootstrap' button ") )
 
     meth <- boot()[["meth"]]
     df.boott <- boot()[["df.boot"]]
