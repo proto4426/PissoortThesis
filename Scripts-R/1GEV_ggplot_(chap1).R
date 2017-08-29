@@ -2,6 +2,8 @@
 ## Script providing the main plot for the thesis in the chapter 1 : GEV ##
 ##########################################################################
 
+load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+
 library(evd)
 library(fExtremes)
 library(ismev)
@@ -215,28 +217,37 @@ ggplot(gev_data) +
 ################# For Beamer Presentation
 
 p <- ggplot(TXTN_closed) + geom_density(aes(x = TX), fill = "grey") +
-  labs(title = "Distribution of maximum daily temperatures (TX)")
+  labs(title = expression(paste("Distribution of maximum ",
+             underline("daily"), " temperatures (TX) in Uccle [1901-2016]") ) )
 
 d <- ggplot_build(p)$data[[1]]
 
-p + geom_area(data = subset(d, x > 30), aes(x=x, y=y), fill="red") +
+p + geom_area(data = subset(d, x > 30), aes(x=x, y=y), fill="green3") +
   geom_segment(x=30, xend = 30,
                y=0, yend=approx(x = d$x, y = d$y, xout = 30)$y,
-               colour="blue", size=2) + theme_classic() +
+               colour="red", size=1) + theme_classic() +
   theme(plot.title = element_text(size=18, hjust=0.5,
                                   colour = "#33666C", face="bold")) +
   theme(axis.title = element_text(face = "bold", size= 15,
                                   colour = "#33666C")) +
   theme(legend.title = element_text(colour="#33666C",
                                     size=18, face="bold")) +
-  geom_segment(aes(x = 30, xend = 31, y = .01, yend = .0029),
-               arrow = arrow(length = unit(0.5, "cm")), col = "red") +
-  geom_segment(aes(x = 25, xend = 29.5, y = .004, yend = .002),
+  geom_segment(aes(x = 30, xend = 31, y = .011, yend = .003),
+               arrow = arrow(length = unit(0.5, "cm")), col = "green3") +
+  geom_segment(aes(x = 25, xend = 28, y = .005, yend = .002),
                arrow = arrow(length = unit(0.8, "cm")), col = "blue") +
-  annotate("text", label = "Region of \n interest",
-           x = 28, y = .015, col = "red", size = 9, fontface = 2) +
-  annotate("text", label = "Threshold(?)",
-           x = 18, y = .007, col = "blue", size = 8, fontface = 1)
+  annotate("text", label = "Excesses over a",
+           x = 28, y = .016, col = "green3", size = 9, fontface = 2) +
+  annotate("text", label = "threshold",
+           x = 28, y = .013, col = "red", size = 9, fontface = 2) +
+  annotate("text", label = "Annual maxima",
+           x = 19, y = .007, col = "blue", size = 8, fontface = 2) +
+  annotate("text",
+           label = paste("n = ", as.character(nrow(TXTN_closed[TXTN_closed$TX>30, ]))),
+           x = 34.5, y = .007, col = "green3", size = 6, fontface = 1) +
+  annotate("text", label = "n = 116",
+           x = 34.5, y = .005, col = "blue", size = 6, fontface = 1) +
+  geom_point(data = max_years$df, aes(x = Max, y = 0.001), size = 0.5, col = "blue" )
 
 
 

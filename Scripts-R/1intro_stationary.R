@@ -199,7 +199,7 @@ gg_trends <- ggplot(data = max_years$df,aes(x=Year,y=Max)) +
   scale_colour_manual(name="Trend", values=c(Linear="blue",
                                              BrokenLinear="cyan",
                                              LOESS="red")) +
-  theme_piss(legend.position = c(.92, .12)) +
+  theme_piss(legend.position = c(.92, .12), size_p = 23) +
   guides(colour = guide_legend(override.aes = list(size = 2)))
 gg_trends
 # Red line is local polynomial regression fitting curve (loees)

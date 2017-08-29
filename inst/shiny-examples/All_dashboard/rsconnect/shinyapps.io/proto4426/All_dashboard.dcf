@@ -1,10 +1,12 @@
 name: All_dashboard
-title: All_dashboard
+title:
 username:
 account: proto4426
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 201415
-bundleId: 955745
+bundleId: 956244
 url: https://proto4426.shinyapps.io/All_dashboard/
-when: 1503775267.71189
+when: 1503837007.80953
+asMultiple: FALSE
+asStatic: FALSE

@@ -258,7 +258,7 @@ PissoortThesis::grid_arrange_legend(chain_mix_gg$gmu, chain_mix_gg$gmutrend,
                                      ncol = 2,
                                     top = grid::textGrob(title,
                                       gp = grid::gpar(col = "#33666C",
-                                                      fontsize = 25, font = 4)) )
+                                                      fontsize = 28, font = 4)) )
 grid.arrange(chain_mix_gg$glogsig, chain_mix_gg$gxi, ncol = 2)
 
 library("bayesplot")

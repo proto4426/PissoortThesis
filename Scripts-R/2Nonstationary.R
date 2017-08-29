@@ -330,27 +330,41 @@ gg_rlAll_predict
 
 
 ## For the period (1980 to 1980+t)
-rl_25_lin_data <- PissoortThesis::return.lvl.nstatio(max_years$df$Year, start = 1980,
+rl_5_lin_data <- PissoortThesis::return.lvl.nstatio(max_years$df$Year, start = 1960,
                                                      gev_nonstatio,
-                                                     t = 218, m = 10, colour = "blue2")
+                                                     t = 173, m = 5, colour = "blue2")
 
-gg_rlAll_data <- rl_25_lin_data$g +
+rl_50_lin_data <- PissoortThesis::return.lvl.nstatio(max_years$df$Year, start = 1960,
+                                                     gev_nonstatio,
+                                                     t = 173, m = 50, colour = "green3")
+
+
+
+col = c("5 years" = "blue2", "50 years" = "green3")
+
+gg_rlAll_data <- ggplot() + geom_line(data = data.frame(x = 1960:2133, y = rl_50_lin_data$rl),
+                                      aes(x = x, y = y, col = "50 years")) +
+  geom_line(data = data.frame(x = 1960:2133, y = rl_5_lin_data$rl),
+            aes(x = x, y = y, col = "5 years")) +
   geom_line(aes(x = Year, y = Max),
-            data = max_years$df[(1980-1900):(2016-1900),], col = "black", size = 0.3) +
+            data = max_years$df[(1960-1900):(2016-1900),], col = "black", size = 0.3) +
   geom_vline(xintercept = 2016, linetype = 2, col = 1, size = 0.15) +
   geom_vline(xintercept = 2066, linetype = 2, col = 1, size = 0.15) +
   geom_vline(xintercept = ( max(max_years$df$Year) + length(max_years$data) ),
              linetype = 2, col = 2) +
-  geom_vline(xintercept = 1980+218, linetype = 2, col = 1, size = 0.15) +
-  labs(title = "Return levels with return period of 10 years",
+  #geom_vline(xintercept = 1980+218, linetype = 2, col = 1, size = 0.15) +
+  labs(title = "Return levels with different return periods",
        y = "10-years Return Level",
        x = "Year \n (prediction horizon)") +
-  theme_piss(size_p = 12, size_c = 10) +
-  scale_x_continuous(breaks = c(1980, 2016, 2066, 2132, 1980+218),
-                     labels = c("1980 \n (-36)", "2016 \n (0)",
-                                "2066 \n (50)", "2132 \n (116)" ,
-                                paste(as.character(1980+length(rl_25_lin_data$rl)), "\n (183)") ))
-gg_rlAll_data + coord_cartesian(ylim = c(30, 40))
+  scale_x_continuous(breaks = c(1960, 1980, 2016, 2066, 2132),
+                     labels = c("1960\n (-56)", "1980 \n (-36)", "2016 \n (0)",
+                                "2066 \n (50)", "2132 \n (116)"))
+                                #paste(as.character(1980+length(rl_25_lin_data$rl)), "\n (183)") ))
+gg_rlAll_data + coord_cartesian(ylim = c(29, 40), xlim = c(1968, 2132)) +
+  scale_color_manual("Return Period", values = col) +
+  theme_piss(size_p = 17, size_c = 11,
+             legend.position = c(.83, .1))
+
 
 # Note the Increase of the return level with time (due to trend)
 # Avec le trend qu'on a pour l'instant, dans environ 300 ans on depassera
