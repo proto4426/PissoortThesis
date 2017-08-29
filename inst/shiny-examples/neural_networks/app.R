@@ -333,28 +333,34 @@ server <- function(input, output) {
 
 
   output$plot1 <- renderPlot({
-
+    
+    
     validate( need(input$runfit == T,
                    label = "Click on the 'RUN GEV-CDN' button ") )
     
-    df <- fit()[["df"]]
-
-  # in ggplot
-
-  col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
-  gg.cdn <- ggplot(df, aes(x = year, y = obs)) +
-    geom_line() + geom_point() +
-    geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
-    geom_line(aes(y = q.50, col = "50%")) +
-    geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
-    geom_line(aes(y = q.10, col = "10% and 90%")) +
-    geom_line(aes(y = q.90, col = "10% and 90%")) +
-    scale_colour_manual(name = "Quantiles", values = col.quantiles) +
-    labs(title = "GEV-CDN quantiles with identity link for the location µ(t)",
-         y =  expression( Max~(T~degree*C))) +
-    theme_piss()
-  gg.cdn
-
+    observeEvent(input$runfit == T , {
+      df <- fit()[["df"]]
+      
+      output$plot1 <- renderPlot({
+        
+        # in ggplot
+        
+        col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
+        gg.cdn <- ggplot(df, aes(x = year, y = obs)) +
+          geom_line() + geom_point() +
+          geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
+          geom_line(aes(y = q.50, col = "50%")) +
+          geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
+          geom_line(aes(y = q.10, col = "10% and 90%")) +
+          geom_line(aes(y = q.90, col = "10% and 90%")) +
+          scale_colour_manual(name = "Quantiles", values = col.quantiles) +
+          labs(title = "GEV-CDN quantiles with identity link for the location µ(t)",
+               y =  expression( Max~(T~degree*C))) +
+          theme_piss()
+        gg.cdn
+      })
+    })
+    
   })
 
   boot <- eventReactive( input$runboot, {
@@ -458,43 +464,45 @@ server <- function(input, output) {
 
 
   output$plot2 <- renderPlot({
+    
+    
+    
     validate( need(input$runboot == T && input$runfit == T ,
                    label = "Click on the 'RUN GEV-CDN' and 'RUN Bootstrap' button ") )
-
-    #df.boot <- boot()[["df.boot"]]
-    meth <- boot()[["meth"]]
-
-    # gg.boot.loc <- boot()[["gg.loc.res"]]
-    # gg.boot.sc <- boot()[["gg.sc.res"]]
-    # gg.boot.sh <- boot()[["gg.sh.res"]]
-    df.boott <- boot()[["df.boot"]]
-
-
-    # for the location
-    gg.boot.loc <- ggplot(df.boott, aes(x = year)) +
-      geom_line(aes(y = loc.2.5.), col = "blue") +
-      geom_line(aes(y = loc.97.5.), col = "blue") +
-      labs(title = "For the Location parameter", y = "") +
-      theme_piss()
-    # for the scale
-    gg.boot.sc <- ggplot(df.boott, aes(x = year)) +
-      geom_line(aes(y = scale.2.5.), col = "green") +
-      geom_line(aes(y = scale.97.5.), col = "green") +
-      labs(title = "For the Scale parameter", y = "") +
-      theme_piss()
-    # for the shape
-    gg.boot.sh <- ggplot(df.boott, aes(x = year)) +
-      geom_line(aes(y = shape.2.5.), col = "red") +
-      geom_line(aes(y = shape.97.5.), col = "red") +
-      labs(title = "For the Shape parameter", y = "") +
-      theme_piss()
-
-  # All in one for the identity link model on the location
-  grid.arrange(gg.boot.loc, gg.boot.sc, gg.boot.sh, ncol = 1,
-               top = textGrob(sprintf("GEV-CDN intervals with %s bootstrap", meth),
-                              gp = gpar(fontsize = 24, font = 4, col ="black")))
-
-
+    
+    
+    observeEvent(input$runboot == T, {
+      meth <- boot()[["meth"]]
+      df.boott <- boot()[["df.boot"]]   
+      output$plot2 <- renderPlot({
+        
+        # for the location
+        gg.boot.loc <- ggplot(df.boott, aes(x = year)) +
+          geom_line(aes(y = loc.2.5.), col = "blue") +
+          geom_line(aes(y = loc.97.5.), col = "blue") +
+          labs(title = "For the Location parameter", y = "") +
+          theme_piss()
+        # for the scale
+        gg.boot.sc <- ggplot(df.boott, aes(x = year)) +
+          geom_line(aes(y = scale.2.5.), col = "green") +
+          geom_line(aes(y = scale.97.5.), col = "green") +
+          labs(title = "For the Scale parameter", y = "") +
+          theme_piss()
+        # for the shape
+        gg.boot.sh <- ggplot(df.boott, aes(x = year)) +
+          geom_line(aes(y = shape.2.5.), col = "red") +
+          geom_line(aes(y = shape.97.5.), col = "red") +
+          labs(title = "For the Shape parameter", y = "") +
+          theme_piss()
+        
+        # All in one for the identity link model on the location
+        grid.arrange(gg.boot.loc, gg.boot.sc, gg.boot.sh, ncol = 1,
+                     top = textGrob(sprintf("GEV-CDN intervals with %s bootstrap", meth),
+                                    gp = gpar(fontsize = 24, font = 4, col ="black")))      })
+    })
+    
+    
+    
   })
 
 
