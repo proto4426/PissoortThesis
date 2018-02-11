@@ -468,7 +468,7 @@
   # a1 <- a ;   a2 <- a  ;  a3 <- a
   # a1[1] <- a[1] + eps   ;  a2[2] <- a[2] + eps  ;  a3[3] <- a[3] + eps
   f <- c(seq(0.01, 0.999, length = length(data)))
-  q <- gevq(est, 1 - f)
+  q <- ismev::gevq(est, 1 - f)
   d <- t( gev.rl.gradient( est = est, p=1-f))
   v <- apply(d, 1, ismev::q.form, m = mat)
 

@@ -1,7 +1,6 @@
 #setwd('/home/piss/Documents/Extreme/R resources/IRM')
 #setwd("C:\\Users\\Piss\\Documents\\LINUX\\Documents\\Extreme\\R resources\\IRM")
 #load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
-
 setwd('/home/proto4426/Documents/Extreme/R resources/IRM')
 
 library(data.table)

@@ -1,7 +1,7 @@
 # load("/home/piss/Documents/Extreme/R resources/IRM/data1.Rdata")
 # source('/home/piss/PissoortRepo/PissoortThesis/Scripts-R/Funs_introSplines.R')
 
-load("/home/proto4426/Documents/Thesis/Extreme/R resources/IRM/data1.Rdata")
+load("/home/proto4426/Documents/master_Thesis/Extreme/R resources/IRM/data1.Rdata")
 source('/home/proto4426/Documents/Thesis/PissoortThesis/Scripts-R/Funs_introSplines.R')
 # Functions used that we will source. These are not our property so we will not include
 # them in the package. These are mainly from Gavin Simpson (with some adjustments)

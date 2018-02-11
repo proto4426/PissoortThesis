@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ManonMartin/PepsNMR.svg?branch=master)](https://travis-ci.org/ManonMartin/PepsNMR)
+
 # PissoortThesis
 R package for the master's thesis in statistics of Antoine Pissoort at Université Catholique de Louvain
 

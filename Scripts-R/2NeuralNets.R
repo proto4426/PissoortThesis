@@ -63,7 +63,7 @@ y <- as.matrix(max_years$data)
 
 
 ## 2) Fit the models and retrieve the weights
-set.seed(1234)
+set.seed(123)
 weights.models <- list()
 for(i in seq_along(models)){
   weights.models[[i]] <- PissoortThesis::gevcdn.fit2(x = x, y = y,
@@ -131,37 +131,48 @@ for(i in seq_along(models)){
 
 ### Compute the quantiles an plot the results
 
-q.best <- sapply(c(0.025, 0.05, 0.1,  0.5, 0.9, 0.95, 0.975), qgev,
-                 location = parms.best[,"location"],
-                 scale = parms.best[,"scale"],
-                 shape = parms.best[,"shape"])
+'gev_cdnFitPlot' <- function(parms.best){
+  
+  x <- as.matrix(1901:2016) ; y <- as.matrix(max_years$data)
+ 
+   q.best <- sapply(c(0.025, 0.05, 0.1,  0.5, 0.9, 0.95, 0.975), qgev,
+                   location = parms.best[,"location"],
+                   scale = parms.best[,"scale"],
+                   shape = parms.best[,"shape"])
+  
+  
+  # matplot(x, cbind(y, q.best), type = c("b", rep("l", 6)),
+  #         lty = c(1, rep(c(1, 2, 1), 2)),
+  #         lwd = c(1, rep(c(3, 2, 3), 2)),
+  #         col = c("black", rep("blue", 3), rep("blue", 3)),
+  #         pch = 19, xlab = "x", ylab = "y", main = "gevcdn.fit")
+  
+  # Or in ggplot
+  df <- data.frame(year = x , obs = y, q.025 = q.best[,1], q.05 = q.best[,2],
+                   q.10 = q.best[,3],
+                   q.50 = q.best[,4], q.90 = q.best[,5], q.975 = q.best[,7])
+  col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
+  gg.cdn <- ggplot(df, aes(x = year, y = obs)) +
+    geom_line() + geom_point() +
+    geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.50, col = "50%")) +
+    geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.10, col = "10% and 90%")) +
+    geom_line(aes(y = q.90, col = "10% and 90%")) +
+    scale_colour_manual(name = "Quantiles", values = col.quantiles) +
+    labs(title = "GEV-CDN quantiles with identity link for the location µ(t)",
+         y =  expression( Max~(T~degree*C))) +
+    theme_piss()
+  return(list(gg.cdn, df))
+}
+
+gg.cdn <- gev_cdnFitPlot(parms.best = parms.best)[[1]]
 
 
-matplot(x, cbind(y, q.best), type = c("b", rep("l", 6)),
-        lty = c(1, rep(c(1, 2, 1), 2)),
-        lwd = c(1, rep(c(3, 2, 3), 2)),
-        col = c("black", rep("blue", 3), rep("blue", 3)),
-        pch = 19, xlab = "x", ylab = "y", main = "gevcdn.fit")
+## For the 2 hidden layers model (model) comparison
+parms.best7 <- gevcdn.evaluate(x, weights.models[[7]])
 
-# Or in ggplot
-df <- data.frame(year = x , obs = y, q.025 = q.best[,1], q.05 = q.best[,2],
-                 q.10 = q.best[,3],
-                 q.50 = q.best[,4], q.90 = q.best[,5], q.975 = q.best[,7])
-col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
-gg.cdn <- ggplot(df, aes(x = year, y = obs)) +
-  geom_line() + geom_point() +
-  geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
-  geom_line(aes(y = q.50, col = "50%")) +
-  geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
-  geom_line(aes(y = q.10, col = "10% and 90%")) +
-  geom_line(aes(y = q.90, col = "10% and 90%")) +
-  scale_colour_manual(name = "Quantiles", values = col.quantiles) +
-  labs(title = "GEV-CDN quantiles with identity link for the location µ(t)",
-       y =  expression( Max~(T~degree*C))) +
-  theme_piss()
-gg.cdn
-
-
+ggcdn7 <- gev_cdnFitPlot(parms.best = parms.best7)
 
 
 #####################################
@@ -198,108 +209,143 @@ parms.on <- lapply(weights.on, gevcdn.evaluate, x = x)
 library(foreach)
 library(doParallel)
 
-#setup parallel backend to use many processors
-cores <- detectCores()
-cl <- makeCluster(cores[1]-1) #not to overload the computer, do not use all cores
-registerDoParallel(cl)
 
-M <- 50 # M is the number of times we do bagging, and n.boot is the number
-#of resamples inside gevcdn.bag()
-t <- proc.time()
-bag_par <- foreach(i = 1:M,
-                   .packages = c("PissoortThesis", "GEVcdn"),
-                   .verbose = T) %dopar% {
-                     set.seed(i+1234)
-           weights.on <- gevcdn.bag(x = x, y = y,
-                                    iter.max = 100,
-                                    fixed = c("shape"),
-                                    iter.step = 10,
-                                    n.bootstrap = n.boot,
-                                    n.hidden = 2,
-                                    sd.norm = 5)
-           parms.on <- lapply(weights.on, gevcdn.evaluate, x = x)
-
-           mean_of_list(parms.on)
+'bag_ggplot' <- function(M = 50, n.boot = 10){
+  
+  x <- as.matrix(1901:2016)
+  y <- as.matrix(max_years$data)
+  
+  #setup parallel backend to use many processors
+  cores <- detectCores()
+  cl <- makeCluster(cores[1]-1) #not to overload the computer, do not use all cores
+  registerDoParallel(cl)
+  
+  #M <- 50 # M is the number of times we do bagging, and n.boot is the number
+  #of resamples inside gevcdn.bag()
+  'mean_of_list' <- function(param = parms.on, brow = F) {
+    if(brow) browser()
+    parms <- matrix(0, nrow = nrow(param[[1]]), ncol = 3)
+    for (i in 1:length(param)){
+      parms <- parms + as.matrix(param[[i]])
     }
-(proc.time()-t)[3]  # 17sec for 5*10=50 resamp. // 158sec for 50*10=500 resamp.
-stopCluster(cl)
-
-bag_par_on <- mean_of_list(bag_par)
-
-
-## Estimate the location parameter b_1
-( bag_par_on[nrow(bag_par_on), "location"] - bag_par_on[1, "location"] ) / nrow(bag_par_on)
-## And parameter alpha_0 and alpha_1
-alpha_0 <- log(bag_par_on[1,2])   ;   alpha_1 <- c()
-for (i in 2:(nrow(bag_par_on)) ) {
-  alpha_1[i] <-  ( log( bag_par_on[i, "scale"] ) - alpha_0 ) / i
-}
-
-
-q <- t(sapply(max_years$data, quantile, probs = c(.1, .5, .9)))
-
-q.025.on <- q.05.on <- q.10.on <- q.50.on <- q.90.on <- q.95.on <- q.975.on <- c()
-for(i in seq_along(bag_par)){
-  q.025.on <- cbind(q.025.on, VGAM::qgev(p = 0.025,
-                                 location = bag_par[[i]][,"location"],
-                                 scale = bag_par[[i]][,"scale"],
-                                 shape = bag_par[[i]][,"shape"]))
-  q.05.on <- cbind(q.05.on, VGAM::qgev(p = 0.05,
+    parms <- parms / length(param)
+    parms
+  }
+  t <- proc.time()
+  bag_par <- foreach(i = 1:M,
+                     .packages = c("PissoortThesis", "GEVcdn"),
+                     .verbose = T) %dopar% {
+                       set.seed(i+1234)
+                       weights.on <- gevcdn.bag(x = x, y = y,
+                                                iter.max = 100,
+                                                fixed = c("shape"),
+                                                iter.step = 10,
+                                                n.bootstrap = n.boot,
+                                                n.hidden = 2,
+                                                sd.norm = 5)
+                       parms.on <- lapply(weights.on, gevcdn.evaluate, x = x)
+                       
+                       mean_of_list(parms.on)
+                     }
+  (proc.time()-t)[3]  # 17sec for 5*10=50 resamp. // 158sec for 50*10=500 resamp.
+  stopCluster(cl)
+  
+  bag_par_on <- mean_of_list(bag_par)
+  
+  
+  ## Estimate the location parameter b_1
+  ( bag_par_on[nrow(bag_par_on), "location"] - bag_par_on[1, "location"] ) / nrow(bag_par_on)
+  ## And parameter alpha_0 and alpha_1
+  alpha_0 <- log(bag_par_on[1,2])   ;   alpha_1 <- c()
+  for (i in 2:(nrow(bag_par_on)) ) {
+    alpha_1[i] <-  ( log( bag_par_on[i, "scale"] ) - alpha_0 ) / i
+  }
+  
+  
+  q <- t(sapply(max_years$data, quantile, probs = c(.1, .5, .9)))
+  
+  q.025.on <- q.05.on <- q.10.on <- q.50.on <- q.90.on <- q.95.on <- q.975.on <- c()
+  for(i in seq_along(bag_par)){
+    q.025.on <- cbind(q.025.on, VGAM::qgev(p = 0.025,
+                                           location = bag_par[[i]][,"location"],
+                                           scale = bag_par[[i]][,"scale"],
+                                           shape = bag_par[[i]][,"shape"]))
+    q.05.on <- cbind(q.05.on, VGAM::qgev(p = 0.05,
                                          location = bag_par[[i]][,"location"],
                                          scale = bag_par[[i]][,"scale"],
                                          shape = bag_par[[i]][,"shape"]))
-  q.10.on <- cbind(q.10.on, VGAM::qgev(p = 0.1,
-                                       location = bag_par[[i]][,"location"],
-                                       scale = bag_par[[i]][,"scale"],
-                                       shape = bag_par[[i]][,"shape"]))
-  q.50.on <- cbind(q.50.on, VGAM::qgev(p = 0.5,
-                                 location = bag_par[[i]][,"location"],
-                                 scale = bag_par[[i]][,"scale"],
-                                 shape = bag_par[[i]][,"shape"]))
-  q.90.on <- cbind(q.90.on, VGAM::qgev(p = 0.9,
-                                       location = bag_par[[i]][,"location"],
-                                       scale = bag_par[[i]][,"scale"],
-                                       shape = bag_par[[i]][,"shape"]))
-  q.95.on <- cbind(q.975.on, VGAM::qgev(p = 0.95,
+    q.10.on <- cbind(q.10.on, VGAM::qgev(p = 0.1,
                                          location = bag_par[[i]][,"location"],
                                          scale = bag_par[[i]][,"scale"],
                                          shape = bag_par[[i]][,"shape"]))
-  q.975.on <- cbind(q.975.on, VGAM::qgev(p = 0.975,
-                                 location = bag_par[[i]][,"location"],
-                                 scale = bag_par[[i]][,"scale"],
-                                 shape = bag_par[[i]][,"shape"]))
+    q.50.on <- cbind(q.50.on, VGAM::qgev(p = 0.5,
+                                         location = bag_par[[i]][,"location"],
+                                         scale = bag_par[[i]][,"scale"],
+                                         shape = bag_par[[i]][,"shape"]))
+    q.90.on <- cbind(q.90.on, VGAM::qgev(p = 0.9,
+                                         location = bag_par[[i]][,"location"],
+                                         scale = bag_par[[i]][,"scale"],
+                                         shape = bag_par[[i]][,"shape"]))
+    q.95.on <- cbind(q.975.on, VGAM::qgev(p = 0.95,
+                                          location = bag_par[[i]][,"location"],
+                                          scale = bag_par[[i]][,"scale"],
+                                          shape = bag_par[[i]][,"shape"]))
+    q.975.on <- cbind(q.975.on, VGAM::qgev(p = 0.975,
+                                           location = bag_par[[i]][,"location"],
+                                           scale = bag_par[[i]][,"scale"],
+                                           shape = bag_par[[i]][,"shape"]))
+  }
+  
+  ## Plot data and quantiles
+  # matplot(cbind(y, q, rowMeans(q.05.on), rowMeans(q.10.on), rowMeans(q.50.on),
+  #               rowMeans(q.90.on), rowMeans(q.95.on)), type = c("b", rep("l", 10)),
+  #         lty = c(1, rep(c(1, 2, 1), 4)),
+  #         lwd = c(1, rep(c(3, 2, 3), 4)),
+  #         col = c("red", rep("orange", 3), "blue", "green", "black", "green","blue"),
+  #         pch = 19, xlab = "x", ylab = "y",
+  #         main = "gevcdn.bag (early stopping on)")
+  
+  # With ggplot
+  df.bag <- data.frame(year = x , obs = y, q.025 = rowMeans(q.025.on),
+                       q.10 = rowMeans(q.10.on), q.50 = rowMeans(q.50.on),
+                       q.90 = rowMeans(q.90.on), q.975 = rowMeans(q.975.on))
+  col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
+  gg.bag <- ggplot(df.bag, aes(x = year, y = obs)) +
+    geom_line() + geom_point() +
+    geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.50, col = "50%")) +
+    geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.10, col = "10% and 90%")) +
+    geom_line(aes(y = q.90, col = "10% and 90%")) +
+    scale_colour_manual(name = "Quantiles", values = col.quantiles) +
+    labs(title = "GEV-CDN bagging (early stopping, 2 hidden nodes) quantiles", y = "") +
+    theme_piss()
+  gg.bag
 }
 
-## Plot data and quantiles
-matplot(cbind(y, q, rowMeans(q.05.on), rowMeans(q.10.on), rowMeans(q.50.on),
-              rowMeans(q.90.on), rowMeans(q.95.on)), type = c("b", rep("l", 10)),
-        lty = c(1, rep(c(1, 2, 1), 4)),
-        lwd = c(1, rep(c(3, 2, 3), 4)),
-        col = c("red", rep("orange", 3), "blue", "green", "black", "green","blue"),
-        pch = 19, xlab = "x", ylab = "y",
-        main = "gevcdn.bag (early stopping on)")
+gg.bag <- bag_ggplot()
+gg.bag5 <- bag_ggplot(1, 2)
 
-# With ggplot
-df.bag <- data.frame(year = x , obs = y, q.025 = rowMeans(q.025.on),
-                     q.10 = rowMeans(q.10.on), q.50 = rowMeans(q.50.on),
-                     q.90 = rowMeans(q.90.on), q.975 = rowMeans(q.975.on))
-col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
-gg.bag <- ggplot(df.bag, aes(x = year, y = obs)) +
-  geom_line() + geom_point() +
-  geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
-  geom_line(aes(y = q.50, col = "50%")) +
-  geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
-  geom_line(aes(y = q.10, col = "10% and 90%")) +
-  geom_line(aes(y = q.90, col = "10% and 90%")) +
-  scale_colour_manual(name = "Quantiles", values = col.quantiles) +
-  labs(title = "GEV-CDN bagging (early stopping, 2 hidden nodes) quantiles", y = "") +
-  theme_piss()
-gg.bag
+
+## Gather Nostationary 2 hidden layers model with and without bagging in one plot. 
+## See the over-complexity when no bagging step is made.
+
+gg.bag2 <- gg.bag + geom_line(data = ggcdn7[[2]], aes(x = year, y = q.025), col = "blue", linetype = "dashed") + 
+  geom_line(data = ggcdn7[[2]], aes(x = year, y = q.50), col = "red", linetype = "dashed") +
+  geom_line(data = ggcdn7[[2]], aes(x = year, y = q.975), col = "blue", linetype = "dashed") +
+  geom_line(data = ggcdn7[[2]], aes(x = year, y = q.10), col = "green", linetype = "dashed") +
+  geom_line(data = ggcdn7[[2]], aes(x = year, y = q.90), col = "green", linetype = "dashed") +
+  # scale_x_continuous(breaks = c(seq(1900,2000, by = 20)), 
+  #                    label = c(seq(1900,2000, by = 20))) + 
+  labs(title = "GEV-CDN (bagging) quantiles for model with 2 hidden nodes ", y = "") +
+       #subtitle = "Dashed lines represent the quantiles of the model with NO bagging : tendency to overfit is clear") +
+  theme(plot.subtitle = element_text(18, hjust = 0.5) )
+
 
 
 ## Together the GEV-CDN without and with bagging
 gridExtra::grid.arrange(gg.cdn, gg.bag, nrow = 1)
-PissoortThesis::grid_arrange_legend(gg.cdn, gg.bag)
+PissoortThesis::grid_arrange_legend(gg.cdn, gg.bag2)
 
 ## Comparison of the quantiles in one Figure :
 
@@ -688,7 +734,8 @@ boot.ci.Sig_Xi <- data.frame(sigma95_boot, sigma75_boot,
 
 ## Find the values of the confidence intervals for comparisons in Bayes_own_gev.R
 ## Parametric bootstrap
-cores <- parallel::detectCores()  ;   cl <- parallel::makeCluster(cores[1]-1)
+cores <- parallel::detectCores()  ;
+cl <- parallel::makeCluster(cores[1]-1)
 doParallel::registerDoParallel(cl)  ; n.boot <- 10  ;  M <- 50  ;  t <- proc.time()
 boot_par <- foreach::foreach(i = 1:M,
                              .packages = c("PissoortThesis", "GEVcdn"),
