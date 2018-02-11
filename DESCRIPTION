@@ -10,9 +10,8 @@ BugReports: http://github.com/proto4426/PissoortThesis/issues
 License: No license
 Encoding: UTF-8
 LazyData: true
-Imports: ggplot2, gridExtra, rmarkdown, RcppArmadillo, evd, evdbayes, ismev, MASS
-Depends: shiny, Rcpp
+Imports: ggplot2, gridExtra, rmarkdown, evd, evdbayes, ismev, MASS, Rcpp, RcppArmadillo
+Depends: shiny
 Suggests: knitr
-LinkingTo: Rcpp
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
