@@ -1,0 +1,975 @@
+---
+title: "Rainfall P50 EVT Analysis"
+author: "Antoine Pissoort"
+date: "September 15, 2017"
+output: 
+  html_document:  
+    css: style_bay.css
+    collapsed: yes # Crée un document unique 
+    fig_caption: yes # Figures encapsulées ? 
+    fig_height: 4.5 # Hauteur par défaut des figures
+    fig_width: 6.5 # Largeur par défaut des figure
+    theme: readable  # Style du document
+    highlight: tango # style de mise en valeur du code
+    code_folding: hide #  Cache le code  
+    number_sections: yes # Ajout table des matières 
+    toc: yes # Table des matière ?
+    toc_depth: 3  # Profondeur table des matière
+    toc_float: no # table des matière flottante
+#bibliography: sum.bib
+---
+
+# Preliminaries {-}
+
+```{r setup, include=F}
+knitr::opts_chunk$set(echo=TRUE, error=FALSE, cache = T, warning = F, message = F)
+```
+
+```{r, message = FALSE, cache = F}
+library(data.table)
+library(gridExtra)
+library(tidyverse)
+library(RColorBrewer)
+library(pander)
+library(knitr)
+library(mgcv)
+library(PissoortThesis)
+
+library(ggforce)
+library(xts)
+library(dygraphs)
+library(zoo)
+library(highcharter)
+
+# Apply the created theme to all ggplots without having to specify it !
+theme_set(PissoortThesis::theme_piss())
+```
+
+*Reading Data and preprocessing*
+
+```{r, cache = T}
+rain_1880 <- read.csv("data/P50_Uccle_1880.csv",
+                      sep = " ")
+names(rain_1880)[1] <- "Date"
+
+rain_1880$day <- substr(rain_1880$Date,7,8)
+rain_1880$month <- as.numeric(substr(rain_1880$Date,5,6))
+rain_1880$year <- substr(rain_1880$Date,1,4)
+
+# Retrieve seasons with our function. Based on meteorological seasons
+rain_1880$season <- sapply(rain_1880$month,
+                             function(x) PissoortThesis::func_season(x))
+
+rain_1901 <- rain_1880[rain_1880$year > 1900,]
+```
+
+*We take values onyly from 1901 in order to be consistent with the temperature analysis.*
+
+```{r, message=F, warning=F}
+rownames(rain_1901) <- 1:nrow(rain_1901)
+rain_1901$Date <- gsub('^(.{4})(.*)$', '\\1-\\2', rain_1901$Date)
+rain_1901$Date <- gsub('^(.{7})(.*)$', '\\1-\\2', rain_1901$Date)
+DT::datatable(rain_1901, caption = "DataTable representing the rainfall data we will analyze")
+```
+<br>
+**RR** is the colum of interest.
+
+<br>
+
+<center>
+**Dynamic graph of the time series of P50 precipitations (in mm)**
+</center>
+
+```{r, fig.width=9.5}
+rain_1901$Date <- as.Date(rain_1901$Date)
+xtdataw <- xts(rain_1901$RR, order.by =rain_1901$Date )
+dygraph(xtdataw) %>% dyRangeSelector()
+
+hc <- highchart() %>% hc_series(rain_1901$RR)
+  #hc
+```
+
+*You can select an area (i.e. period) of interest, or Reduce the window length by scrolling the below cursor, for your convenience (or select directly the area with your mouse). For example here, take the minimal length to have a good visualisation (it displays* $\approx$ *1,5 years)*
+
+# Introduction 
+
+We present the P50 rainfall data given by the IRM (C.Tricot). 
+
+## Visualization of the complete (daily) series [1901-2016] {.tabset}
+
+### Histogram {-}
+```{r, message=F}
+ggplot(rain_1901) + geom_histogram(aes(x = RR))
+```
+
+### Boxplots {-}
+```{r}
+ggplot(data=rain_1901, aes(group = month)) +
+  geom_boxplot(aes(x = month, y = RR)) 
+``` 
+
+### Densities by month {-}
+
+```{r, fig.width=8, fig.height = 7.5}
+ggplot(data = rain_1901, aes(RR, fill = as.factor(month), colour=as.factor(month))) +
+  geom_density(size = 0.8, alpha = .2) +
+  scale_color_discrete() +
+  scale_fill_discrete() + 
+  facet_zoom(x = (0 < RR  & RR < 4) )
+```
+
+### Violin-plot (seasons) {-}
+```{r, cache = T, fig.width=9.5, warning = F}
+## Violin-plots
+dodge <- position_dodge(width = 0.4)
+gv1 <- ggplot(rain_1901, aes(x = season, y = RR)) +
+  geom_jitter(color='red', size = .6, alpha=0.99,width = 0.2) +
+  geom_violin(fill = "lightseagreen", alpha=0.7, draw_quantiles = T,
+              position = dodge, width = 1.8) +
+  geom_boxplot(width=.06, outlier.colour=NA, position = dodge) +
+  labs(title = 'Violin-plots for  by seasons',
+       x = "Season", y = "mm") +
+  theme_piss( size_p = 16)
+gv1
+# !! same smoothing factor for all densities
+```
+
+
+### Densities (seasons) {-}
+```{r, cache = T, fig.width=9.5, warning = F, fig.height = 5}
+summer <- rain_1901[rain_1901$season == "Summer", ]
+spring <- rain_1901[rain_1901$season == "Spring", ]
+winter <- rain_1901[rain_1901$season == "Winter", ]
+autumn <- rain_1901[rain_1901$season == "Autumn", ]
+
+m_summer <- mean(summer$RR)
+m_spring =  mean(spring$RR)
+m_winter <- mean(winter$RR)
+m_autum <- mean(autumn$RR)
+
+gd1 <- ggplot(data=rain_1901, aes(RR, fill = season, colour = season)) +
+  geom_density(alpha = .1, size=1.1) +
+  scale_fill_brewer(palette = "Set1" )+
+  scale_color_brewer(palette= "Set1") +
+  geom_hline(yintercept=0, colour="white", size=1.1) +
+  labs(title = 'Kernel Densities for daily Max. P50 by seasons',
+       y = "Density", x = expression( mm)) +
+  theme_piss(legend.position = c(0.9, .82), size_p = 20, theme = theme_classic()) +
+  geom_vline(xintercept = m_summer, colour = "darkgreen", linetype = 2) +
+  geom_vline(xintercept = m_spring, colour = "blue", linetype = 2) +
+  geom_vline(xintercept = m_winter, colour = "violet", linetype = 2) +
+  geom_vline(xintercept = m_autum, colour = "red", linetype = 2)
+gd_small <- ggplot(data=rain_1901, aes(RR, fill = season, colour=season)) +
+  geom_density(alpha = .1, size=1.1) +
+  scale_fill_brewer(palette = "Set1" )+
+  scale_color_brewer(palette= "Set1") + coord_cartesian(xlim = c(0.15,7.5)) +
+  geom_hline(yintercept=0, colour="white", size=1.1) +
+  labs(title = "ZOOM", y = "", x = expression()) +
+  theme_piss(legend.position = "none", size_p = 16, theme = theme_classic()) +
+  geom_vline(xintercept = m_summer, colour = "darkgreen", linetype = 2) +
+  geom_vline(xintercept = m_spring, colour = "blue", linetype = 2) +
+  geom_vline(xintercept = m_winter, colour = "violet", linetype = 2) +
+  geom_vline(xintercept = m_autum, colour = "red", linetype = 2)
+
+
+vp <- grid::viewport(width = 0.65,
+               height = 0.55,
+               x = 0.55,
+               y = 0.45)
+gd1 
+print(gd_small, vp = vp) #+   facet_zoom(x = (0 < RR  & RR < 2) )
+## violin and density plots together
+#grid.arrange(gv1, gd1, nrow = 1)
+```
+
+## Same visualization with 0 removed {.tabset}
+
+<br>
+**Remove values of 0**
+
+```{r}
+rain_1901_gt0 <- rain_1901[rain_1901$RR>0,]
+```
+
+
+### Histogram {-}
+```{r, message=F}
+ggplot(rain_1901_gt0) + geom_histogram(aes(x = RR))
+```
+
+### Boxplots {-}
+```{r}
+ggplot(data=rain_1901_gt0, aes(group = month)) +
+  geom_boxplot(aes(x = month, y = RR)) 
+``` 
+
+### Densities by month {-}
+
+```{r, fig.height=7}
+ggplot(data = rain_1901_gt0, aes(RR, fill = as.factor(month), colour=as.factor(month))) +
+  geom_density(size = 0.6, alpha = .15) +
+  scale_color_discrete() +
+  scale_fill_discrete() + 
+  facet_zoom(x = (0 < RR  & RR < 10) )
+```
+
+
+
+
+
+# Taking the Annual Maximum
+
+<center>
+**Simple linear regression**
+</center>
+```{r}
+# block length : the usual method is one 1 year
+list_rain_by_years <- split(rain_1901, rain_1901$year)
+# Then, we have 116 years of data ! (1901 to 2016)
+
+## Retrieve the max (TN) in each year
+max_years <- PissoortThesis::yearly.extrm(list.y = list_rain_by_years, tmp = "RR")
+
+
+## Plot the yearly maxima together with some "usual" fitting methods :
+#linear regression, LOESS and broken linear regression
+Year <- max_years$df$Year
+lm1 <- lm(max_years$data ~ Year)
+lm1_1 <- lm1$coefficients[1]
+lm1_2 <- lm1$coefficients[2]
+sum_tab <- summary(lm1)
+# pander(broom::tidy(sum_tab))
+# pander(broom::glance(sum_tab))
+pander(sum_tab)
+```
+
+```{r}
+gg_trends <- ggplot(data = max_years$df,aes(x=Year,y=Max)) +
+  geom_line() + geom_point() +
+  geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
+  stat_smooth(method = "loess", se = F, aes(colour = 'LOESS')) +
+  labs(title = "Complete Serie of Annual TX in Uccle",
+       y = "Max (mm)", x = "year") +
+  theme(axis.line = element_line(color="#33666C", size = .45)) +
+  scale_colour_manual(name="Trend", values=c(Linear="blue",
+                                             BrokenLinear="cyan",
+                                             LOESS="red")) +
+  theme_piss(legend.position = c(.92, .12), size_p = 23) +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+gg_trends
+```
+
+## Visualization {.tabset}
+
+### Histogram {-}
+```{r, message=F}
+ggplot(data = max_years$df, aes(x=Max)) +
+  geom_histogram() 
+```
+
+### Density plots {-}
+```{r}
+ggplot(data = max_years$df, aes(x=Max)) +
+  geom_density() 
+```
+
+
+## Trend Analysis (GAM - Splines)
+
+Best model is without (auto)correlation in the residuals
+
+```{r}
+source('Funs_introSplines.R') ## Functions for this part
+
+#data(max_years)
+
+gam3 <- mgcv::gamm(Max ~ s(Year, k = 10), data = as.data.frame(max_years$df))
+#gam3 <- gam(Max ~ s(Year, k = 10), data = max_years$df)
+summary(gam3$gam)
+```
+
+Only one df. The smoother explains only $2\%$ of the variation.
+
+
+### Visualization {- .tabset}
+
+#### Draws from posterior{-}
+
+```{r, cache = T}
+set.seed(10)
+newd <- with(max_years$df, data.frame(Year = seq(min(Year), max(Year),
+                                                 length.out = length(max_years$data))))
+sims <- simulate(gam3, nsim = 10000, newdata = newd) 
+
+S <- 100
+sims2 <- setNames(data.frame(sims[, sample(1000, S)]), paste0("sim", seq_len(S)))
+sims2 <- setNames(stack(sims2), c("TmaX", "Simulation"))
+sims2 <- transform(sims2, Year = rep(newd$Year, S))
+ggplot(sims2, aes(x = Year, y = TmaX, group = Simulation)) +
+  geom_line(alpha = 0.3) + labs(y = "P50 (mm)")
+```
+
+
+#### Significant (pointwise) periods {-}
+ **Identifying periods of sgnificant changes in the series with GAM : **
+ 
+* Fit an additive model with seasonal and trend smooth and an MA(1) process for the residuals.
+* Code predicts from the model at 116 locations over the entire time series and generates a **pointwise**, approximate 95% confidence interval on the trend spline.
+```{r, fig.width=8}
+n <- 116  # Try more !!!!!!!!! ( But it does not change anything for sure)
+pdat <- with(max_years$df, data.frame(Year = seq(min(Year),max(Year),
+                                                 length = n)))
+p2 <- predict(gam3$gam, newdata = pdat, type = "terms", se.fit = TRUE)
+pdat <- transform(pdat, p2 = p2$fit[,1], se2 = p2$se.fit[,1])
+
+df.res <- df.residual(gam3$gam)
+crit.t <- qt(0.025, df.res, lower.tail = FALSE)
+pdat <- transform(pdat,
+                  upper = p2 + (crit.t * se2),
+                  lower = p2 - (crit.t * se2))
+
+Term <- "Year"
+gam3.d <- Deriv(gam3, n ) 
+# Why not 'tune', and inflate sample size to (perhaps) improve accuracy ??
+gam3.dci <- confint.Deriv(gam3.d, term = Term) # OK if look only at the interval for
+#single point in isolation but not if look at the entire spline => multiple comparisons issue
+gam3.dsig <- signifD(pdat$p2, d = gam3.d[[Term]]$deriv,
+                     gam3.dci[[Term]]$upper, gam3.dci[[Term]]$lower)
+df <- transform(max_years$df, TX_centered = Max - mean(Max), p2 = pdat$p2,
+                upper = pdat$upper, lower = pdat$lower,
+                increasing = unlist(gam3.dsig$incr), decreasing = unlist(gam3.dsig$decr))
+ggplot(df, aes(x = Year)) +
+  geom_point(aes(y = TX_centered), size = .9) +
+  geom_line(aes(y = TX_centered), size = .55) +
+  geom_line(aes(y = p2), size = 1, col = "green") +
+  geom_line(aes(y = increasing), col = "darkgreen", size = 1.5) +
+  geom_line(aes(y = decreasing), col = "darkgreen", size = 1.5) +
+  geom_ribbon(aes(ymax = upper, ymin = lower), alpha = 0.22, fill = "#33666C") +
+  labs(title = "Centered Maxima with fitted GAM",
+       y = expression(Centered ~ Max~(mm))) +
+  theme_piss()
+```
+
+
+
+#### Model's intervals {-}
+
+```{r, cache = T, fig.width=8}
+library(tsgam)   ;  
+gam3 <- mgcv::gam(Max ~ s(Year, k = 20), data = max_years$df, method = "REML")
+
+Vb <- vcov(gam3) # Bayesian covariance matrix of the model coefficients.
+pred <- predict(gam3, newd,  se.fit = T)
+se.fit <- pred$se.fit
+
+# to generate random values from a multivariate normal
+rmvn <- function(n, mu, sig) { ## MVN random deviates
+  L <- mroot(sig) ;   m <- ncol(L)
+  t(mu + L %*% matrix(rnorm(m*n), m, n))
+}
+set.seed(42)
+N <- 10000
+sims <- rmvn(N, mu =  rep(0, nrow(Vb)), sig = Vb)
+# compute \hat{f}(x)-f(x) which is  C_g%*%[\hat{beta}-beta, \hat{u}-u]
+Cg <- predict(gam3, newd, type = "lpmatrix")
+fits <- Cg %*% t(sims) # contains N draws from the posterior
+# Find absolute values of the standardized deviations from the true model
+absDev <- abs(sweep(fits, 1, se.fit, FUN = "/"))
+# Max of the absolute standardized dev. at the grid of x values for each simul
+masd <- apply(absDev, 2L, max)
+# Find the crit value used to scale standard errors to yield the simultaneous interval
+crit <- quantile(masd, prob = 0.95, type = 8) # = 2.9
+# compared with pointwise, it is now 2.9/1.96 ~ 1.5 times wider !
+# Now, compute and show the simultaneous confidence interval !
+pred <- transform(cbind(data.frame(pred), newd),
+                  uprP = fit + (qnorm(.975) * se.fit),
+                  lwrP = fit - (qnorm(.975) * se.fit),
+                  uprS = fit + (crit * se.fit),
+                  lwrS = fit - (crit * se.fit))
+
+sims2 <- rmvn(N, mu = coef(gam3), sig = Vb)
+fits2 <- Cg %*% t(sims2) 
+# First, we choose nrnd samples to represent it
+nrnd <- 50   ;  rnd <- sample(N, nrnd)
+stackFits <- stack(as.data.frame(fits2[, rnd]))
+stackFits <- transform(stackFits, Year = rep(newd$Year, length(rnd)))
+
+
+## COVERAGES 
+
+'inCI' <- function(x, upr, lwr) {
+  # =T if all evaluation points g lie within the interval and =F otherwise.
+  all(x >= lwr & x <= upr)
+}
+fitsInPCI <- apply(fits2, 2L, inCI, upr = pred$uprP, lwr = pred$lwrP)
+fitsInSCI <- apply(fits2, 2L, inCI, upr = pred$uprS, lwr = pred$lwrS)
+pointw_cov <- sum(fitsInPCI) / length(fitsInPCI)  # Point-wise
+simult_cov <- sum(fitsInSCI) / length(fitsInSCI)  # Simultaneous
+# As expected, poitwise is .62<0.95 and simultaneous is 0.955 !
+
+
+interval <- c("pointwise" =  "yellow", "simultaneous" = "darkred")
+
+ggplot(pred, aes(x = Year, y = fit)) +
+  geom_ribbon(aes(ymin = lwrS, ymax = uprS, fill = "simultaneous"), alpha = 0.4) +
+  geom_ribbon(aes(ymin = lwrP, ymax = uprP, fill = "pointwise"), alpha = 0.4) +
+  geom_path(lwd = 2) +
+  geom_path(data = stackFits, mapping = aes(y = values, x = Year, group = ind),
+            alpha = 0.5, colour = "grey20") +
+  #geom_point(data = max_years$df, aes(x = Year, y = Max)) + 
+  labs(y ="Max (mm)", x = "Year",
+       title = "Point-wise & Simultaneous 95% conf. intervals for fitted GAM",
+       subtitle = sprintf("Each line is one of %i draws from the posterior distribution of the model", nrnd)) +
+  annotate(geom = "text", label = paste("coverages", " are : \n", round(pointw_cov, 5), " for pointwise \n", "   ", round(simult_cov, 5), " for simultaneous"),
+           x = 1975, y = 28, col = "#33666C" , size = 4) +
+  scale_fill_manual(name = "Interval", values = interval) +
+  theme_piss(size_p = 15, legend.position = c(.888, .152)) + guides(colour = guide_legend(override.aes = list(size = 2))) #+ theme( plot.subtitle = text(12, hjust = 0.5, colour = "#33666C"))
+```
+
+
+
+####  Splines' Derivative{-}
+
+```{r, cache = T, fig.width=10, message=F}
+gam3.0 = gam3
+
+fd <- derivSimulCI(gam3.0, samples = 10000, n = 116) # See Fun.R
+
+CI <- apply(fd[[1]]$simulations, 1, quantile, probs = c(0.025, 0.975))
+sigD <- signifD(fd[["Year"]]$deriv, fd[["Year"]]$deriv, CI[2, ], CI[1, ],
+                eval = 0)
+newd <- transform(newd,
+                  derivative = fd[["Year"]]$deriv[, 1], # computed first derivative
+                  fdUpper = CI[2, ],                    # upper CI on first deriv
+                  fdLower = CI[1, ],                    # lower CI on first deriv
+                  increasing = sigD$incr,               # where is curve increasing?
+                  decreasing = sigD$decr)               # ... or decreasing?
+
+g_deriv_pointw <- ggplot(newd, aes(x = Year, y = derivative)) +
+  geom_ribbon(aes(ymax = fdUpper, ymin = fdLower), alpha = 0.3, fill = "grey") +
+  geom_line() + geom_hline(aes(yintercept = 0), col = "red") +
+  geom_line(aes(y = increasing), size = 1.5) +
+  geom_line(aes(y = decreasing), size = 1.5) +
+  ylab(expression(hat(f) * "'" * (Year))) +
+  labs(title = expression(paste(hat(f) * "'" * (Year), " of the fitted spline with .95 ", underline("pointwise"), " interval"))) +
+  coord_cartesian(ylim = c(-0.09,0.22)) + theme_piss(size_p = 12)
+
+n <- 500      # number of newdata values. This number is not very imoportant here
+EPS <- 1e-07  # finite difference
+newd <- with(max_years$df,
+             data.frame(Year = seq(min(Year), max(Year), length = n)))
+# See tsgam package
+fd <- fderiv(gam3.0, newdata = newd, eps = EPS, unconditional = F)
+sint <- confint(fd, type = "simultaneous", nsim = N)
+g_deriv_simult <-
+  ggplot(cbind(sint, Year = newd$Year), aes(x = Year, y = est)) +
+  geom_hline(aes(yintercept = 0), col = "red") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2) +
+  geom_line() + coord_cartesian(ylim = c(-0.09,0.22)) +
+  ylab(expression(hat(f) * "'" * (Year))) +
+  labs(title = expression(paste(hat(f) * "'" * (Year), " of the fitted spline with .95 ", underline("simultaneous"), " interval"))) +
+  theme_piss(size_p = 12)
+# Much wider than those obtained above !! See it :
+
+gridExtra::grid.arrange(g_deriv_pointw, g_deriv_simult, nrow = 1)
+```
+
+
+### Comments {-}
+
+* Even with a high amount of smoothing (controlled by the parameter $k$ of the smoothing splines), the fitted GAM's always keep a **linear** shape, in the sense that deviations from the model are attributed to noise here. This was not the case for the annual maximum temperature process.
+* Light and non-significant **linear increase** remains apparent for the annual maximum P50. However, significance of this trend is at the limit, and hence further investigations should be given. 
+
+
+## Block-maxima (GEV - stationary model)
+
+
+```{r, message=F, cache =T}
+library(evd)
+library(extRemes)
+library(ismev)
+
+gev_tx <- gev.fit(max_years$data,show = F)  # shape is 0.05
+gev_tx2 <- fevd(max_years$data, units = "deg C")
+#sum_gev <- broom::glance(summary(gev_tx2$results))
+#pander(gev_tx2$results$par)
+tab <- rbind.data.frame(gev_tx2$results$par, unname(gev_tx$se) )
+colnames(tab) <- c("Location", "Scale", "Shape")
+rownames(tab) <- c("Estimates", "Std.errors")
+pander(tab)
+```
+
+
+Testing the Gumbel distribution ($\xi=0$) hypothesis with LRT 
+```{r, cache = T}
+gev_gumb <- fevd(max_years$data, type="Gumbel", units="deg C")
+pander( lr.test(gev_gumb,gev_tx2) ) 
+```
+leads us to **not reject the Gumbel hypothesis** !
+
+### Diagnostics of the stationary model {.tabset}
+
+#### QQ&PP -plots {-}
+
+```{r, fig.width=9, cache = T}
+# get order statistics
+max_order <- sort(max_years$data)
+
+#  retrieve the the empirical distribution function
+empirical= c()
+for(i in 1:length(max_order)){
+  empirical[i] <- i/(length(max_years$data)+1)
+}
+#ecdf(max_data)
+
+# compute Distribution function of the modelled GEV
+GEV.DF <- function(data,mu,sigma,xi){
+  if(xi == 0)  GEV <- exp(-exp(-((data-mu)/sigma)))
+  else  GEV <- exp(-(1+xi*((data-mu)/sigma))^(-1/xi))
+ return(GEV)
+}
+
+model_est <- c()
+for(i in 1:length(max_order)){
+  model_est[i] <- GEV.DF(max_order[i], gev_tx$mle[1],
+                         gev_tx$mle[2], gev_tx$mle[3])
+}
+gg_pp <- ggplot(data = data.frame(empirical,model_est),
+                aes(x=empirical,y=model_est)) +
+  geom_point(shape = 1, col = "#33666C") +
+  geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +
+  labs(y = "Estimated proportions", x = "Empirical proportions") +
+  ggtitle("PP-plot")
+
+
+
+#################### QQ-plot ##################
+
+# Compute the quantile function (inverse of DF)
+model_quantile <- length(max_order)
+
+GEV.INV <- function(data, mu, sigma, xi){
+  if(xi==0){  INV <- mu - sigma * log(-log(1 - data))  }
+  else{ INV <- mu + (sigma/xi) * (((-log(data))^(-xi))-1)  }
+return(INV)
+}
+
+for(i in 1:length(max_order)){
+ model_quantile[i] <- GEV.INV(empirical[i], gev_tx$mle[1],
+                         gev_tx$mle[2], gev_tx$mle[3])
+}
+gg_qq <- ggplot(data=data.frame(model_quantile,max_order),
+                aes(x=max_order,y=model_quantile)) +
+  geom_point(shape = 1, col = "#33666C") +
+  geom_abline(intercept=0,slope=1,col="red") +
+  theme_piss(16, 11) +
+  labs(y = "Model quantile", x = "Empirical quantile") +
+  ggtitle("QQ-plot")
+
+gridExtra::grid.arrange(gg_qq,gg_pp, nrow = 1)
+```
+
+
+#### Return-Level & density plots {-}
+
+```{r, include = F}
+"gev.rl.gradient" <- function (est, p) {
+  scale <- est[2]  ;   shape <- est[3]
+  if (shape < 0)  zero.p <- p == 0
+  else   zero.p <- logical(length(p))
+  out <- matrix(NA, nrow = 3, ncol = length(p))
+  out[1, ] <- 1
+  if (any(zero.p)) {
+    out[2, zero.p & !is.na(zero.p)] <- rep(-shape^(-1),
+                                           sum(zero.p, na.rm = TRUE))
+    out[3, zero.p & !is.na(zero.p)] <- rep(scale * (shape^(-2)),
+                                           sum(zero.p, na.rm = TRUE))
+  }
+  if (any(!zero.p)) {
+    yp <- -log(1 - p[!zero.p])
+    out[2, !zero.p] <- -shape^(-1) * (1 - yp^(-shape))
+    out[3, !zero.p] <- scale * (shape^(-2)) * (1 - yp^(-shape)) -
+      scale * shape^(-1) * yp^(-shape) * log(yp)
+  }
+  return(out)
+}
+"rl_piss" <- function(est, mat, data, thm = theme_piss()){
+  f <- c(seq(0.01, 0.999, length = length(data)))
+  q <- ismev::gevq(est, 1 - f)
+  d <- t( gev.rl.gradient( est = est, p=1-f))
+  v <- apply(d, 1, ismev::q.form, m = mat)
+  df <- data.frame(y = -1/log(f), q = q,
+                   upp = q + 1.96 * sqrt(v), low = q - 1.96 * sqrt(v),
+                   point = -1/log((1:length(data))/(length(data) + 1)),
+                   pdat = sort(data))
+  return(df = df)
+}
+```
+
+```{r, fig.width=10, cache = T}
+# Return Levels and empirical Quantiles
+rl_df <- rl_piss(gev_tx$mle, gev_tx$cov, gev_tx$data)
+
+gg_rl1 <- ggplot(rl_df) + coord_cartesian(xlim = c(0.1, 1000)) +
+  scale_x_log10(breaks = c(0, 1,2, 5, 10,100, 1000), labels = c(0, 1, 2, 5, 10,100, 1000)) +
+  labs(title = " Return Level plot", x = "Year (log scale)", y = "Quantile") +
+  geom_point(aes(x = point, y = pdat), col = "#33666C", shape = 1) +
+  #geom_hline(yintercept = upp_endpoint, linetype = 2, col = "green3") +
+  geom_hline(yintercept = max(max_years$data), linetype = 2, size = 0.25) +
+  theme_piss()
+
+#intervals <- c( "Normal" = "red", "Prof.Likelihood" = "blue")
+gg_rl <- gg_rl1 +
+  ## Observations + Normal intervals
+  geom_line(aes(x = y, y = q), col = "#33666C") +
+  geom_line(aes( x = y, y = low, col = "Normal")) +
+  geom_line(aes (x = y, y = upp, col = "Normal")) +
+  # scale_colour_manual(name = "Intervals", values = intervals,
+  #                     guide = guide_legend(override.aes = list(
+  #                         linetype = c("solid", "blank"),
+  #                         shape = c(NA, 16),
+  #                         size = c(1.4, 3)) ) ) +
+  theme(legend.position = c(.89, .088)) 
+
+## Density plot
+
+x <- seq(min(max_years$data)-5, max(max_years$data)+5, length = length(max_years$data))
+weib_fit_dens <- evd::dgev(x,loc = gev_tx$mle[1],
+                           scale = gev_tx$mle[2], shape = gev_tx$mle[3])
+
+
+density <- c( "empirical" = "black", "fitted" = "green3")
+gg_ds <- ggplot(data.frame(x, weib_fit_dens, emp = max_years$data)) +
+  stat_density(aes(x = emp, col = "empirical"),
+               geom = "line", position = "identity") +
+  ggtitle("Empirical (black) vs fitted Weibull (green) density") +
+  geom_line(aes(x = x, y = weib_fit_dens, col = "fitted"))  +
+  #coord_cartesian(xlim = c(25, 39)) +
+  geom_vline(xintercept = min(max_years$data), linetype = 2) +
+  geom_vline(xintercept = max(max_years$data), linetype = 2) +
+  #geom_vline(xintercept = upp_endpoint['loc'], linetype = 2, col = "green3") +
+  theme_piss(17) + labs(x = "TX") +
+  scale_colour_manual(name = "Density", values = density) +
+  theme(legend.position = c(.915, .9))  +
+  guides(colour = guide_legend(override.aes = list(size = 2))) 
+
+gridExtra::grid.arrange(gg_rl, gg_ds, nrow = 1)
+```
+
+
+# NONSTATIONARY ANALYSIS 
+
+Since the goal is to check whether there is an increase in the rainfall data in Uccle - or any differences in the distributions of the data over time - we will test nonstatonary GEV models for a block-length of 1 year.
+
+
+```{r}
+ti <- matrix (ncol = 1, nrow = length(max_years$data))
+#ti[ ,1] <- rep(1, length(max_years$data))
+ti[ ,1] <- seq(1, length(max_years$data),1)
+gev_nonstatio <- ismev::gev.fit(max_years$data, ydat = ti , mul = c(1),show = F)
+# Value of b_1 is ~~the same than this obtained with linea regression
+
+# Comparing it with likelihood of stationary model
+gev_statio <- gev.fit(max_years$data, show = F)
+khi.obs <- 2 *( (-gev_nonstatio$nllh[1]) - (-gev_statio$nllh[1]) )
+pchisq(khi.obs, df = 1, lower.tail = F)
+# Not signigicant
+
+## More complex model ?  Quadratic model
+ti2 <- matrix(ncol = 2, nrow = length(max_years$data))
+#ti2[ ,1] <- rep(1, length(max_years$data))
+ti2[ ,1] <- seq(1, length(max_years$data), 1)
+ti2[ ,2] <- (ti2[,1])^2
+gev_nonstatio2 <- ismev::gev.fit(max_years$data, ydat = ti2, mul = c(1, 2),show = F)
+pchisq(2 *( (-gev_nonstatio2$nllh[1]) - (-gev_statio$nllh[1]) ), df = 2,
+       lower.tail = F)
+
+## 'Cubic' model ?
+# ti3 <- matrix(ncol = 3, nrow = length(max_years$data))
+# ti3[ ,1] <- seq(1, length(max_years$data), 1)
+# ti3[ ,2] <- (ti3[,1])^2
+# ti3[ ,3] <- (ti3[,1])^3
+# gev_nonstatio3 <- gev.fit(max_years$data/1000, ydat = ti3, mul = c(1, 2, 3))
+# gev_nonstatio3 <- PissoortThesis::gev.fit2(max_years$data, ydat = ti3,
+#                                            mul = c(1, 2, 3),
+#                                            browser = F, solve.tol = 1e-25,show = F)
+# pchisq(2 *( (-gev_nonstatio3$nllh[1]) - (-gev_statio$nllh[1]) ),
+#         df = 3, lower.tail = F)
+
+### Nonstationary scale parameter ?
+ti_sig <- matrix(ncol = 1, nrow = length(max_years$data))
+ti_sig[,1] <- seq(1, length(max_years$data), 1)
+gev_nstatio_scale <- ismev::gev.fit(max_years$data, ydat = ti_sig,
+                                    sigl = 1, siglink = exp,show = F)
+pchisq(2 *( (-gev_nstatio_scale$nllh[1]) - (-gev_statio$nllh[1]) ), df = 1,
+       lower.tail = F)
+# This is not significant
+
+## Linear trend with varying scale parameter
+ti_sig <- ti
+gev_nonstatio_sig <- ismev::gev.fit(max_years$data, ydat = ti_sig,
+                                    mul = c(1), sigl = c(1),show = F)
+pchisq(2 *( (-gev_nonstatio_sig$nllh[1]) - (-gev_statio$nllh[1]) ),
+       df = 2, lower.tail = F)
+# No reason to vary scale with time
+```
+
+
+For the same parametric models considered as for the annual maximum temperature process, we found **no significant parametric nonstationary GEV models**.
+
+In fact, the **Gumbel** model is the best. (only 2 parameters)
+
+## Neural Networks (GEV-CDN)
+
+```{r, results = "hide"}
+library(GEVcdn)
+
+## 1) Define the hierarchy of models of increasing complexity
+models <- list()
+# Stationary model
+models[[1]] <- list(Th = gevcdn.identity, beta.p = 9,  beta.q = 6,
+                    fixed = c("location", "scale", "shape"))
+# Linear models
+models[[2]] <- list(Th = gevcdn.identity, beta.p = 9,  beta.q = 6,
+                    fixed = c("shape","scale"))
+models[[3]] <- list(Th = gevcdn.identity, beta.p = 9,  beta.q = 6,
+                    fixed = c("shape"))
+models[[4]] <- list(Th = gevcdn.identity, beta.p = 9,  beta.q = 6 )
+# Nonlinear, 1 or 2 hidden nodes
+models[[5]] <- list(n.hidden = 1, beta.p = 9,  beta.q = 6,
+                    Th = gevcdn.logistic, fixed = c("shape", "scale"))
+models[[6]] <- list(n.hidden = 2, beta.p = 9,  beta.q = 6,
+                    Th = gevcdn.logistic, fixed = c("shape", "scale"))
+models[[7]] <- list(n.hidden = 1, beta.p = 9,  beta.q = 6,
+                    Th = gevcdn.logistic, fixed = c("shape"))
+models[[8]] <- list(n.hidden = 2, beta.p = 9,  beta.q = 6,
+                    Th = gevcdn.logistic, fixed = c("shape"))
+models[[9]] <- list(n.hidden = 1, beta.p = 9,  beta.q = 6,
+                    Th = gevcdn.logistic)
+models[[10]] <- list(n.hidden = 2, beta.p = 9,  beta.q = 6,
+                     Th = gevcdn.logistic)
+
+# Put the data to use in matrix x and y for ease of use inside GEVcdn framework
+x <- as.matrix(seq(1, length(max_years$data)))
+y <- as.matrix(max_years$data)
+
+
+## 2) Fit the models and retrieve the weights
+set.seed(123)
+weights.models <- list()
+for(i in seq_along(models)){
+  weights.models[[i]] <- invisible( PissoortThesis::gevcdn.fit2(x = x, y = y,
+                                                    n.trials = 1,
+                                              n.hidden = models[[i]]$n.hidden,
+                                              Th = models[[i]]$Th,
+                                              fixed = models[[i]]$fixed,silent = T )  )
+}
+## Select best model
+models.AICc <- round(sapply(weights.models, attr, which = "AICc"), 3)
+models.BIC <- round(sapply(weights.models, attr, which = "BIC"), 3)
+weights.best.aicc <- weights.models[[which.min(models.AICc)]]
+weights.best.bic <- weights.models[[which.min(models.BIC)]]
+parms.best <- gevcdn.evaluate(x, weights.best.bic)
+parms.best.aic <- gevcdn.evaluate(x, weights.best.aicc)
+
+
+```
+
+
+
+```{r, fig.height=8, fig.width=9}
+'gev_cdnFitPlot' <- function(parms.best, title){
+  x <- as.matrix(1901:2016) ; y <- as.matrix(max_years$data)
+   q.best <- sapply(c(0.025, 0.05, 0.1,  0.5, 0.9, 0.95, 0.975), qgev,
+                   location = parms.best[,"location"],
+                   scale = parms.best[,"scale"],
+                   shape = parms.best[,"shape"])
+  df <- data.frame(year = x , obs = y, q.025 = q.best[,1], q.05 = q.best[,2],
+                   q.10 = q.best[,3],
+                   q.50 = q.best[,4], q.90 = q.best[,5], q.975 = q.best[,7])
+  col.quantiles <- c("2.5% and 97.5%" = "blue", "10% and 90%" = "green", "50%" = "red")
+  gg.cdn <- ggplot(df, aes(x = year, y = obs)) +
+    geom_line() + geom_point() +
+    geom_line(aes(y = q.025, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.50, col = "50%")) +
+    geom_line(aes(y = q.975, col = "2.5% and 97.5%")) +
+    geom_line(aes(y = q.10, col = "10% and 90%")) +
+    geom_line(aes(y = q.90, col = "10% and 90%")) +
+    scale_colour_manual(name = "Quantiles", values = col.quantiles) +
+    labs(title = title,
+         y =  expression( Max~(T~degree*C))) +
+    theme_piss()
+  
+  return(list(gg.cdn, df))
+}
+
+gg.cdn <- gev_cdnFitPlot(parms.best = parms.best, title = "Model selected by BIC : varying location (1hidden) ")[[1]]
+gg.cdn.aic <- gev_cdnFitPlot(parms.best = parms.best.aic, title = "Model selected by AICC : varying scale & location (1hidden)")[[1]]
+
+grid.arrange(gg.cdn, gg.cdn.aic, nrow = 2)
+```
+
+
+Indeed, we see that with this flexible method, we find that nonstationary model is worth considering. Actually, the *GEV-CDN* framework highlights a **step-change** model after year $2000$. This is of course still a bit noisy having only $16$ years after the step-change.
+
+
+Since we saw that parametric models are not really relevant, we will not pursue the *Bayesian analysis* yet. 
+
+
+# Other : Max of weeks, months ; Moving Average
+
+## Different block-length {- .tabset}
+
+### Weekly Maxima {-}
+
+```{r, fig.width=8}
+# list_month <- split(rain_1901, as.factor(rain_1901$month))
+# max_month <- matrix(nrow = length(list_month[[1]]), ncol = 2)
+#     for (i in 1:nrow(max_month)) {
+#         max_month[i, 1] <- max(list_month[[i]]["RR"])
+#     }
+# max_month[, 2] <- rain_1901$month
+# colnames(max_years) <- c("Max", "Year")
+# max_data <- max_years[, "Max"]
+
+weeks <- (ceiling(length(rain_1901$RR)/7)-1)
+max_weeks <- data.frame(RR = numeric(weeks))
+for(i in 1:weeks) {
+  seqq <- (i*7+1):(i*7+7)
+  #print(seqq)
+  max_weeks$RR[i] <- max(rain_1901$RR[seqq])
+  max_weeks$Date[i] <- rain_1901$Date[seqq]
+}
+
+xtdataw <- xts(max_weeks$RR, order.by = seq.Date(as.Date("1901/01/01"), as.Date("2016/09/30"), length.out = nrow(max_weeks) ))
+dygraph(xtdataw, main = "Dynamic Time series of the weekly maxima") %>% dyRangeSelector()
+
+ggplot(max_weeks) + geom_histogram(aes(x = RR)) + labs(title = "Histogram of the weekly maxima") + theme_piss()
+```
+
+
+### Monthly Maxima {-}
+```{r, fig.width=8}
+months <- (ceiling(length(rain_1901$RR)/30)-1)
+max_month <- data.frame(RR = numeric(months))
+for(i in 1:months) {
+  seqq <- (i*30+1):(i*30+7)
+  #print(seqq)
+  max_month$RR[i] <- max(rain_1901$RR[seqq])
+  max_month$Date[i] <- rain_1901$Date[seqq[1]]
+}
+xtdataw <- xts(max_month$RR, order.by = seq.Date(as.Date("1901/01/01"), as.Date("2016/09/30"), length.out = nrow(max_month) ))
+dygraph(xtdataw, main = "Dynamic Time series of the monthly maxima") %>% dyRangeSelector()
+
+ggplot(max_month) + geom_histogram(aes(x = RR)) + labs(title = "Histogram of the monthly maxima") + theme_piss()
+```
+
+
+
+## Maxima of "5-days totals" {- .tabset}
+
+```{r}
+fivedays <- (ceiling(length(rain_1901$RR)/5)-1)
+tot_five <- data.frame(RR = numeric(fivedays))
+for(i in 1:fivedays) {
+  seqq <- (i*5+1):(i*5+7)
+  #print(seqq)
+  tot_five$RR[i] <- sum(rain_1901$RR[seqq])
+  tot_five$Date[i] <- rain_1901$Date[seqq[1]]
+}
+```
+
+Here, we computed the totals for every consecutive 5-days in the series. Hence, we are left with `ceiling(nrow(rain_1901)/5)` = `r ceiling(nrow(rain_1901)/5)` 
+
+### Time Series {-}
+```{r, fig.width=8}
+xtdataw <- xts(tot_five$RR, order.by = seq.Date(as.Date("1901/01/01"), as.Date("2016/09/30"), length.out = nrow(tot_five) ))
+dygraph(xtdataw, main = "Dynamic Time series of the 5-days totals") %>% dyRangeSelector()
+```
+
+
+### Histogram {-}
+```{r, fig.width=8}
+ggplot(tot_five) + geom_histogram(aes(x = RR)) + labs(title = "Histogram of the 5-days totals") + theme_piss()
+```
+
+
+
+### Monthly Maxima {-}
+We take only 6 samples to compute the maximum ... Convergence of Fisher-Tippett theorem can be poor.
+```{r, fig.width=8}
+months5 <- (ceiling(length(tot_five$RR)/6)-1)
+max_month5 <- data.frame(RR = numeric(months5))
+for(i in 1:months5) {
+  seqq <- (i*6+1):(i*6+7)
+  #print(seqq)
+  max_month5$RR[i] <- max(tot_five$RR[seqq])
+  max_month5$Date[i] <- tot_five$Date[seqq[1]]
+}
+xtdataw <- xts(max_month5$RR, order.by = seq.Date(as.Date("1901/01/01"), as.Date("2016/09/30"), length.out = nrow(max_month5) ))
+dygraph(xtdataw, main = "Dynamic Time series of monthly maxima from 5-days totals") %>% dyRangeSelector()
+
+ggplot(max_month5) + geom_histogram(aes(x = RR)) + labs(title = "Histogram of monthly maxima from 5-days totals") + theme_piss()
+```
+
+$\Rightarrow$ Distribution looks quite more (log-) Gaussian !
+
+
+### Annual Maxima {-}
+
+Here, 73 samples have been taken to compute the maximum ! 
+```{r, fig.width=8}
+# list_rain_by_years5 <- split(tot_five, rain_1901$year)
+# max_years5 <- PissoortThesis::yearly.extrm(list.y = list_rain_by_years5, Fun = "max", tmp = "RR")
+year5 <- (ceiling(length(tot_five$RR)/73)-1)
+max_year5 <- data.frame(RR = numeric(year5))
+for(i in 1:year5) {
+  seqq <- (i*73+1):(i*73+7)
+  #print(seqq)
+  max_year5$RR[i] <- max(tot_five$RR[seqq])
+  max_year5$Date[i] <- tot_five$Date[seqq[1]]
+}
+
+ggplot(data = max_year5,aes(x= 1902:2016,y=RR)) +
+  geom_line() + geom_point() +
+  geom_smooth(method='lm',formula=y~x, aes(colour = "Linear")) +
+  stat_smooth(method = "loess", se = F, aes(colour = 'LOESS')) +
+  labs(title = "Annual maxima of 5-days P50 totals in Uccle" ,
+       y = expression( max~(mm)), y = "Year") +
+  theme(axis.line = element_line(color="#33666C", size = .45)) +
+  scale_colour_manual(name="Trend", values=c(Linear="blue",
+                                             BrokenLinear="cyan",
+                                             LOESS="red")) +
+  theme_piss(legend.position = c(.92, .12), size_p = 21) +
+  guides(colour = guide_legend(override.aes = list(size = 2)))
+
+
+ggplot(max_year5) + geom_histogram(aes(x = RR)) + labs(title = "Histogram of the annual maxima from 5-days totals") + theme_piss()
+```
+
+
+
+## Moving Average 
+
+```{r, eval=F}
+require(smooth)
+require(Mcomp)
+library(forcats)
+str(M3$N2457$x)
+sma(ts(rain_1901$RR), h = 0)  # 12sec for 1000  (param=168)
+# 196
+
+ma7 <- sma(ts(rain_1901$RR), order = 7, h = 0)  # 12sec for 1000  (param=168)
+ma196 <- sma(ts(rain_1901$RR), order = 196, h = 0)  # 12sec for 1000  (param=168)
+str(ma196)
+
+ma(ts(rain_1901$RR), order = 1960)
+
+plot(ma196$fitted)
+data_ts <- ts(rain_1901$RR)
+plot(rollmean(data_ts, k = 196))
+```
+
+
+

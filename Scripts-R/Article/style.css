@@ -1,0 +1,179 @@
+/* Whole document: */
+body{
+  font-family: Helvetica;
+  font-size: 11pt;
+}
+/* Headers */
+h1,h2,h3,h4,h5,h6{
+  font-size: 20pt;
+}
+
+table {
+  border-collapse: collapse;
+      width: 120%;
+      /*background-color: #F2FFFF;*/
+      overflow-x: auto;
+}
+
+table, th, td {
+  overflow-x: auto;
+    /*  max-width: 0; */
+    border: 1px solid black;
+}
+.table-wrapper {
+  overflow: scroll;
+  border-right: 1px solid #ccc;
+}
+.pinned {
+  width: 30%;
+  border-right: 1px solid #ccc;
+  float: left;
+}
+.scrollable {
+  float: right;
+  width: 69%;
+  overflow: scroll;
+  overflow-x: scroll;
+}
+
+.table th:not([align]) {
+  text-align: left;
+}
+#rmd-source-code {
+  display: none;
+}
+
+.kable-table {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: auto;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin-bottom: 20px;
+  max-height: 350px;
+}
+
+.kable-table table {
+  margin-bottom: 0px;
+}
+
+.kable-table table>thead>tr>th {
+  border: none;
+  border-bottom: 2px solid #dddddd;
+}
+
+.kable-table table>thead {
+  background-color: #fff;
+}
+
+
+td {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+th, td {
+  max-width: 0;
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+}
+.pinned td {
+  position: relative;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: left;
+  overflow: hidden;
+}
+.pinned td.wrap {
+  white-space: normal;
+}
+td .outer {
+  position: relative;
+  height: 30px;
+}
+td .inner {
+  overflow: hidden;
+  white-space: nowrap;
+  position: absolute;
+  width: 100%;
+}
+.pinned td .inner.wrap {
+  white-space: normal;
+}
+
+td.columnA {
+    width: 25%;
+}
+td.columnB {
+    width: 65%;
+}
+
+th {
+   background-color: #F0F8FF;
+   color:  	black;
+}
+/*tr:hover {background-color: #F0F8FF} */
+/* responsive table ! */
+/*tr:nth-child(even){background-color: #f2f2f2}*/
+
+// General styles
+
+body {
+  padding: 0 2em;
+  font-family: Arial, sans-serif;
+  color: #024457;
+  background: #f2f2f2;
+}
+
+h1 {
+  font-family: Verdana;
+  font-weight: normal;
+  color: #024457;
+  span {color: #167F92;}
+}
+
+/* make the scrollbar for horizontal echos */
+pre, code {white-space:pre !important; overflow-x:scroll !important}
+/*pre, table {white-space:pre !important; overflow-x:scroll !important}
+
+/*table-wrapper
+/* Differentiate TOC levels more */
+.tocify .tocify-subheader .tocify-item {
+  font-size: 10px;
+  line-height: 1em;
+}
+
+/* Separate sections in the body more */
+.level2 { margin-bottom: 50px; }
+h3 { font-size: 20px; }
+
+/* Combine collapsed code with show/hide button */
+.code-folding-btn {
+  float: right !important;
+  margin-bottom: 0 !important;
+  width: 15%;
+  background-color: #f5f5f5;
+}
+.code-folding-btn span { font-size: 0; }
+.code-folding-btn span::before { font-size: 10.5px; }
+.code-folding-btn[aria-expanded = "false"] span::before {
+  content: '+  Show code  +';
+}
+.code-folding-btn[aria-expanded = "true"] span::before {
+  content: '-  Hide code  -';
+}
+.code-folding-btn[aria-expanded = "true"] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-style: none;
+}
+
+
+.r-code-collapse + .row { margin-top: 10px; }
+.r {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top-style: none;
+}
